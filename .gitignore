@@ -1,0 +1,16 @@
+# Local secrets and personal settings
+.env
+.env.*
+!.env.example
+*.local.json
+
+# Dependencies and generated packages
+node_modules/
+dist/
+release/
+*.zip
+
+# Local scratch and OS files
+work/
+Thumbs.db
+.DS_Store

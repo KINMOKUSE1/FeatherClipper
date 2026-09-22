@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>课程批量导入</title><link rel="stylesheet" href="course.css"></head>
+<body><main>
+  <header><div><p class="eyebrow">BILIBILI → OBSIDIAN</p><h1>整门课程，一次导入</h1></div><button id="settings" class="secondary">连接设置</button></header>
+  <p>按 P 保存原始字幕，再让 AI 按章整理。已有素材自动跳过。</p>
+  <section class="panel"><label for="url">课程链接 / BV 号</label><div class="row"><input id="url" placeholder="https://www.bilibili.com/video/BV…/"><button id="load">读取目录</button></div>
+  <label for="folder">Obsidian 原始素材目录</label><input id="folder" value="Clippings/Bilibili"><p id="destination" class="hint"></p></section>
+  <section id="course" hidden>
+    <div class="course-head"><h2 id="title"></h2><span id="count"></span></div>
+    <p class="hint">章节号取自视频标题开头，可直接修改。0 表示未分章，默认不勾选；序号跳号不会被当作缺失视频。</p>
+    <div class="toolbar"><label for="filter">章节</label><select id="filter"><option value="all">全部章节</option></select><button id="select" class="secondary">只选当前列表</button><button id="clear" class="secondary">取消当前列表</button></div>
+    <div class="table-wrap"><table><thead><tr><th>导入</th><th>P</th><th>标题</th><th>章节号</th><th>状态</th></tr></thead><tbody id="parts"></tbody></table></div>
+    <div class="bottom"><progress id="progress" value="0" max="1"></progress><div class="row"><button id="start">导入所选分 P</button><button id="retry" class="secondary">重试失败 / 无字幕项</button><button id="stop" class="secondary" disabled>停止</button></div>
+    <p class="hint">请保持本页打开；可以切换到其他标签页。关闭后可重新读取同一课程继续导入。停止会等待当前 P 完成。</p></div>
+  </section>
+  <p id="status" role="status" aria-live="polite">先打开并登录 B站，再读取课程目录。</p>
+</main><script src="course-core.js"></script><script src="course.js"></script></body></html>
