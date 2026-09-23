@@ -1,427 +1,125 @@
-const el = {
-  status: document.getElementById("status"),
-  message: document.getElementById("message"),
-  propTitle: document.getElementById("propTitle"),
-  propUrl: document.getElementById("propUrl"),
-  propCreated: document.getElementById("propCreated"),
-  propTags: document.getElementById("propTags"),
-  subtitleSelect: document.getElementById("subtitleSelect"),
-  preview: document.getElementById("preview"),
-  refreshBtn: document.getElementById("refreshBtn"),
-  copyBtn: document.getElementById("copyBtn"),
-  downloadBtn: document.getElementById("downloadBtn"),
-  sendBtn: document.getElementById("sendBtn"),
-  readingViewBtn: document.getElementById("readingViewBtn"),
-  aiBtn: document.getElementById("aiBtn"),
-  settingsBtn: document.getElementById("settingsBtn")
-};
-
-let latestPayload = null;
-const EXPECTED_CONTENT_SCRIPT_VERSION = chrome.runtime.getManifest().version || "";
-const DEFAULT_SETTINGS = {
-  downloadFormat: "srt"
-};
-
-function formatLocalDate(value = Date.now()) {
-  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const $ = id => document.getElementById(id);
+let meta = null, page = null, base = "", settings = null, jobKey = "";
+let busy = false, reading = false, previewing = false, hasSubtitle = false;
+function status(text, error = false) {
+  $("status").textContent = text; $("status").classList.toggle("error", error);
 }
-
-init().catch((error) => {
-  setStatus(`初始化失败：${error.message}`, true);
+async function send(message) {
+  const result = await chrome.runtime.sendMessage(message);
+  if (!result?.ok) throw new Error(result?.error || "扩展连接中断，请重新打开窗口。");
+  return result;
+}
+function controls() {
+  $("read").disabled = $("url").disabled = busy || reading || previewing;
+  $("import").disabled = busy || reading || previewing || !page || !hasSubtitle || !settings?.hasApiKey;
+  $("import").textContent = busy ? "正在导入…" : page ? `导入 P${page.page}` : "导入当前视频";
+  $("refresh-preview").disabled = busy || reading || previewing;
+  $("settings").disabled = busy || reading || previewing || !settings;
+  $("workspace").disabled = busy || reading;
+}
+function showJob(state) {
+  busy = state?.status === "running";
+  const text = { running: "正在导入，收起窗口后会继续。", saved: "已导入 Obsidian，课程清单已更新。", exists: "字幕已存在，已跳过；课程清单已更新。", missing: "这个视频没有可用字幕。" }[state?.status];
+  if (text || state?.error) status(text || state.error, state?.status === "failed");
+  controls();
+}
+async function refreshSettings() {
+  settings = (await send({ type: "settings-get" })).settings;
+  $("settings").textContent = settings.hasApiKey ? "连接设置" : "配置 Obsidian";
+  controls();
+}
+async function preview() {
+  previewing = true; hasSubtitle = false; controls();
+  $("subtitle-info").textContent = "正在读取字幕…"; $("subtitles").textContent = "";
+  try {
+    const result = await send({ type: "course-request", action: "preview", meta, page });
+    hasSubtitle = Boolean(result.body?.length);
+    $("subtitle-info").textContent = hasSubtitle ? `${result.track.lanDoc || result.track.lan} · 预览前 ${Math.min(12, result.body.length)} 条，导入时保存完整字幕` : "未找到可用字幕";
+    if (!hasSubtitle) $("subtitles").textContent = "可先在 B站确认这个视频是否提供字幕。";
+    for (const item of (result.body || []).slice(0, 12)) {
+      const line = document.createElement("p"), time = document.createElement("time");
+      time.textContent = new Date(Math.floor(item.from) * 1000).toISOString().slice(11, 19);
+      line.append(time, document.createTextNode(item.content)); $("subtitles").append(line);
+    }
+  } catch (error) { $("subtitle-info").textContent = "字幕读取失败"; $("subtitles").textContent = error.message; }
+  finally { previewing = false; controls(); }
+}
+async function loadVideo() {
+  if (busy || reading || previewing) return;
+  const source = $("url").value.trim();
+  const bvid = source.match(/BV[0-9A-Za-z]+/)?.[0];
+  if (!bvid) { status("请粘贴 B站视频链接或 BV 号。", true); return; }
+  let number = 1;
+  if (source.startsWith("http")) {
+    try { number = Math.max(1, Number(new URL(source).searchParams.get("p")) || 1); } catch { /* A BV alone also works. */ }
+  }
+  reading = true; page = null; jobKey = ""; hasSubtitle = false; controls();
+  $("video").hidden = true; status("正在识别视频…");
+  try {
+    const data = await send({ type: "course-request", action: "meta", bvid });
+    meta = data.meta; page = meta.pages.find(item => item.page === number);
+    if (!page) throw new Error(`课程中没有 P${number}，请核对链接。`);
+    const baseKey = `boc-course-base:${meta.bvid}`;
+    base = (await chrome.storage.local.get(baseKey))[baseKey] || data.folder;
+    $("course-name").textContent = `${meta.title} · 共 ${meta.pages.length} P`;
+    $("part-name").textContent = `P${page.page} · ${page.part}`;
+    $("folder").textContent = base; $("folder").title = CourseCore.courseFolder(meta, base);
+    $("video").hidden = false;
+    status(settings.hasApiKey ? "" : "先配置 Obsidian 连接，即可导入。");
+    const job = await send({ type: "quick-status", bvid: meta.bvid, cid: page.cid, base });
+    jobKey = job.key; showJob(job.state);
+    await preview();
+  } catch (error) { page = null; status(error.message, true); }
+  finally { reading = false; controls(); }
+}
+$("source-form").addEventListener("submit", event => { event.preventDefault(); loadVideo(); });
+$("refresh-preview").addEventListener("click", preview);
+$("import").addEventListener("click", async () => {
+  if ($("import").disabled) return;
+  showJob({ status: "running" });
+  try { showJob(await send({ type: "quick-import", bvid: meta.bvid, cid: page.cid, meta, base })); }
+  catch (error) { showJob({ status: "failed", error: error.message }); }
 });
-
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && jobKey && changes[jobKey]) showJob(changes[jobKey].newValue);
+});
+$("workspace").addEventListener("click", async () => {
+  const target = new URL(chrome.runtime.getURL("course.html"));
+  if (meta && page) { target.searchParams.set("bvid", meta.bvid); target.searchParams.set("p", page.page); }
+  await chrome.tabs.create({ url: target.href }); window.close();
+});
+$("settings").addEventListener("click", () => {
+  $("api-url").value = settings.obsidianApiBaseUrl; $("api-key").value = "";
+  $("api-key").placeholder = settings.hasApiKey ? "已保存，留空保留原 Key" : "粘贴 Local REST API Key";
+  $("note-folder").value = settings.noteFolder; $("settings-status").textContent = "";
+  $("clipper").hidden = true; $("connection").hidden = false;
+});
+$("back").addEventListener("click", () => { $("connection").hidden = true; $("clipper").hidden = false; });
+async function saveSettings(testOnly) {
+  const ids = ["test", "save", "api-url", "api-key", "note-folder", "back"];
+  ids.forEach(id => $(id).disabled = true);
+  $("settings-status").textContent = testOnly ? "正在测试连接…" : "正在保存…";
+  try {
+    await send({ type: testOnly ? "settings-test" : "settings-save", settings: { obsidianApiBaseUrl: $("api-url").value, obsidianApiKey: $("api-key").value, noteFolder: $("note-folder").value } });
+    if (testOnly) $("settings-status").textContent = "连接成功，请保存设置。";
+    else {
+      $("api-key").value = ""; await refreshSettings();
+      $("connection").hidden = true; $("clipper").hidden = false;
+      if (page) await loadVideo(); else status("连接设置已保存，读取视频后即可导入。");
+    }
+  } catch (error) { $("settings-status").textContent = error.message; }
+  finally { ids.forEach(id => $(id).disabled = false); }
+}
+$("test").addEventListener("click", () => saveSettings(true));
+$("save").addEventListener("click", () => saveSettings(false));
 async function init() {
-  bindEvents();
-  await refreshFromTab();
-}
-
-function bindEvents() {
-  document.getElementById("courseBtn").addEventListener("click", async () => {
-    const tab = await getActiveTab();
-    const bvid = String(tab?.url || "").match(/BV[0-9A-Za-z]+/)?.[0] || "";
-    await chrome.tabs.create({ url: chrome.runtime.getURL("course.html") + (bvid ? `?bvid=${encodeURIComponent(bvid)}` : "") });
-  });
-  el.refreshBtn.addEventListener("click", async () => {
-    await refreshFromTab();
-  });
-
-  el.copyBtn.addEventListener("click", async () => {
-    const payload = await ensurePayload();
-    if (!payload?.markdown) {
-      setMessage("没有可复制内容，请先刷新。");
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(payload.markdown);
-      setMessage("已复制完整 Markdown。");
-    } catch (error) {
-      setMessage(`复制失败：${error?.message || "无法访问剪贴板"}`);
-    }
-  });
-
-  el.downloadBtn.addEventListener("click", async () => {
-    const payload = await ensurePayload();
-    const settings = await getSettingsFromRuntime();
-    const format = normalizeDownloadFormat(settings?.downloadFormat || payload?.downloadFormat);
-    const content =
-      format === "txt" ? payload?.txt || payload?.subtitlePreview || "" : payload?.srt || "";
-    if (!content) {
-      setMessage("没有可下载字幕。");
-      return;
-    }
-    const safeTitle = sanitizeFileName(payload.title || "bilibili-subtitle");
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${safeTitle}.${format}`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-    setMessage(`已下载 ${format.toUpperCase()}。`);
-  });
-
-  el.sendBtn.addEventListener("click", async () => {
-    setStatus("正在发送到 Obsidian...");
-    const resp = await sendToContent({ type: "popup-send-obsidian" });
-    if (!resp?.ok) {
-      setStatus(`发送失败：${resp?.error || "未知错误"}`, true);
-      setMessage(`发送失败：${resp?.error || "未知错误"}`);
-    }
-    render(resp?.payload || latestPayload);
-  });
-
-  el.readingViewBtn?.addEventListener("click", async () => {
-    const tab = await getActiveTab();
-    if (!isSupportedSubtitlePage(tab?.url || "")) {
-      setMessage("请先打开一个 B 站视频页。");
-      return;
-    }
-
-    const prepResp = await sendToContent({ type: "popup-get-state" });
-    if (!prepResp?.ok) {
-      setStatus(prepResp?.error || "请刷新浏览器网页重试，或当前网页不支持", true);
-      setMessage(prepResp?.error || "请刷新浏览器网页重试，或当前网页不支持");
-      return;
-    }
-
-    setStatus("正在打开阅读视图...");
-    const resp = await sendToRuntime({
-      type: "open-reading-view-tab",
-      url: tab.url,
-      tabId: tab.id
-    });
-    if (!resp?.ok) {
-      setStatus(`打开失败：${resp?.error || "未知错误"}`, true);
-      setMessage(`打开失败：${resp?.error || "未知错误"}`);
-      return;
-    }
-    setMessage("已在当前页面打开阅读视图。");
-    setStatus("阅读视图已打开。");
-    window.setTimeout(() => window.close(), 80);
-  });
-
-  el.subtitleSelect.addEventListener("change", async (event) => {
-    const option = event.target.options[event.target.selectedIndex];
-    const url = String(option?.value || "");
-    if (!url) {
-      return;
-    }
-    setStatus("正在切换字幕...");
-    const resp = await sendToContent({
-      type: "popup-select-subtitle",
-      url,
-      lang: String(option.dataset.lang || "unknown"),
-      subtitleId: String(option.dataset.id || "")
-    });
-    if (!resp?.ok) {
-      setStatus(`切换失败：${resp?.error || "未知错误"}`, true);
-      setMessage(`切换失败：${resp?.error || "未知错误"}`);
-    }
-    render(resp?.payload || latestPayload);
-  });
-
-  el.settingsBtn.addEventListener("click", async () => {
-    await sendToRuntime({ type: "open-options" });
-  });
-
-  el.aiBtn?.addEventListener("click", async () => {
-    try {
-      if (globalThis.browser?.sidebarAction?.open) {
-        globalThis.browser.sidebarAction.open();
-        window.setTimeout(() => window.close(), 80);
-        return;
-      }
-
-      const tab = await getActiveTab();
-      if (!tab?.id) {
-        setStatus("找不到当前标签页。", true);
-        setMessage("找不到当前标签页。");
-        return;
-      }
-
-      if (chrome.sidePanel?.open) {
-        await chrome.sidePanel.open({ tabId: tab.id });
-      } else {
-        throw new Error("当前浏览器不支持扩展侧边栏");
-      }
-      window.setTimeout(() => window.close(), 80);
-    } catch (error) {
-      setStatus(`打开侧边栏失败：${error?.message || error}`, true);
-      setMessage(`打开侧边栏失败：${error?.message || error}`);
-    }
-  });
-}
-
-async function refreshFromTab() {
-  setStatus("正在抓取...");
-  const resp = await sendToContent({ type: "popup-refresh" });
-  if (!resp?.ok) {
-    const errorText = (resp?.error || "请在 B 站视频页使用。").replace(
-      "请刷新浏览器网页重试，或当前网页不支持",
-      "请刷新网页重试，或当前网页不支持"
-    );
-    setStatus(`抓取失败：${errorText}`, true);
-    render(resp?.payload || latestPayload, { preserveStatus: true });
-    return;
-  }
-  render(resp?.payload || latestPayload);
-}
-
-async function ensurePayload() {
-  if (latestPayload) {
-    return latestPayload;
-  }
-  const resp = await sendToContent({ type: "popup-get-state" });
-  if (resp?.ok && resp.payload) {
-    latestPayload = resp.payload;
-  }
-  return latestPayload;
-}
-
-function render(payload, { preserveStatus = false } = {}) {
-  if (!payload) {
-    return;
-  }
-  latestPayload = payload;
-
-  if (!preserveStatus) {
-    const statusText = String(payload.status || "准备就绪");
-    const isErrorStatus = /失败|错误|不可用|不支持/.test(statusText);
-    setStatus(statusText, isErrorStatus);
-  }
-  setMessage(payload.message || "");
-
-  setText(el.propTitle, payload.title || "-");
-  setText(el.propUrl, payload.url || "-");
-  setText(el.propCreated, formatLocalDate());
-  setText(el.propTags, payload.tags || "clippings");
-  el.propTitle.title = payload.title || "";
-  el.propUrl.title = payload.url || "";
-
-  const options = payload.subtitleOptions || [];
-  if (options.length === 0) {
-    el.subtitleSelect.innerHTML = '<option value="">暂无字幕</option>';
-    el.subtitleSelect.disabled = true;
-  } else {
-    el.subtitleSelect.innerHTML = options
-      .map((item) => {
-        const selected = item.selected ? "selected" : "";
-        const aiTag = item.isAi ? " [AI]" : "";
-        return `<option value="${escapeHtml(item.url)}" data-id="${escapeHtml(
-          item.id || ""
-        )}" data-lang="${escapeHtml(item.lang || "")}" ${selected}>${escapeHtml(
-          `${item.lang || "unknown"}${aiTag}`
-        )}</option>`;
-      })
-      .join("");
-    el.subtitleSelect.disabled = false;
-  }
-
-  el.preview.value = payload.subtitlePreview || "";
-}
-
-function setText(node, text) {
-  node.textContent = String(text || "");
-}
-
-function setStatus(text, isError = false) {
-  el.status.textContent = String(text || "");
-  el.status.classList.toggle("is-error", Boolean(isError));
-}
-
-function setMessage(text) {
-  el.message.textContent = String(text || "");
-}
-
-function sanitizeFileName(value) {
-  return String(value || "subtitle")
-    .replace(/[\\/:*?"<>|]/g, "_")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 120);
-}
-
-function normalizeDownloadFormat(value) {
-  return value === "txt" ? "txt" : "srt";
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
-async function getActiveTab() {
-  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-  return tabs?.[0] || null;
-}
-
-async function getActiveTabId() {
-  const tab = await getActiveTab();
-  return tab?.id || null;
-}
-
-async function sendToContent(message) {
-  const tab = await getActiveTab();
-  const tabId = tab?.id || null;
-  if (!tabId) {
-    throw new Error("找不到当前标签页");
-  }
-
+  await refreshSettings();
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   try {
-    return await sendMessageToTab(tabId, message);
-  } catch (error) {
-    if (shouldRetryAfterInjection(error) && isSupportedSubtitlePage(tab?.url || "")) {
-      try {
-        await ensureContentScriptReady(tabId);
-        await sleep(80);
-        return await sendMessageToTab(tabId, message);
-      } catch (retryError) {
-        error = retryError;
-      }
+    const url = new URL(tab?.url);
+    if (url.hostname === "www.bilibili.com" && /^\/video\/BV[0-9A-Za-z]+/.test(url.pathname)) {
+      $("url").value = url.href; await loadVideo();
     }
-
-    const normalizedError = normalizeContentErrorMessage(error);
-    setStatus("请在 B 站视频页使用插件。");
-    setMessage(normalizedError);
-    return { ok: false, error: normalizedError, payload: latestPayload };
-  }
+  } catch { /* Non-video tabs use the manual input. */ }
 }
-
-function normalizeContentErrorMessage(error) {
-  const message = String(error?.message || "").trim();
-  if (message.includes("Could not establish connection. Receiving end does not exist.")) {
-    return "请刷新浏览器网页重试，或当前网页不支持";
-  }
-  return message || "未知错误";
-}
-
-function shouldRetryAfterInjection(error) {
-  const message = String(error?.message || "");
-  return message.includes("Could not establish connection. Receiving end does not exist.");
-}
-
-function isSupportedSubtitlePage(url) {
-  try {
-    const parsed = new URL(String(url || ""));
-    if (parsed.hostname !== "www.bilibili.com") {
-      return false;
-    }
-    return parsed.pathname === "/list/watchlater" ||
-      parsed.pathname === "/list/watchlater/" ||
-      parsed.pathname.startsWith("/video/");
-  } catch {
-    return false;
-  }
-}
-
-async function ensureContentScriptReady(tabId) {
-  if (!chrome.scripting) {
-    throw new Error("请刷新浏览器网页重试，或当前网页不支持");
-  }
-
-  const loadedVersion = await probeContentScriptVersion(tabId);
-  if (loadedVersion === EXPECTED_CONTENT_SCRIPT_VERSION) {
-    return;
-  }
-
-  await chrome.scripting.insertCSS({
-    target: { tabId },
-    files: ["content.css"]
-  });
-
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      files: ["content.js"]
-    });
-  } catch (error) {
-    const message = String(error?.message || "");
-    if (!message.includes("Identifier 'DEFAULT_SETTINGS' has already been declared")) {
-      throw error;
-    }
-  }
-
-  const reinjectedVersion = await probeContentScriptVersion(tabId);
-  if (reinjectedVersion !== EXPECTED_CONTENT_SCRIPT_VERSION) {
-    throw new Error("扩展刚更新，请刷新当前页面后重试。");
-  }
-}
-
-async function probeContentScriptVersion(tabId) {
-  try {
-    const probe = await chrome.scripting.executeScript({
-      target: { tabId },
-      func: () => globalThis.__BOC_CONTENT_SCRIPT_LOADED__ || ""
-    });
-    return String(probe?.[0]?.result || "");
-  } catch {
-    return "";
-  }
-}
-
-async function sendMessageToTab(tabId, message) {
-  return new Promise((resolve, reject) => {
-    chrome.tabs.sendMessage(tabId, message, (resp) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-        return;
-      }
-      resolve(resp);
-    });
-  });
-}
-
-async function sleep(ms) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
-async function sendToRuntime(message) {
-  return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(message, (resp) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-        return;
-      }
-      resolve(resp);
-    });
-  });
-}
-
-async function getSettingsFromRuntime() {
-  try {
-    const resp = await sendToRuntime({ type: "get-settings" });
-    if (!resp?.ok) {
-      return { ...DEFAULT_SETTINGS };
-    }
-    return { ...DEFAULT_SETTINGS, ...(resp.settings || {}) };
-  } catch {
-    return { ...DEFAULT_SETTINGS };
-  }
-}
+init().catch(error => status(error.message, true));

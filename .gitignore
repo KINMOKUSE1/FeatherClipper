@@ -9,6 +9,7 @@ node_modules/
 dist/
 release/
 *.zip
+!extension/learning-kit.zip
 
 # Local scratch and OS files
 work/

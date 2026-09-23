@@ -44,11 +44,29 @@
       ...body.map(item => `[${timestamp(item.from)}](${videoUrl(meta, page)}&t=${Math.floor(item.from)}) ${String(item.content).replace(/\r?\n/g, " ")}`), ""].join("\n");
   }
   function tableText(value) { return String(value || "").replace(/\|/g, "\\|").replace(/[\r\n]/g, " "); }
+  function buildStudyPrompt(meta, pages, base, currentPage) {
+    const folder = normalizeFolder(base);
+    const selected = pages.filter(page => page.selected);
+    const targets = selected.length ? selected : pages.filter(page => page.page === currentPage);
+    const lines = ["请按我的个人学习规则，以及学习指南和笔记模板整理课程素材。已安装 course-notes 技能时使用该技能。",
+      `学习文档：${folder}/学习工作流/WORKFLOW.md 与 NOTE_TEMPLATE.md。`];
+    if (meta && targets.length) {
+      lines.push(`课程：${meta.title}`, `课程清单：${courseFolder(meta, folder)}/课程导入清单.md`,
+        `本次范围：${targets.map(page => `P${page.page}`).join("、")}。`,
+        ...targets.map(page => `- P${page.page} ${page.part}：${rawPath(meta, page, folder)}`),
+        "核对这些文件的实际可用情况。按清单中的章节组织笔记，限于上述 P；部分章节注明覆盖范围，未分章视频各自整理。");
+    } else {
+      lines.push("课程目录：[填写已导入课程的目录]", "本次范围：[填写章号、P序号或文件名]");
+    }
+    lines.push("保留教师例题的具体数据、代码、推导与结论，附来源、自测题和答案。缺少的板书、公式或题干列为待核实。保留已有批注，按个人目录保存笔记并更新整理进度。",
+      "使用本地工具时读取上述文件；使用聊天工具时，我会一并上传或粘贴文档与素材。");
+    return lines.join("\n");
+  }
   function buildIndex(meta, pages, base) {
     const lines = [marker, `# ${meta.title} · 课程导入清单`, "", "> 此文件由批量导入器更新。学习批注请写入最终章节笔记。", "",
       `课程：[${meta.bvid}](https://www.bilibili.com/video/${meta.bvid}/)`, `更新：${new Date().toISOString()}`, "",
       "原始字幕按 CID 保存，文件名不随分 P 排序变化。分章以本清单为准。", "",
-      "在 Obsidian 中交给 AI：请先阅读 Clippings/CLAUDE.md，再按这份清单整理指定章节，每章一篇笔记；列明缺失素材。", ""];
+      "下一步：在导入器点击“开始整理笔记”，保存学习指南与模板，或下载 course-notes 技能。将本清单与指定范围的字幕交给你选择的 AI，按章整理学习笔记。", ""];
     const chapters = [...new Set(pages.map(p => p.chapter))].sort((a, b) => Number(a) - Number(b));
     for (const chapter of chapters) {
       lines.push(`## ${chapterLabel(chapter)}`, "", "| P | 标题 | 状态 | 原始素材 |", "|---|---|---|---|");
@@ -63,6 +81,6 @@
     }
     return lines.join("\n");
   }
-  root.CourseCore = { marker, safeName, normalizeFolder, chapterOf, chapterLabel, courseFolder, rawPath, videoUrl, buildRaw, buildIndex };
+  root.CourseCore = { marker, safeName, normalizeFolder, chapterOf, chapterLabel, courseFolder, rawPath, videoUrl, buildRaw, buildIndex, buildStudyPrompt };
   if (typeof module !== "undefined") module.exports = root.CourseCore;
 })(globalThis);

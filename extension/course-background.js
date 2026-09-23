@@ -15,7 +15,9 @@ async function courseBiliJson(url) {
   return payload;
 }
 async function courseLocalRequest(filepath, method = "GET", content) {
-  const settings = await getMergedSettings();
+  let settings;
+  try { settings = normalizeConnection(await getMergedSettings()); }
+  catch (error) { error.fatal = true; throw error; }
   if (!settings.obsidianApiBaseUrl || !settings.obsidianApiKey) {
     const error = new Error("请先在设置中填写 Obsidian Local REST API 地址和 Key。");
     error.fatal = true;
@@ -77,7 +79,26 @@ async function handleCourseMessage(message) {
     const folder = String(settings.noteFolder || "Clippings/Bilibili").replace(/\{\{created\}\}/g, formatLocalDate()).replace(/\{\{upload_date\}\}/g, formatLocalDate(data.pubdate * 1000)).replace(/\{\{author\}\}/g, CourseCore.safeName(data.owner?.name)).replace(/\{\{bvid\}\}/g, message.bvid);
     return { meta: { bvid: data.bvid, aid: String(data.aid), title: data.title, author: data.owner?.name || "", pages: (data.pages || []).map(p => ({ cid: String(p.cid), page: p.page, part: p.part, duration: p.duration })) }, folder };
   }
+  if (action === "workflow") {
+    const results = [];
+    for (const name of ["WORKFLOW.md", "NOTE_TEMPLATE.md", "PROMPTS.md"]) {
+      const path = `${CourseCore.normalizeFolder(base)}/学习工作流/${name}`;
+      if (await courseLocalRequest(path) !== null) { results.push({ name, status: "exists" }); continue; }
+      const response = await fetch(chrome.runtime.getURL(`workflow/${name}`));
+      if (!response.ok) throw new Error(`工作流文档读取失败：${name}`);
+      const content = await response.text();
+      if (await courseLocalRequest(path) !== null) { results.push({ name, status: "exists" }); continue; }
+      await courseLocalRequest(path, "PUT", content);
+      results.push({ name, status: "saved" });
+    }
+    return { results };
+  }
   if (!meta || !/^BV[0-9A-Za-z]+$/.test(meta.bvid || "")) throw new Error("课程信息无效，请重新读取目录。");
+  if (action === "preview") {
+    if (!/^\d+$/.test(page?.cid || "")) throw new Error("分 P 信息无效。");
+    const subtitle = await courseSubtitle(meta, page);
+    return subtitle ? { track: { lan: subtitle.track.lan, lanDoc: subtitle.track.lanDoc }, body: subtitle.body } : { body: [], missing: true };
+  }
   const folder = CourseCore.courseFolder(meta, base);
   if (action === "index") {
     const path = `${folder}/课程导入清单.md`;
@@ -105,7 +126,7 @@ async function handleCourseMessage(message) {
 }
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type !== "course-request") return false;
-  if (sender.id !== chrome.runtime.id || !String(sender.url || "").startsWith(chrome.runtime.getURL("course.html"))) {
+  if (sender.id !== chrome.runtime.id || !(String(sender.url || "").split(/[?#]/)[0] === chrome.runtime.getURL("course.html") || (["meta", "preview"].includes(message.action) && String(sender.url || "").split(/[?#]/)[0] === chrome.runtime.getURL("popup.html")))) {
     sendResponse({ ok: false, error: "请从扩展的课程导入页面操作。" });
     return false;
   }

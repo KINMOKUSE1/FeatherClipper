@@ -11,6 +11,7 @@ function harness({ existing = null, tracks = true, needLogin = false, biliCode =
   let getCount = 0;
   const context = vm.createContext({ CourseCore: core, URL, AbortSignal, console,
     getMergedSettings: async () => ({ obsidianApiBaseUrl: 'http://127.0.0.1:27123', obsidianApiKey: 'test-key' }),
+    normalizeConnection: settings => settings,
     buildSubtitleInfoRequests: () => [{ url: 'https://api.bilibili.com/player' }],
     mapSubtitleTracks: list => list,
     normalizeSubtitleTracks: list => list,
