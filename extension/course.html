@@ -7,7 +7,7 @@
   <nav aria-label="工具"><button id="workflow" class="ghost">开始整理笔记</button><button id="settings" class="secondary"><span class="dot" aria-hidden="true"></span><span id="connection-label">配置 Obsidian</span></button></nav>
 </header>
 <main>
-  <section class="intro"><p class="eyebrow">把收集的时间，留给理解。</p><h1>整门课程，进入你的知识库。</h1><p>插件负责字幕入库，你用自己的 AI 按规则生成章节笔记。</p><ol class="learning-flow" aria-label="学习流程"><li><b>1</b> 导入课程字幕</li><li><b>2</b> 按章组织素材</li><li><b>3</b> 用自己的 AI 整理笔记</li></ol></section>
+  <section class="intro"><p class="eyebrow">课程字幕导入工具</p><h1>把整门课的字幕，分 P 收进 Obsidian。</h1><p>插件负责字幕入库，你用自己的 AI 按规则生成章节笔记。</p><ol class="learning-flow" aria-label="学习流程"><li><b>1</b> 导入课程字幕</li><li><b>2</b> 按章组织素材</li><li><b>3</b> 用自己的 AI 整理笔记</li></ol></section>
   <section class="source-card" aria-label="课程来源"><div class="source-input"><label for="url">课程链接</label><div class="inline"><input id="url" type="text" placeholder="粘贴 B站视频链接或 BV 号" autocomplete="off" spellcheck="false"><button id="load">读取课程</button></div></div><div class="folder-input"><label for="folder">素材根目录</label><input id="folder" value="Clippings/Bilibili" spellcheck="false"></div></section>
   <p id="status" role="status" aria-live="polite">先在 B站登录，再读取课程目录。</p>
   <section id="empty" class="empty-state"><span class="empty-symbol" aria-hidden="true">↙</span><h2>从一门想学的课开始</h2><p>粘贴课程链接，或在 B站视频页点击扩展图标。</p></section>
@@ -22,12 +22,20 @@
 </main>
 <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><div><p class="eyebrow">OBSIDIAN</p><h2 id="settings-title">连接你的笔记库</h2></div><button class="icon-button" data-close="settings-dialog" aria-label="关闭连接设置">×</button></div><p class="muted">在 Obsidian 中启用 Local REST API，复制服务地址和 Key。之后即可重复使用。</p><label for="api-url">Local REST API 地址</label><input id="api-url" type="url" placeholder="http://127.0.0.1:27123" spellcheck="false"><label for="api-key">API Key</label><input id="api-key" type="password" autocomplete="off"><label for="default-folder">默认素材根目录</label><input id="default-folder" spellcheck="false"><p class="hint">目录相对于笔记库，例如 Clippings/Bilibili。修改默认目录不会移动已导入的文件。</p><div class="dialog-actions"><button id="test-settings" class="secondary">测试连接</button><button id="save-settings">保存设置</button></div><p id="settings-status" role="status" aria-live="polite"></p></dialog>
 <dialog id="workflow-dialog" class="wide-dialog" aria-labelledby="workflow-title">
-  <div class="dialog-heading"><h2 id="workflow-title">把字幕整理成章节笔记</h2><button class="icon-button" data-close="workflow-dialog" aria-label="关闭笔记生成说明">×</button></div>
-  <p class="workflow-intro">把已导入的字幕交给你常用的 AI，生成保留例题、推导和来源的学习笔记。</p>
-  <ol class="workflow-steps"><li>保存学习文档，填写你的学习目标与笔记目录。</li><li>复制整理指令，把文档、课程清单和对应字幕交给 AI。</li><li>核对笔记，补充自己的理解。经常使用时，可下载并安装 course-notes 技能。</li></ol>
-  <div class="workflow-tabs" role="tablist" aria-label="笔记生成文档"><button id="workflow-rules" role="tab" aria-selected="true" aria-controls="workflow-content" data-workflow-file="WORKFLOW.md">开始使用</button><button id="workflow-template" role="tab" aria-selected="false" aria-controls="workflow-content" tabindex="-1" data-workflow-file="NOTE_TEMPLATE.md">笔记模板</button><button id="workflow-prompts" role="tab" aria-selected="false" aria-controls="workflow-content" tabindex="-1" data-workflow-file="PROMPTS.md">更多指令</button></div>
-  <pre id="workflow-content" role="tabpanel" aria-labelledby="workflow-rules" tabindex="0"></pre>
-  <div class="workflow-bottom"><div class="dialog-actions"><a class="download-kit" href="learning-kit.zip" download="course-learning-kit.zip">下载技能包</a><button id="install-workflow" class="secondary">保存学习文档</button><button id="copy-workflow">复制整理指令</button></div><p class="hint">文档保存到素材根目录的“学习工作流”，已有文件保留。技能包内含安装说明与可选绘图技能。</p></div><p id="workflow-status" role="status" aria-live="polite"></p>
+  <div class="dialog-heading"><h2 id="workflow-title">从字幕整理章节笔记</h2><button class="icon-button" data-close="workflow-dialog" aria-label="关闭笔记整理说明">×</button></div>
+  <p class="workflow-intro">先导入字幕，再按下面的步骤把本章素材交给你使用的 AI。</p>
+  <ol class="workflow-steps">
+    <li><div><strong>保存学习文档（首次使用）</strong><p>将整理规则、笔记模板和指令示例保存到素材根目录的“学习工作流”。在 Obsidian 中打开 WORKFLOW.md，可填写学习目标和笔记目录。</p></div><button id="install-workflow" class="secondary">保存学习文档</button></li>
+    <li><div><strong>选择这一章的视频</strong><p>在课程列表勾选已导入的分 P；未勾选时不会复制任务指令。</p></div></li>
+    <li><div><strong>复制任务指令</strong><p>指令会列出课程清单和所选字幕的路径，不包含文件正文。</p></div><button id="copy-workflow">复制任务指令</button></li>
+  </ol>
+  <div class="workflow-handoff"><p><strong>本地 AI 能读取笔记库：</strong>粘贴指令，让它读取列出的文件。</p><p><strong>网页聊天 AI：</strong>粘贴指令，并上传 WORKFLOW.md、NOTE_TEMPLATE.md、课程导入清单和本章对应的原始字幕。PROMPTS.md 仅供你参考，不必上传。</p></div>
+  <p id="workflow-status" role="status" aria-live="polite"></p>
+  <details class="workflow-documents"><summary>查看学习文档</summary><p class="hint">整理规则和笔记模板供 AI 阅读；指令示例供你参考。</p>
+    <div class="workflow-tabs" role="tablist" aria-label="学习文档"><button id="workflow-rules" role="tab" aria-selected="true" aria-controls="workflow-content" data-workflow-file="WORKFLOW.md">整理规则 · 给 AI</button><button id="workflow-template" role="tab" aria-selected="false" aria-controls="workflow-content" tabindex="-1" data-workflow-file="NOTE_TEMPLATE.md">笔记模板 · 给 AI</button><button id="workflow-prompts" role="tab" aria-selected="false" aria-controls="workflow-content" tabindex="-1" data-workflow-file="PROMPTS.md">指令示例 · 给你</button></div>
+    <pre id="workflow-content" role="tabpanel" aria-labelledby="workflow-rules" tabindex="0"></pre>
+  </details>
+  <a class="download-kit" href="learning-kit.zip" download="course-learning-kit.zip">经常整理课程？下载可选技能包</a>
 </dialog>
 <script src="course-core.js"></script><script src="course.js"></script>
 </body></html>

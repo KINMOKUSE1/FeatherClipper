@@ -162,16 +162,24 @@ dialog > label { margin-top: 21px; }
 .dialog-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 23px; }
 dialog [role=status] { font-size: var(--text-small); color: var(--accent); overflow-wrap: anywhere; }
 .wide-dialog { width: min(780px, calc(100vw - 30px)); }
-.workflow-intro { margin: 8px 0; font-size: var(--text-body); }
-.workflow-steps { padding-left: 20px; margin: 8px 0 16px; color: var(--muted); font-size: var(--text-small); line-height: 1.7; }
+.workflow-intro { margin: 8px 0 16px; font-size: var(--text-body); }
+.workflow-steps { list-style: none; counter-reset: workflow; display: grid; gap: 8px; padding: 0; margin: 0 0 16px; }
+.workflow-steps li { counter-increment: workflow; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 9px; }
+.workflow-steps li::before { content: counter(workflow); display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); font-size: var(--text-small); font-weight: 700; }
+.workflow-steps strong { font-size: var(--text-body); }
+.workflow-steps p { margin: 3px 0 0; color: var(--muted); font-size: var(--text-small); line-height: 1.6; }
+.workflow-steps button { white-space: nowrap; }
+.workflow-handoff { padding: 12px 15px; border-radius: 9px; background: var(--accent-soft); font-size: var(--text-small); line-height: 1.6; }
+.workflow-handoff p { margin: 0; }
+.workflow-handoff p + p { margin-top: 7px; }
+.workflow-documents { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.workflow-documents summary { cursor: pointer; font-weight: 600; }
+.workflow-documents .hint { margin: 9px 0; }
 .workflow-tabs { display: flex; gap: 4px; padding: 4px; background: var(--bg); border: 1px solid var(--line); border-radius: 9px; }
 .workflow-tabs button { flex: 1; min-height: 34px; padding: 6px 10px; background: transparent; border-color: transparent; color: var(--muted); font-weight: 500; }
 .workflow-tabs button[aria-selected=true] { background: #fff; border-color: var(--control-line); color: var(--accent); font-weight: 600; }
 .workflow-tabs button:hover { background: #fff; border-color: var(--control-line); }
-.workflow-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin-top: 12px; }
-.workflow-bottom .hint, .workflow-bottom .dialog-actions { margin: 0; }
-.workflow-bottom .dialog-actions { width: 100%; align-items: center; flex-wrap: wrap; }
-.download-kit { margin-right: auto; padding: 10px 0; color: var(--accent); font-weight: 600; text-underline-offset: 4px; }
+.download-kit { display: inline-block; margin-top: 14px; color: var(--accent); font-size: var(--text-small); font-weight: 600; text-underline-offset: 4px; }
 #workflow-status { margin: 8px 0 0; }
 .wide-dialog pre { font-family: inherit; white-space: pre-wrap; overflow: auto; height: 34vh; scrollbar-gutter: stable; margin: 12px 0 0; padding: 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; font-size: var(--text-body); line-height: 1.8; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
@@ -198,4 +206,7 @@ dialog [role=status] { font-size: var(--text-small); color: var(--accent); overf
   .import-actions #start { margin-left: auto; }
   dialog { padding: 22px; }
   .dialog-actions { flex-wrap: wrap; }
+  .workflow-steps li { grid-template-columns: 28px minmax(0, 1fr); }
+  .workflow-steps button { grid-column: 2; justify-self: start; }
+  .workflow-tabs { flex-wrap: wrap; }
 }

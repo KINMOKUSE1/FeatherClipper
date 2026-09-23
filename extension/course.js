@@ -151,7 +151,7 @@ async function loadCourse() {
     const cached = (await chrome.storage.local.get(snapshotKey()))[snapshotKey()];
     pages = meta.pages.map(page => {
       const old = cached?.pages?.find(p => p.cid === page.cid);
-      return { ...page, chapter: old?.chapter ?? CourseCore.chapterOf(page.part), selected: old?.selected ?? (meta.pages.length === 1 || CourseCore.chapterOf(page.part) !== "0"), status: old?.status === "running" ? "pending" : old?.status || "pending", error: old?.error || "" };
+      return { ...page, chapter: old?.chapter ?? CourseCore.chapterOf(page.part), selected: false, status: old?.status === "running" ? "pending" : old?.status || "pending", error: old?.error || "" };
     });
     renderFilters(); $("course").hidden = false; $("empty").hidden = true;
     status("");
@@ -310,11 +310,15 @@ for (const [index, tab] of workflowTabs.entries()) {
   });
 }
 $("copy-workflow").addEventListener("click", async () => {
+  if (meta && !pages.some(page => page.selected)) {
+    $("workflow-status").textContent = "请先关闭此窗口，在课程列表勾选要整理的分 P，再复制任务指令。";
+    return;
+  }
   try {
-    const prompt = CourseCore.buildStudyPrompt(meta, pages, $("folder").value, currentPage);
+    const prompt = CourseCore.buildStudyPrompt(meta, pages, $("folder").value);
     await navigator.clipboard.writeText(prompt);
-    $("workflow-status").textContent = "已复制整理指令，请连同学习文档和对应字幕交给 AI。";
-  } catch (error) { $("workflow-status").textContent = `复制失败：${error.message}。可从“更多指令”选中文本手动复制。`; }
+    $("workflow-status").textContent = "任务指令已复制。本地 AI 可按路径读取；网页 AI 还需上传学习规则、笔记模板、课程清单和对应字幕。";
+  } catch (error) { $("workflow-status").textContent = `复制失败：${error.message}。可展开“查看学习文档”，参考“指令示例”手动填写。`; }
 });
 $("install-workflow").addEventListener("click", async () => {
   $("install-workflow").disabled = true;

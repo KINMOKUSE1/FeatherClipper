@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Bilibili Course Clipper · 课程入库",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "批量提取 B站课程字幕，按章组织并导入 Obsidian。",
   "permissions": [
     "storage",

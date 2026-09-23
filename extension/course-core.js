@@ -44,10 +44,10 @@
       ...body.map(item => `[${timestamp(item.from)}](${videoUrl(meta, page)}&t=${Math.floor(item.from)}) ${String(item.content).replace(/\r?\n/g, " ")}`), ""].join("\n");
   }
   function tableText(value) { return String(value || "").replace(/\|/g, "\\|").replace(/[\r\n]/g, " "); }
-  function buildStudyPrompt(meta, pages, base, currentPage) {
+  function buildStudyPrompt(meta, pages, base) {
     const folder = normalizeFolder(base);
-    const selected = pages.filter(page => page.selected);
-    const targets = selected.length ? selected : pages.filter(page => page.page === currentPage);
+    const targets = pages.filter(page => page.selected);
+    if (meta && !targets.length) throw new Error("请先在课程列表勾选要整理的分 P。");
     const lines = ["请按我的个人学习规则，以及学习指南和笔记模板整理课程素材。已安装 course-notes 技能时使用该技能。",
       `学习文档：${folder}/学习工作流/WORKFLOW.md 与 NOTE_TEMPLATE.md。`];
     if (meta && targets.length) {
