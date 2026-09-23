@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Bilibili Course Clipper · 课程入库",
+  "name": "Course Cove",
   "version": "1.2.1",
-  "description": "批量提取 B站课程字幕，按章组织并导入 Obsidian。",
+  "description": "Bilibili subtitles to Obsidian. 批量导入课程字幕并按章组织。",
   "permissions": [
     "storage",
     "activeTab"
@@ -27,7 +27,7 @@
   },
   "options_page": "course.html",
   "action": {
-    "default_title": "课程入库 · 导入 Obsidian",
+    "default_title": "Course Cove · 导入 Obsidian",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png"

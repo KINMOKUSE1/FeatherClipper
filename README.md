@@ -1,8 +1,10 @@
-# 课程入库
+# Course Cove
 
-![课程入库图标](./extension/icons/icon48.png)
+![Course Cove 图标](./extension/icons/icon48.png)
 
-**把整门课的字幕，分 P 收进 Obsidian。**
+**Bilibili subtitles to Obsidian**
+
+把整门课的字幕，分 P 收进 Obsidian。
 
 面向大学生和自学者的 Edge 扩展。可在视频页预览并导入当前 P，也可批量导入同一 BV 下的整门课。插件保存原始字幕与课程清单；章节笔记由你选择的 AI 按自己的规则整理。
 
@@ -34,7 +36,7 @@
 
 1. [下载安装包（ZIP）](https://github.com/KINMOKUSE1/bilibili-course-clipper/releases/download/v1.2.1/course-clipper-edge.zip)，**完整解压**到一个长期保留的位置。若浏览器没有开始下载，可从[发布页](https://github.com/KINMOKUSE1/bilibili-course-clipper/releases/tag/v1.2.1)的 Assets 中选择 `course-clipper-edge.zip`。
 2. 双击里面的 **`安装指南.html`**，按页面提示操作：打开 `edge://extensions/`，开启“开发人员模式”，点击“加载解压缩的扩展”。
-3. 选择解压后的 **`course-clipper` 文件夹**，将“课程入库”固定到工具栏。
+3. 选择解压后的 **`course-clipper` 文件夹**，将“Course Cove”固定到工具栏。
 
 安装包里已准备好扩展，**无需 Git、Node.js 或命令行**。安装后保留解压目录。熟悉开发的用户也可以直接加载本仓库的 `extension/`。
 
@@ -42,7 +44,7 @@
 
 1. 打开笔记库，在 **设置 → 第三方插件 → 浏览** 中搜索 **Local REST API**，安装并启用。
 2. 打开它的设置，启用 **HTTP 服务（Enable HTTP server）**，复制 API Key。默认本机地址为 `http://127.0.0.1:27123`；改过端口时使用实际地址。
-3. 点击“课程入库”图标 → **配置 Obsidian**，粘贴地址和 Key，点击 **测试连接 → 保存设置**。
+3. 点击“Course Cove”图标 → **配置 Obsidian**，粘贴地址和 Key，点击 **测试连接 → 保存设置**。
 
 需要 HTTPS 或连接遇到问题时，查看[详细说明](./使用说明.md#连接-obsidian)及 [Local REST API 文档](https://github.com/coddingtonbear/obsidian-local-rest-api)。
 
