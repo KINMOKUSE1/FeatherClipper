@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>课程入库 · 安装指南</title>
+<style>
+:root{color-scheme:light;font-family:system-ui,"Microsoft YaHei",sans-serif;color:#24304b;background:#f4f6fb;line-height:1.75}
+*{box-sizing:border-box}body{margin:0}main{max-width:820px;padding:48px 24px;margin:auto}header{margin-bottom:32px}h1{font-size:32px;margin:6px 0}h2{font-size:21px;margin:0 0 12px}p{margin:10px 0}.lead{font-size:18px;color:#566780}.tag{color:#465cca;font-weight:650}section{background:white;border:1px solid #dce3ee;border-radius:16px;padding:26px;margin:18px 0}ol{padding-left:23px}li{margin:10px 0}a{color:#4055ba;text-underline-offset:3px}code{background:#f0f3f9;padding:2px 6px;border-radius:5px;overflow-wrap:anywhere}button{font:inherit;font-size:14px;background:#465cca;color:white;border:0;border-radius:8px;padding:8px 14px;cursor:pointer;margin:6px 8px 6px 0}button:hover{background:#354bb8}button:focus-visible{outline:3px solid #a5b4f3;outline-offset:3px}.path{background:#f4f6fb;border-radius:8px;padding:12px;word-break:break-all;font-size:14px}.hint{font-size:14px;color:#596b84}.feedback{min-height:25px;margin:0;font-size:14px;color:#4055ba}footer{font-size:14px;color:#596b84;margin-top:26px}@media(max-width:540px){main{padding:24px 16px}section{padding:20px}h1{font-size:28px}}
+</style>
+</head>
+<body data-extension="../extension/">
+<main>
+<header><span class="tag">课程入库 · 第一次使用</span><h1>装好插件，收下第一段课。</h1><p class="lead">按下面三步操作。无需命令行，连接只配置一次。</p></header>
+<section><h2>① 将扩展装进 Edge</h2><p>先将压缩包<strong>完整解压</strong>到长期保留的位置，再打开本指南。</p><ol><li>复制 <code>edge://extensions/</code> 到 Edge 地址栏并打开。<br><button data-copy="edge://extensions/">复制扩展管理页地址</button></li><li>打开<strong>“开发人员模式”</strong>，点击<strong>“加载解压缩的扩展”</strong>。</li><li>选择安装包里的 <strong>course-clipper 文件夹</strong>。可将下方目录复制到文件选择窗口的地址栏，回车后点击“选择文件夹”。</li></ol><div id="extension-path" class="path">安装包中的 course-clipper 文件夹（里面有 manifest.json）。</div><button id="copy-path" hidden>复制扩展目录</button><p class="hint">安装后保留这个文件夹。在 Edge 的扩展菜单中，将“课程入库”显示在工具栏。</p></section>
+<section><h2>② 连接 Obsidian</h2><ol><li>打开笔记库，在<strong>设置 → 第三方插件 → 浏览</strong>中搜索 <strong>Local REST API</strong>，安装并启用。也可以<a href="obsidian://show-plugin?id=obsidian-local-rest-api">在 Obsidian 中查看插件</a>。</li><li>打开它的设置，启用 <strong>HTTP 服务（Enable HTTP server）</strong>，复制 API Key。默认地址是 <code>http://127.0.0.1:27123</code>；如果修改了端口，请使用实际地址。</li><li>点击浏览器里的“课程入库”图标 → <strong>配置 Obsidian</strong>，填入地址和 Key，然后<strong>测试连接 → 保存设置</strong>。</li></ol><p class="hint">使用 HTTPS 时，按 <a href="https://github.com/coddingtonbear/obsidian-local-rest-api" target="_blank" rel="noopener">Local REST API 文档</a>配置证书与地址。</p></section>
+<section><h2>③ 导入你的第一段视频</h2><ol><li>保持 Obsidian 打开，在 Edge 登录 B站并打开一段有字幕的视频。</li><li>点击“课程入库”图标，确认字幕预览，点击<strong>“导入 P…”</strong>。</li><li>回到 Obsidian，在 <code>Clippings/Bilibili</code> 查看刚导入的字幕。</li></ol><p>需要整门课？点击<strong>“批量导入整门课”</strong>，勾选视频后导入。完成后点击<strong>“开始整理笔记”</strong>，把材料交给你常用的 AI。</p></section>
+<p id="feedback" class="feedback" role="status" aria-live="polite"></p>
+<footer>更新版本：关闭扩展页面，用新版文件替换原安装目录中的文件，在扩展管理页点击“重新加载”。<br>更多设置与常见问题见安装包中的“使用说明.md”。</footer>
+</main>
+<script>
+const feedback = document.getElementById('feedback');
+async function copy(text, button) {
+  try {
+    await navigator.clipboard.writeText(text);
+    button.textContent = '已复制';
+    feedback.textContent = '已复制，请粘贴到对应地址栏。';
+  } catch {
+    feedback.textContent = '请选中页面上显示的地址，手动复制。';
+  }
+}
+for (const button of document.querySelectorAll('[data-copy]')) {
+  button.addEventListener('click', () => copy(button.dataset.copy, button));
+}
+if (location.protocol === 'file:') {
+  const url = new URL(document.body.dataset.extension, location.href);
+  let path = decodeURIComponent(url.pathname);
+  if (/^\/[A-Za-z]:\//.test(path)) path = path.slice(1).replaceAll('/', '\\');
+  else if (url.hostname) path = '\\\\' + url.hostname + path.replaceAll('/', '\\');
+  document.getElementById('extension-path').textContent = path;
+  const button = document.getElementById('copy-path');
+  button.hidden = false;
+  button.addEventListener('click', () => copy(path, button));
+}
+</script>
+</body>
+</html>

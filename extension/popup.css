@@ -5,6 +5,8 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
 [hidden] { display: none !important; }
 body { width: 400px; max-height: 600px; overflow-y: auto; margin: 0; font-size: 14px; line-height: 1.5; }
 header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 18px; background: #fff; border-bottom: 1px solid var(--line); }
+.popup-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.popup-brand-icon { display: block; width: 32px; height: 32px; flex: none; }
 header strong { display: block; font-size: 18px; }
 header span { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
 main, #connection { padding: 16px 18px; }

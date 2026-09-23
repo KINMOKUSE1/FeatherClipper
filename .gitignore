@@ -10,6 +10,7 @@ dist/
 release/
 *.zip
 !extension/learning-kit.zip
+!downloads/course-clipper-edge.zip
 
 # Local scratch and OS files
 work/
