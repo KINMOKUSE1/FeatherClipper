@@ -8,10 +8,10 @@ const pages = [
   { page: 3, cid: '33', part: '第三节', chapter: '2', selected: true },
 ];
 
-test('study prompt keeps the selected scope and actual CID paths', () => {
+test('study prompt keeps the selected scope and readable source paths', () => {
   const prompt = buildStudyPrompt(meta, pages, '素材', 1);
   assert.match(prompt, /本次范围：P2、P3/);
-  assert.match(prompt, /素材\/示例课程 \[BV1234567890\]\/原始字幕\/CID-22.md/);
+  assert.match(prompt, /素材\/示例课程 \[BV1234567890\]\/原始字幕\/第二节 \[CID-22\]\.md/);
   assert.doesNotMatch(prompt, /CID-11/);
   assert.match(prompt, /部分章节注明覆盖范围/);
 });

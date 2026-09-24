@@ -4,12 +4,14 @@ from pathlib import Path
 from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
 
 from build_learning_kit import build as build_learning_kit
+from build_asr_installer import build as build_asr_installer
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def build():
     build_learning_kit()
+    build_asr_installer()
     extension = ROOT / 'extension'
     manifest = json.loads((extension / 'manifest.json').read_text(encoding='utf-8'))
     target = ROOT / 'downloads/course-clipper-edge.zip'

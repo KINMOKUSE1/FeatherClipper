@@ -4,6 +4,7 @@ let meta = null, pages = [], running = false, loading = false, stopping = false;
 let previewId = "", previewRun = 0, previewLoading = false, savedSettings = null;
 let workflowFile = "WORKFLOW.md", workflowRun = 0;
 let chapterFilter = "all";
+let asrConnected = false, activeAsrJob = "", activeAsrPage = null, pendingAsrPages = [];
 const workflowDocuments = new Map();
 let currentPage = Number(new URLSearchParams(location.search).get("p")) || 1;
 
@@ -27,7 +28,15 @@ async function send(message) {
   return response;
 }
 function request(action, extra = {}) {
-  return send({ type: "course-request", action, meta, base: $("folder").value, ...extra });
+  return send({ type: "course-request", action, meta, base: $("folder").value, language: SubtitleLanguage.current(), ...extra });
+}
+function applyRawSources(sources) {
+  for (const page of pages) page.sourcePath = sources?.[page.cid] || "";
+}
+async function updateIndex() {
+  const result = await request("index", { pages });
+  applyRawSources(result.sources);
+  await persist();
 }
 function snapshotKey() {
   return `boc-course-v1:${meta.bvid}:${CourseCore.normalizeFolder($("folder").value)}`;
@@ -43,6 +52,9 @@ function syncControls() {
   $("retry").disabled = locked || previewLoading || !pages.some(p => p.selected && ["failed", "missing"].includes(p.status));
   $("stop").disabled = !running || stopping;
   $("current").disabled = locked || !meta;
+  $("asr-current").disabled = locked || previewLoading || !meta || !activeAsrPage;
+  $("asr-selected").disabled = locked || previewLoading;
+  $("language-trigger").disabled = locked || previewLoading;
 }
 function visiblePages() {
   return pages.filter(p => chapterFilter === "all" || p.chapter === chapterFilter);
@@ -53,6 +65,9 @@ function render() {
   $("title").textContent = meta.title;
   $("course-meta").textContent = `${meta.author || "课程作者"} · ${pages.length} 个分 P`;
   const selected = pages.filter(p => p.selected).length;
+  const missingSelected = pages.filter(p => p.selected && p.status === "missing").length;
+  $("asr-selected").hidden = missingSelected === 0;
+  $("asr-selected").textContent = `本地转写并导入 ${missingSelected} 个无字幕视频`;
   $("count").textContent = `已选择 ${selected} / ${pages.length}`;
   $("start").textContent = selected ? `导入 ${selected} 个视频` : "导入 Obsidian";
   $("import-summary").textContent = selected ? `已选 ${selected} 个视频，已有文件会自动跳过。` : "请先勾选要导入的视频。";
@@ -140,6 +155,7 @@ async function loadCourse() {
     try { currentPage = Math.max(1, Number(new URL(source).searchParams.get("p")) || 1); } catch { currentPage = 1; }
   }
   loading = true; previewLoading = false; previewRun++; previewId = "";
+  activeAsrPage = null; $("asr-panel").hidden = true;
   previewMessage("点击左侧的“预览字幕”查看内容。"); $("preview-caption").textContent = "预览前 100 条，导入时保存完整字幕与时间戳。";
   $("preview-title").textContent = "字幕预览"; $("source-link").hidden = true;
   render(); syncControls(); status("正在读取课程目录…");
@@ -151,7 +167,8 @@ async function loadCourse() {
     const cached = (await chrome.storage.local.get(snapshotKey()))[snapshotKey()];
     pages = meta.pages.map(page => {
       const old = cached?.pages?.find(p => p.cid === page.cid);
-      return { ...page, chapter: old?.chapter ?? CourseCore.chapterOf(page.part), selected: false, status: old?.status === "running" ? "pending" : old?.status || "pending", error: old?.error || "" };
+      const emptySubtitle = old?.status === "failed" && old?.error === "字幕文件为空。";
+      return { ...page, chapter: old?.chapter ?? CourseCore.chapterOf(page.part), selected: false, status: emptySubtitle ? "missing" : old?.status === "running" ? "pending" : old?.status || "pending", error: emptySubtitle ? "" : old?.error || "", sourcePath: old?.sourcePath || "" };
     });
     renderFilters(); $("course").hidden = false; $("empty").hidden = true;
     status("");
@@ -162,13 +179,22 @@ async function loadCourse() {
 async function preview(page) {
   const run = ++previewRun;
   previewId = page.cid; previewLoading = true; render();
+  activeAsrPage = null; $("asr-panel").hidden = true;
   $("preview-title").textContent = `P${page.page} · ${page.part}`;
   $("preview-caption").textContent = "正在读取这一节的字幕。"; previewMessage("正在获取字幕，请稍候…");
   $("source-link").href = CourseCore.videoUrl(meta, page); $("source-link").hidden = false;
   try {
     const result = await request("preview", { page });
     if (run !== previewRun) return;
-    if (result.missing) { $("preview-caption").textContent = "未找到字幕"; previewMessage("这一 P 没有可用字幕，可以在 B站确认是否提供字幕。"); return; }
+    if (result.missing) {
+      if (!["saved", "exists"].includes(page.status)) page.status = "missing";
+      activeAsrPage = page;
+      $("preview-caption").textContent = "未找到字幕";
+      previewMessage("B站未提供可用字幕。可以使用可选的本地组件转写音频。");
+      $("asr-panel").hidden = false;
+      try { await refreshAsrStatus(); } catch { /* Setup button remains available. */ }
+      render(); return;
+    }
     $("preview-body").replaceChildren();
     $("preview-caption").textContent = `${result.track.lanDoc || result.track.lan} · ${result.body.length} 条字幕 · 预览前 100 条`;
     for (const item of result.body.slice(0, 100)) {
@@ -179,6 +205,92 @@ async function preview(page) {
     }
   } catch (error) { if (run === previewRun) { $("preview-caption").textContent = "字幕预览失败"; previewMessage(error.message, true); } }
   finally { if (run === previewRun) { previewLoading = false; syncControls(); } }
+}
+async function refreshAsrStatus() {
+  const result = await send({ type: "asr-status" });
+  asrConnected = result.connected;
+  $("asr-current").textContent = asrConnected ? "本地转写并导入此 P" : result.paired ? "检查本地转写连接" : "安装／连接本地转写";
+  $("asr-panel-text").textContent = asrConnected
+    ? "B站没有可用字幕，点击后由本机转写这段视频。"
+    : result.paired ? "连接码已保存；检查本地组件状态即可继续。" : "本地转写是可选扩展，需单独安装并连接。";
+  return result;
+}
+async function openAsrSetup(result = null) {
+  result ||= await refreshAsrStatus();
+  $("asr-pair-fields").hidden = !result.needsPairing;
+  $("asr-settings-status").textContent = result.error || (result.connected
+    ? result.gpuNotice || (result.device === "cuda" ? "本地转写已连接，将使用 GPU。" : result.gpuEnabled ? "本地转写已连接，首次转写时检测 GPU。" : "本地转写已连接，将使用 CPU。")
+    : result.needsPairing ? "首次使用，请填写连接码。" : "请先启动本地转写服务，再点击“重新检测”。");
+  if (!$("asr-dialog").open) $("asr-dialog").showModal();
+  return result;
+}
+async function continuePendingAsr() {
+  const selected = pendingAsrPages;
+  pendingAsrPages = [];
+  if ($("asr-dialog").open) $("asr-dialog").close();
+  if (selected.length) await runAsrQueue(selected);
+}
+async function runAsrQueue(selected) {
+  if (running || loading || previewLoading || !meta || !selected.length) return;
+  const connection = await refreshAsrStatus();
+  if (!connection.connected) {
+    if (connection.installed && connection.paired && !connection.needsPairing) {
+      status(connection.error || "本地转写暂时无法连接，请稍后重试。", true);
+      return;
+    }
+    pendingAsrPages = selected; await openAsrSetup(connection); return;
+  }
+  pendingAsrPages = [];
+  try { CourseCore.normalizeFolder($("folder").value); } catch (error) { status(error.message, true); return; }
+  await navigator.locks.request(`boc-course:${meta.bvid}`, { ifAvailable: true }, async lock => {
+    if (!lock) { status("这门课程正在另一个导入页处理，请回到该页面查看。", true); return; }
+    running = true; stopping = false; render();
+    $("progress").max = selected.length; $("progress").value = 0; $("progress").hidden = false;
+    const counts = {}; let done = 0, runtimeNote = "";
+    try {
+      await persist(); await updateIndex();
+      for (const page of selected) {
+        if (stopping) break;
+        page.status = "running"; page.error = ""; render();
+        status(`正在准备本地转写 ${done + 1}/${selected.length}：P${page.page} ${page.part}`);
+        try {
+          const started = await request("asr-start", { page });
+          if (started.status === "exists") { page.status = "exists"; page.sourcePath = started.path; }
+          else if (started.status === "subtitle-available") {
+            const result = await request("import", { page });
+            page.status = result.status; page.sourcePath = result.path || "";
+          }
+          else {
+            activeAsrJob = started.id;
+            while (!stopping) {
+              const job = await request("asr-poll", { page, jobId: activeAsrJob });
+              if (job.status === "done") {
+                runtimeNote = job.gpu_notice || (job.device === "cuda" ? "本次使用 GPU 转写。" : "本次使用 CPU 转写。");
+                const result = await request("asr-finish", { page, jobId: activeAsrJob });
+                page.status = result.status; page.sourcePath = result.path || ""; break;
+              }
+              if (job.status === "failed" || job.status === "canceled") throw new Error(job.detail || "转写已停止。");
+              status(`本地转写 ${done + 1}/${selected.length}：P${page.page} · ${job.detail || "处理中"}${job.gpu_notice ? `\n${job.gpu_notice}` : ""}`);
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+            if (stopping) { await request("asr-cancel", { page, jobId: activeAsrJob }).catch(() => {}); page.status = "missing"; }
+          }
+        } catch (error) {
+          page.status = stopping ? "missing" : "failed";
+          page.error = stopping ? "" : error.message;
+        }
+        finally { activeAsrJob = ""; }
+        if (["saved", "exists"].includes(page.status) && activeAsrPage?.cid === page.cid) {
+          $("asr-panel").hidden = true;
+          previewMessage(page.status === "saved" ? "本地转写已导入 Obsidian；原始笔记包含完整时间戳。" : "这一 P 的原始素材已存在，已跳过。 ");
+        }
+        counts[page.status] = (counts[page.status] || 0) + 1; done++; $("progress").value = done;
+        await persist(); render(); await updateIndex();
+      }
+      status(`${stopping ? "已停止" : "本地转写完成"} · 新导入 ${counts.saved || 0} · 已存在 ${counts.exists || 0} · 失败 ${counts.failed || 0} · 未处理 ${selected.length - done}\n课程导入清单已更新。${runtimeNote ? `\n${runtimeNote}` : ""}`);
+    } catch (error) { status(`转写已中断：${error.message}`, true); }
+    finally { running = false; activeAsrJob = ""; render(); }
+  });
 }
 async function runQueue(retryOnly) {
   if (running || loading || previewLoading || !meta) return;
@@ -192,15 +304,15 @@ async function runQueue(retryOnly) {
     let done = 0, fatalError = null;
     const counts = {};
     try {
-      await persist(); await request("index", { pages });
+      await persist(); await updateIndex();
       for (const page of selected) {
         if (stopping) break;
         page.status = "running"; page.error = ""; render();
         status(`正在处理 ${done + 1}/${selected.length}：P${page.page} ${page.part}`);
-        try { page.status = (await request("import", { page })).status; }
+        try { const result = await request("import", { page }); page.status = result.status; page.sourcePath = result.path || ""; }
         catch (error) { page.status = "failed"; page.error = error.message; if (error.fatal) fatalError = error; }
         counts[page.status] = (counts[page.status] || 0) + 1; done++; $("progress").value = done;
-        await persist(); render(); await request("index", { pages });
+        await persist(); render(); await updateIndex();
         if (fatalError) break;
         if (!stopping && done < selected.length) await new Promise(resolve => setTimeout(resolve, 1200));
       }
@@ -286,17 +398,39 @@ document.addEventListener("pointerdown", event => {
 document.querySelector(".chapter-filter").addEventListener("focusout", event => {
   if (!event.currentTarget.contains(event.relatedTarget)) closeFilter();
 });
-$("folder").addEventListener("change", () => { pages.forEach(p => { p.status = "pending"; p.error = ""; }); render(); });
+$("folder").addEventListener("change", () => { pages.forEach(p => { p.status = "pending"; p.error = ""; p.sourcePath = ""; }); render(); });
 $("select").addEventListener("click", () => { const visible = new Set(visiblePages()); pages.forEach(p => p.selected = visible.has(p)); render(); });
 $("clear").addEventListener("click", () => { visiblePages().forEach(p => p.selected = false); render(); });
 $("current").addEventListener("click", () => { pages.forEach(p => p.selected = p.page === currentPage); render(); });
 $("start").addEventListener("click", () => runQueue(false).catch(error => status(error.message, true)));
+$("asr-current").addEventListener("click", () => {
+  if (activeAsrPage) runAsrQueue([activeAsrPage]).catch(error => status(error.message, true));
+});
+$("asr-selected").addEventListener("click", () => runAsrQueue(pages.filter(p => p.selected && p.status === "missing")).catch(error => status(error.message, true)));
+$("asr-connect").addEventListener("click", async () => {
+  $("asr-connect").disabled = true;
+  try {
+    await send({ type: "asr-pair", token: $("asr-token").value });
+    $("asr-token").value = "";
+    if ((await refreshAsrStatus()).connected) await continuePendingAsr();
+    else await openAsrSetup();
+  } catch (error) { $("asr-settings-status").textContent = error.message; }
+  finally { $("asr-connect").disabled = false; }
+});
+$("asr-refresh").addEventListener("click", async () => {
+  $("asr-refresh").disabled = true;
+  try {
+    if ((await openAsrSetup()).connected) await continuePendingAsr();
+  } catch (error) { $("asr-settings-status").textContent = error.message; }
+  finally { $("asr-refresh").disabled = false; }
+});
 $("retry").addEventListener("click", () => runQueue(true).catch(error => status(error.message, true)));
-$("stop").addEventListener("click", () => { stopping = true; syncControls(); status("正在停止，等待当前 P 保存完毕…"); });
+$("stop").addEventListener("click", () => { stopping = true; syncControls(); status(activeAsrJob ? "正在停止本地转写…" : "正在停止，等待当前 P 保存完毕…"); });
 $("workflow").addEventListener("click", async () => {
   $("workflow-status").textContent = "";
   try {
     await Promise.all(workflowTabs.map(tab => readWorkflowDocument(tab.dataset.workflowFile)));
+    if (meta) applyRawSources((await request("raw-paths", { pages })).sources);
     await showWorkflow(); $("workflow-dialog").showModal();
   } catch (error) { status(error.message, true); }
 });
@@ -331,8 +465,18 @@ $("install-workflow").addEventListener("click", async () => {
 for (const button of document.querySelectorAll("[data-close]")) button.addEventListener("click", () => $(button.dataset.close).close());
 window.addEventListener("beforeunload", event => { if (running) { event.preventDefault(); event.returnValue = ""; } });
 async function init() {
+  await SubtitleLanguage.init(() => {
+    const page = pages.find(item => item.cid === previewId);
+    if (page) preview(page);
+  });
   syncControls(); await refreshSettings();
   const bvid = new URLSearchParams(location.search).get("bvid");
-  if (bvid) { $("url").value = `https://www.bilibili.com/video/${bvid}/?p=${currentPage}`; await loadCourse(); }
+  if (bvid) {
+    $("url").value = `https://www.bilibili.com/video/${bvid}/?p=${currentPage}`; await loadCourse();
+    if (meta && new URLSearchParams(location.search).get("asr") === "1") {
+      const page = pages.find(item => item.page === currentPage);
+      if (page) { await preview(page); if (activeAsrPage) await runAsrQueue([page]); }
+    }
+  }
 }
 init().catch(error => status(error.message, true));

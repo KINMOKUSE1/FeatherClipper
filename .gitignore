@@ -9,8 +9,11 @@ node_modules/
 dist/
 release/
 *.zip
+__pycache__/
 !extension/learning-kit.zip
+!extension/asr-installer.zip
 !downloads/course-clipper-edge.zip
+!downloads/course-cove-asr-installer.zip
 
 # Local scratch and OS files
 work/

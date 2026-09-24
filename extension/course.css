@@ -126,10 +126,22 @@ td small { display: block; color: var(--error); font-size: var(--text-small); li
 .preview { display: flex; flex-direction: column; align-self: stretch; min-height: 0; }
 .preview-header { padding: 16px 20px 8px; flex-shrink: 0; }
 .preview-header h3 { font-size: 18px; font-weight: 600; line-height: 1.5; margin: 0 0 6px; }
+.language-picker { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0 8px; color: var(--muted); font-size: var(--text-small); }
+button.language-trigger { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 34px; min-width: 154px; padding: 6px 10px; border: 1px solid var(--control-line); border-radius: 7px; background: #f7f9fd; color: var(--ink); font-size: var(--text-small); font-weight: 600; }
+button.language-trigger:hover:not(:disabled), button.language-trigger[aria-expanded=true] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.language-chevron { width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg) translateY(-2px); }
+.language-options { position: absolute; right: 0; top: calc(100% + 4px); z-index: 4; min-width: 170px; padding: 5px; background: #fff; border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 8px 24px #202a4326; }
+.language-options button { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 34px; padding: 6px 10px; border: 0; border-radius: 5px; background: transparent; color: var(--ink); text-align: left; font-size: var(--text-small); font-weight: 400; }
+.language-options button:hover:not(:disabled), .language-options button:focus-visible { background: #f1f4ff; color: var(--accent); }
+.language-options button[aria-selected=true] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.language-options button[aria-selected=true]::after { content: "✓"; }
 .preview-header .muted { margin: 0; }
 .preview-header a { display: inline-block; margin-top: 6px; }
 .muted { font-size: var(--text-small); color: var(--muted); line-height: 1.6; }
 .preview-header a { font-size: var(--text-small); text-decoration: underline; text-underline-offset: 3px; }
+.asr-panel { margin: 6px 20px 12px; padding: 12px; border: 1px solid var(--control-line); border-radius: 9px; background: var(--bg); }
+.asr-panel p { margin: 0 0 9px; font-size: var(--text-body); }
+.asr-panel button { min-height: 36px; }
 .transcript { overflow: auto; flex: 1; height: 0; min-height: 0; padding: 0 20px 16px; }
 .transcript p { font-size: var(--text-body); line-height: 1.8; display: flex; gap: 12px; margin: 10px 0; }
 .transcript a { font-size: var(--text-small); white-space: nowrap; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 2px; }
@@ -162,6 +174,11 @@ dialog > label { margin-top: 21px; }
 .dialog-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 23px; }
 dialog [role=status] { font-size: var(--text-small); color: var(--accent); overflow-wrap: anywhere; }
 .wide-dialog { width: min(780px, calc(100vw - 30px)); }
+.asr-setup-steps { padding-left: 21px; line-height: 1.8; }
+.asr-setup-steps li + li { margin-top: 6px; }
+#asr-settings-status { margin-top: 10px; }
+#asr-pair-fields label { display: block; margin-top: 16px; }
+#asr-pair-fields input { width: 100%; margin-top: 7px; }
 .workflow-intro { margin: 8px 0 16px; font-size: var(--text-body); }
 .workflow-steps { list-style: none; counter-reset: workflow; display: grid; gap: 8px; padding: 0; margin: 0 0 16px; }
 .workflow-steps li { counter-increment: workflow; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 9px; }

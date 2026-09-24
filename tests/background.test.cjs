@@ -4,7 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const test = require('node:test');
 const extension = path.join(__dirname, '../extension');
-function boot({ authenticated = true, existing = null, beforeSubtitle, missing = false, onStored, initial = {} } = {}) {
+function boot({ authenticated = true, existing = null, beforeSubtitle, missing = false, subtitleLists, onStored, initial = {} } = {}) {
   const local = { noteFolder: 'Clippings/Bilibili', obsidianApiBaseUrl: 'http://127.0.0.1:27123', obsidianApiKey: 'test-only-key' };
   Object.assign(local, initial);
   const listeners = [], opened = [], writes = [], fetched = [];
@@ -27,17 +27,25 @@ function boot({ authenticated = true, existing = null, beforeSubtitle, missing =
       if (url === 'http://127.0.0.1:27123/') return { ok: true, json: async () => ({ authenticated }) };
       if (url.startsWith('http://127.0.0.1:27123/vault/')) {
         if (options.method === 'PUT') { writes.push({ url, content: options.body }); vault.set(url, options.body); return { ok: true }; }
+        if (decodeURIComponent(url).endsWith('/原始字幕/')) {
+          const files = [...vault.keys()].filter(key => key.startsWith(url)).map(key => decodeURIComponent(key.slice(url.length)));
+          return files.length ? { ok: true, json: async () => ({ files }) } : { ok: false, status: 404 };
+        }
         if (vault.has(url)) return { ok: true, text: async () => vault.get(url) };
         return existing === null ? { ok: false, status: 404 } : { ok: true, status: 200, text: async () => existing };
       }
       if (url.includes('/x/web-interface/view')) return { ok: true, json: async () => ({ code: 0, data: { bvid: 'BVexample', aid: 1, title: 'Course', owner: { name: 'Author' }, pages: [{ cid: 2, page: 1, part: '1.1 Intro', duration: 100 }] } }) };
       if (url.includes('/x/player/') && missing) return { ok: true, json: async () => ({ code: 0, data: { subtitle: { subtitles: [] } } }) };
+      if (url.includes('/x/player/') && subtitleLists) {
+        const list = url.includes('/wbi/') ? subtitleLists.wbi : subtitleLists.v2;
+        return { ok: true, json: async () => ({ code: 0, data: { subtitle: { subtitles: list || [] } } }) };
+      }
       if (url.includes('/x/player/')) return { ok: true, json: async () => ({ code: 0, data: { subtitle: { subtitles: [
         { id: 1, lan: 'en', lan_doc: 'English', subtitle_url: '//aisubtitle.hdslb.com/en' },
         { id: 2, lan: 'ai-zh', lan_doc: '中文（自动生成）', subtitle_url: '//aisubtitle.hdslb.com/zh' }
       ] } } }) };
-      await beforeSubtitle?.();
-      return { ok: true, json: async () => ({ body: [{ from: 1, to: 3, content: '实际解析链路' }] }) };
+      const body = await beforeSubtitle?.(url);
+      return { ok: true, json: async () => ({ body: body || [{ from: 1, to: 3, content: '实际解析链路' }] }) };
     }
   });
   vm.runInContext(fs.readFileSync(path.join(extension, 'background.js'), 'utf8'), context);
@@ -77,6 +85,52 @@ test('full worker reads metadata and previews preferred Chinese AI subtitles wit
   assert.equal(data.meta.pages[0].cid, '2');
   const result = await h.message({ type: 'course-request', action: 'preview', meta: data.meta, page: data.meta.pages[0], base: 'Clippings/Bilibili' });
   assert.equal(result.ok, true); assert.equal(result.track.lan, 'ai-zh'); assert.equal(result.body[0].content, '实际解析链路'); assert.equal(h.writes.length, 0);
+});
+test('English preference previews and imports the English track', async () => {
+  const h = boot();
+  const preview = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0], language: 'en' });
+  assert.equal(preview.track.lan, 'en');
+  const imported = await h.message({ ...quickMessage, language: 'en' }, popupSender);
+  assert.equal(imported.status, 'saved');
+  assert.match(h.writes.find(write => decodeURIComponent(write.url).endsWith('1.1 Intro [CID-2].md')).content, /subtitle_lang: "English"/);
+});
+test('an empty first subtitle list falls through to the second endpoint', async () => {
+  const h = boot({ subtitleLists: { wbi: [], v2: [{ id: 1, lan: 'en', lan_doc: 'English', subtitle_url: '//aisubtitle.hdslb.com/en' }] } });
+  const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0], language: 'en' });
+  assert.equal(result.track.lan, 'en');
+  assert.ok(h.fetched.some(url => url.includes('/x/player/wbi/v2')));
+  assert.ok(h.fetched.some(url => url.includes('/x/player/v2')));
+});
+test('automatic language selection still prefers Chinese across endpoints', async () => {
+  const h = boot({ subtitleLists: {
+    wbi: [{ id: 1, lan: 'en', lan_doc: 'English', subtitle_url: '//aisubtitle.hdslb.com/en' }],
+    v2: [{ id: 2, lan: 'ai-zh', lan_doc: '中文（自动生成）', subtitle_url: '//aisubtitle.hdslb.com/zh' }]
+  } });
+  const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0] });
+  assert.equal(result.track.lan, 'ai-zh');
+});
+test('a missing selected language is reported without suggesting transcription', async () => {
+  const h = boot({ subtitleLists: { wbi: [{ id: 1, lan: 'ai-zh', lan_doc: '中文（自动生成）', subtitle_url: '//aisubtitle.hdslb.com/zh' }], v2: [] } });
+  const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0], language: 'en' });
+  assert.equal(result.ok, false);
+  assert.match(result.error, /没有可用的英文字幕/);
+});
+test('English choice skips a mislabeled Chinese transcript and tries the second endpoint', async () => {
+  const h = boot({ subtitleLists: {
+    wbi: [{ id: 1, lan: 'en', lan_doc: 'English', subtitle_url: '//aisubtitle.hdslb.com/wrong' }],
+    v2: [{ id: 2, lan: 'en', lan_doc: 'English', subtitle_url: '//aisubtitle.hdslb.com/correct' }]
+  }, beforeSubtitle: url => [{ from: 1, to: 3, content: url.endsWith('/wrong') ? '欢迎来到今天的操作系统课程我们开始学习这些重要的概念' : 'Welcome to the operating systems course' }] });
+  const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0], language: 'en' });
+  assert.equal(result.track.lan, 'en');
+  assert.equal(result.body[0].content, 'Welcome to the operating systems course');
+});
+test('English choice never silently previews Chinese-only subtitle content', async () => {
+  const h = boot({ subtitleLists: {
+    wbi: [{ id: 1, lan: 'en', lan_doc: 'English', subtitle_url: '//aisubtitle.hdslb.com/wrong' }], v2: []
+  }, beforeSubtitle: () => [{ from: 1, to: 3, content: '欢迎来到今天的操作系统课程我们开始学习这些重要的概念' }] });
+  const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0], language: 'en' });
+  assert.equal(result.ok, false);
+  assert.match(result.error, /返回了中文内容/);
 });
 test('workflow install skips customized documents instead of replacing them', async () => {
   const h = boot({ existing: '# user rules' });
@@ -118,7 +172,7 @@ test('quick import saves raw subtitles, index and durable status; repeat skips r
   assert.equal(state.state.status, 'saved');
   assert.equal(h.local['boc-course-v1:BVexample:Clippings/Bilibili'].pages[0].status, 'saved');
   assert.equal((await h.message(quickMessage, popupSender)).status, 'exists');
-  assert.equal(h.writes.filter(w => decodeURIComponent(w.url).endsWith('CID-2.md')).length, 1);
+  assert.equal(h.writes.filter(w => decodeURIComponent(w.url).endsWith('1.1 Intro [CID-2].md')).length, 1);
   assert.ok(h.writes.at(-1).content.includes('已存在，跳过'));
 });
 test('closing popup does not own or cancel the background operation; duplicate requests share it', async () => {
@@ -136,7 +190,7 @@ test('closing popup does not own or cancel the background operation; duplicate r
   const duplicate = h.message(quickMessage, popupSender);
   release(); await completed;
   assert.equal((await duplicate).status, 'saved');
-  assert.equal(h.writes.filter(w => decodeURIComponent(w.url).endsWith('CID-2.md')).length, 1);
+  assert.equal(h.writes.filter(w => decodeURIComponent(w.url).endsWith('1.1 Intro [CID-2].md')).length, 1);
 });
 test('quick import respects workspace lock and reports missing subtitles and failures', async () => {
   const locked = boot(); locked.locks.add('boc-course:BVexample');

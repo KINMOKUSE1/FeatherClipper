@@ -1,5 +1,5 @@
 // Subtitle API selection derives from the MIT-licensed Bilibili-Obsidian-Clipper.
-importScripts("course-core.js", "course-background.js", "quick-import.js");
+importScripts("course-core.js", "asr-background.js", "course-background.js", "quick-import.js");
 const SETTING_DEFAULTS = { noteFolder: "Clippings/Bilibili", obsidianApiBaseUrl: "http://127.0.0.1:27123", obsidianApiKey: "" };
 
 async function getMergedSettings() {

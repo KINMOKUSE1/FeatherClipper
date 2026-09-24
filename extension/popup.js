@@ -13,9 +13,10 @@ function controls() {
   $("read").disabled = $("url").disabled = busy || reading || previewing;
   $("import").disabled = busy || reading || previewing || !page || !hasSubtitle || !settings?.hasApiKey;
   $("import").textContent = busy ? "正在导入…" : page ? `导入 P${page.page}` : "导入当前视频";
-  $("refresh-preview").disabled = busy || reading || previewing;
   $("settings").disabled = busy || reading || previewing || !settings;
   $("workspace").disabled = busy || reading;
+  $("asr-open").disabled = busy || reading || previewing || !settings?.hasApiKey;
+  $("language-trigger").disabled = busy || reading || previewing;
 }
 function showJob(state) {
   busy = state?.status === "running";
@@ -30,18 +31,19 @@ async function refreshSettings() {
 }
 async function preview() {
   previewing = true; hasSubtitle = false; controls();
-  $("subtitle-info").textContent = "正在读取字幕…"; $("subtitles").textContent = "";
+  $("asr-open").hidden = true;
+  $("subtitles").textContent = "正在读取字幕…";
   try {
-    const result = await send({ type: "course-request", action: "preview", meta, page });
+    const result = await send({ type: "course-request", action: "preview", meta, page, language: SubtitleLanguage.current() });
     hasSubtitle = Boolean(result.body?.length);
-    $("subtitle-info").textContent = hasSubtitle ? `${result.track.lanDoc || result.track.lan} · 预览前 ${Math.min(12, result.body.length)} 条，导入时保存完整字幕` : "未找到可用字幕";
-    if (!hasSubtitle) $("subtitles").textContent = "可先在 B站确认这个视频是否提供字幕。";
+    $("asr-open").hidden = hasSubtitle;
+    $("subtitles").textContent = hasSubtitle ? "" : "B站没有可用字幕。可在课程工作台使用可选的本地转写。";
     for (const item of (result.body || []).slice(0, 12)) {
       const line = document.createElement("p"), time = document.createElement("time");
       time.textContent = new Date(Math.floor(item.from) * 1000).toISOString().slice(11, 19);
       line.append(time, document.createTextNode(item.content)); $("subtitles").append(line);
     }
-  } catch (error) { $("subtitle-info").textContent = "字幕读取失败"; $("subtitles").textContent = error.message; }
+  } catch (error) { $("subtitles").textContent = `字幕读取失败：${error.message}`; }
   finally { previewing = false; controls(); }
 }
 async function loadVideo() {
@@ -73,11 +75,18 @@ async function loadVideo() {
   finally { reading = false; controls(); }
 }
 $("source-form").addEventListener("submit", event => { event.preventDefault(); loadVideo(); });
-$("refresh-preview").addEventListener("click", preview);
+$("asr-open").addEventListener("click", async () => {
+  if ($( "asr-open").disabled || !meta || !page) return;
+  const target = new URL(chrome.runtime.getURL("course.html"));
+  target.searchParams.set("bvid", meta.bvid);
+  target.searchParams.set("p", page.page);
+  target.searchParams.set("asr", "1");
+  await chrome.tabs.create({ url: target.href }); window.close();
+});
 $("import").addEventListener("click", async () => {
   if ($("import").disabled) return;
   showJob({ status: "running" });
-  try { showJob(await send({ type: "quick-import", bvid: meta.bvid, cid: page.cid, meta, base })); }
+  try { showJob(await send({ type: "quick-import", bvid: meta.bvid, cid: page.cid, meta, base, language: SubtitleLanguage.current() })); }
   catch (error) { showJob({ status: "failed", error: error.message }); }
 });
 chrome.storage.onChanged.addListener((changes, area) => {
@@ -113,6 +122,7 @@ async function saveSettings(testOnly) {
 $("test").addEventListener("click", () => saveSettings(true));
 $("save").addEventListener("click", () => saveSettings(false));
 async function init() {
+  await SubtitleLanguage.init(() => { if (page) preview(); });
   await refreshSettings();
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   try {

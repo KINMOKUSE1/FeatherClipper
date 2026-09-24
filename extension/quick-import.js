@@ -26,13 +26,13 @@ async function runQuickImport(message, key) {
       const cached = (await chrome.storage.local.get(snapshot))[snapshot];
       const pages = meta.pages.map(page => {
         const old = cached?.pages?.find(item => item.cid === page.cid);
-        return { ...page, chapter: old?.chapter ?? CourseCore.chapterOf(page.part), selected: old?.selected ?? page.cid === message.cid, status: old?.status || "pending", error: old?.error || "" };
+        return { ...page, chapter: old?.chapter ?? CourseCore.chapterOf(page.part), selected: old?.selected ?? page.cid === message.cid, status: old?.status || "pending", error: old?.error || "", sourcePath: old?.sourcePath || "" };
       });
       const page = pages.find(item => item.cid === message.cid);
       // Validate the index before saving raw material, just like the course workspace.
       await handleCourseMessage({ action: "index", meta, base, pages });
-      const result = await handleCourseMessage({ action: "import", meta, base, page });
-      page.status = result.status; page.error = "";
+      const result = await handleCourseMessage({ action: "import", meta, base, page, language: message.language });
+      page.status = result.status; page.error = ""; page.sourcePath = result.path || "";
       await chrome.storage.local.set({ [snapshot]: { title: meta.title, pages, updated: Date.now() }, [`boc-course-base:${meta.bvid}`]: base });
       await handleCourseMessage({ action: "index", meta, base, pages });
       const state = { status: result.status, path: result.path || "" };
