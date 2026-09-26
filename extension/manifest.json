@@ -1,16 +1,19 @@
 {
   "manifest_version": 3,
   "name": "Course Cove",
-  "version": "1.2.1",
-  "description": "Bilibili subtitles to Obsidian. 批量导入课程字幕并按章组织。",
+  "version": "1.3.5",
+  "description": "Video subtitles to Obsidian. 收集 B站与 YouTube 课程字幕。",
   "permissions": [
     "storage",
-    "activeTab"
+    "activeTab",
+    "scripting"
   ],
   "host_permissions": [
     "https://www.bilibili.com/*",
     "https://api.bilibili.com/*",
     "https://*.hdslb.com/*",
+    "https://www.youtube.com/*",
+    "https://m.youtube.com/*",
     "http://127.0.0.1/*",
     "https://127.0.0.1/*",
     "http://localhost/*",

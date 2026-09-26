@@ -1,7 +1,8 @@
 /* The worker owns one-video imports so closing the popup does not cancel them. */
 const quickJobs = new Map();
 function quickKey(message) {
-  if (!/^BV[0-9A-Za-z]+$/.test(message.bvid || "") || !/^\d+$/.test(message.cid || "")) throw new Error("视频信息无效，请重新读取。");
+  const youtube = /^YT(?:_|PL_)/.test(String(message.bvid || ""));
+  if (!(youtube ? (/^YT_[\w-]{11}$/.test(message.bvid || "") && message.cid === message.bvid.slice(3)) || (/^YTPL_[\w-]{8,60}$/.test(message.bvid || "") && /^[\w-]{11}$/.test(message.cid || "")) : /^BV[0-9A-Za-z]+$/.test(message.bvid || "") && /^\d+$/.test(message.cid || ""))) throw new Error("视频信息无效，请重新读取。");
   return `boc-quick:${message.bvid}:${message.cid}:${CourseCore.normalizeFolder(message.base)}`;
 }
 async function quickStatus(message) {

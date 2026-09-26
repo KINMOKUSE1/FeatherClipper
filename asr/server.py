@@ -42,27 +42,29 @@ def allowed_audio_url(value):
         host = (parsed.hostname or "").lower()
         return (parsed.scheme == "https" and not parsed.username and not parsed.password
                 and any(host == domain or host.endswith("." + domain)
-                        for domain in ("bilivideo.com", "hdslb.com", "bilibili.com")))
+                        for domain in ("bilivideo.com", "hdslb.com", "bilibili.com", "googlevideo.com")))
     except (TypeError, ValueError):
         return False
 
 
-class BiliRedirects(urllib.request.HTTPRedirectHandler):
+class MediaRedirects(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, msg, headers, newurl):
         if not allowed_audio_url(newurl):
-            raise ValueError("音频服务跳转到了非 B站媒体地址，已停止下载。")
+            raise ValueError("音频服务跳转到了不受支持的媒体地址，已停止下载。")
         return super().redirect_request(request, fp, code, msg, headers, newurl)
 
 
-def download_audio(urls, target, bvid, canceled):
-    opener = urllib.request.build_opener(BiliRedirects())
+def download_audio(urls, target, bvid, canceled, cid=None):
+    opener = urllib.request.build_opener(MediaRedirects())
     last_error = None
     for url in urls:
         if not allowed_audio_url(url):
-            raise ValueError("音频地址不是 B 站媒体服务。")
+            raise ValueError("音频地址不属于支持的媒体服务。")
+        referer = (f"https://www.youtube.com/watch?v={cid or bvid[3:]}" if bvid.startswith(("YT_", "YTPL_"))
+                   else f"https://www.bilibili.com/video/{bvid}/")
         request = urllib.request.Request(url, headers={
             "User-Agent": "Mozilla/5.0",
-            "Referer": f"https://www.bilibili.com/video/{bvid}/",
+            "Referer": referer,
         })
         try:
             count = 0
@@ -78,7 +80,7 @@ def download_audio(urls, target, bvid, canceled):
                         raise OverflowError("音频超过 1 GiB；请分段处理这门课程。")
                     output.write(block)
             if not count:
-                raise ValueError("B 站没有返回音频数据。")
+                raise ValueError("媒体服务没有返回音频数据。")
             return
         except (OSError, urllib.error.URLError, ValueError) as error:
             if canceled.is_set():
@@ -240,7 +242,7 @@ def run_job(home, job):
         target.parent.mkdir(parents=True, exist_ok=True)
         try:
             job.update(status="downloading", detail="正在获取音频")
-            download_audio(job["audio_urls"], target, job["bvid"], job["cancel"])
+            download_audio(job["audio_urls"], target, job["bvid"], job["cancel"], job["cid"])
             job.update(status="transcribing", detail="正在加载模型")
             body, language = transcribe_file(target, home, job)
             job.update(status="done", detail=f"转写完成（{'GPU' if job.get('device') == 'cuda' else 'CPU'}）",
@@ -302,7 +304,7 @@ def make_handler(home, token):
         def do_GET(self):
             if self.path == "/health":
                 self.send_json(200, {"service": "course-cove-asr", "version": 1,
-                                     "audio_backups": True,
+                                     "audio_backups": True, "youtube_audio": True,
                                      "gpu_enabled": gpu_requested(home) if (home / "config.json").is_file() else False,
                                      "device": MODEL_DEVICE if MODEL else "pending",
                                      "gpu_notice": GPU_NOTICE,
@@ -334,12 +336,13 @@ def make_handler(home, token):
                 data = json.loads(self.rfile.read(length))
                 bvid, cid = data.get("bvid"), data.get("cid")
                 urls = data.get("audio_urls") or [data.get("audio_url")]
-                if not isinstance(bvid, str) or not re.fullmatch(r"BV[0-9A-Za-z]+", bvid):
-                    raise ValueError("视频 BV 号无效。")
-                if not isinstance(cid, str) or not re.fullmatch(r"\d+", cid):
-                    raise ValueError("视频 CID 无效。")
+                youtube = isinstance(bvid, str) and bool(re.fullmatch(r"YT_[\w-]{11}|YTPL_[\w-]{8,60}", bvid))
+                if not isinstance(bvid, str) or not (youtube or re.fullmatch(r"BV[0-9A-Za-z]+", bvid)):
+                    raise ValueError("视频编号无效。")
+                if not isinstance(cid, str) or not ((re.fullmatch(r"[\w-]{11}", cid) and (bvid.startswith("YTPL_") or cid == bvid[3:])) if youtube else re.fullmatch(r"\d+", cid)):
+                    raise ValueError("视频分段编号无效。")
                 if not isinstance(urls, list) or not 1 <= len(urls) <= 4 or not all(isinstance(url, str) and allowed_audio_url(url) for url in urls):
-                    raise ValueError("音频地址不是 B 站媒体服务。")
+                    raise ValueError("音频地址不属于支持的媒体服务。")
             except (ValueError, TypeError, json.JSONDecodeError) as error:
                 self.send_json(400, {"error": str(error)})
                 return

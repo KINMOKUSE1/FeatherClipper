@@ -13,7 +13,9 @@ test('study prompt keeps the selected scope and readable source paths', () => {
   assert.match(prompt, /本次范围：P2、P3/);
   assert.match(prompt, /素材\/示例课程 \[BV1234567890\]\/原始字幕\/第二节 \[CID-22\]\.md/);
   assert.doesNotMatch(prompt, /CID-11/);
-  assert.match(prompt, /部分章节注明覆盖范围/);
+  assert.match(prompt, /学习规则：素材\/学习工作流\/WORKFLOW\.md/);
+  assert.match(prompt, /笔记模板：素材\/学习工作流\/NOTE_TEMPLATE\.md/);
+  assert.doesNotMatch(prompt, /自测题和答案/);
 });
 
 test('no selection requires an explicit scope instead of reusing the current P', () => {

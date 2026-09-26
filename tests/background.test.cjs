@@ -4,16 +4,27 @@ const path = require('node:path');
 const vm = require('node:vm');
 const test = require('node:test');
 const extension = path.join(__dirname, '../extension');
-function boot({ authenticated = true, existing = null, beforeSubtitle, missing = false, subtitleLists, onStored, initial = {} } = {}) {
+function boot({ authenticated = true, existing = null, beforeSubtitle, missing = false, subtitleLists, onStored, initial = {}, youtubeVideo, youtubePlaylist = '' } = {}) {
   const local = { noteFolder: 'Clippings/Bilibili', obsidianApiBaseUrl: 'http://127.0.0.1:27123', obsidianApiKey: 'test-only-key' };
   Object.assign(local, initial);
-  const listeners = [], opened = [], writes = [], fetched = [];
-  const locks = new Set(), vault = new Map();
+  const listeners = [], opened = [], writes = [], fetched = [], youtubeCalls = [];
+  const locks = new Set(), vault = new Map(), tabs = new Map(), session = {};
   let click, context;
   const chrome = {
     runtime: { id: 'test', getURL: file => `chrome-extension://test/${file}`, onMessage: { addListener: fn => listeners.push(fn) } },
-    storage: { local: { get: async () => ({ ...local }), set: async data => { Object.assign(local, data); onStored?.(data); } }, sync: { get: async () => ({}) } },
-    action: { onClicked: { addListener: fn => click = fn } }, tabs: { create: data => opened.push(data) }
+    storage: { local: { get: async () => ({ ...local }), set: async data => { Object.assign(local, data); onStored?.(data); } }, sync: { get: async () => ({}) }, session: { get: async key => ({ [key]: session[key] }), set: async data => Object.assign(session, data) } },
+    action: { onClicked: { addListener: fn => click = fn } },
+    tabs: { create: async data => { opened.push(data); const tab = { id: 2, status: 'complete', url: data.url }; tabs.set(tab.id, tab); return tab; },
+      get: async id => tabs.get(id), remove: async id => tabs.delete(id),
+      update: async (id, data) => Object.assign(tabs.get(id), data),
+      query: async () => [...(youtubeVideo ? [{ id: 1, status: 'complete', active: true, url: `https://www.youtube.com/watch?v=${youtubeVideo}${youtubePlaylist ? `&list=${youtubePlaylist}` : ''}` }] : []), ...tabs.values()] },
+    scripting: { executeScript: async ({ args }) => {
+      youtubeCalls.push(args);
+      return [{ result: { meta: { platform: 'youtube', videoId: youtubeVideo, playlistId: youtubePlaylist || undefined,
+        bvid: youtubePlaylist ? `YTPL_${youtubePlaylist}` : `YT_${youtubeVideo}`, title: 'Lecture', author: 'Teacher',
+        pages: [{ cid: youtubeVideo, page: 1, part: youtubePlaylist ? 'Lecture 1' : 'Lecture', duration: 90 }, ...(youtubePlaylist ? [{ cid: 'abcdef12345', page: 2, part: 'Lecture 2', duration: 90 }] : [])] },
+        ...(args[2] ? { track: { lan: 'en', lanDoc: 'English' }, body: [{ from: 3, to: 5, content: 'First lesson' }] } : {}) } }];
+    } }
   };
   context = vm.createContext({ chrome, console, URL, URLSearchParams, AbortSignal, setInterval, clearInterval,
     navigator: { locks: { request: async (name, options, run) => {
@@ -56,7 +67,7 @@ function boot({ authenticated = true, existing = null, beforeSubtitle, missing =
       if (!accepted) setImmediate(() => resolve({ ok: false, error: 'not handled' }));
     });
   }
-  return { context, local, writes, fetched, message, locks, listeners, click: (...args) => click(...args), opened };
+  return { context, local, writes, fetched, youtubeCalls, message, locks, listeners, click: (...args) => click(...args), opened };
 }
 test('settings read hides stored Key; blank save preserves it', async () => {
   const h = boot();
@@ -93,6 +104,37 @@ test('English preference previews and imports the English track', async () => {
   const imported = await h.message({ ...quickMessage, language: 'en' }, popupSender);
   assert.equal(imported.status, 'saved');
   assert.match(h.writes.find(write => decodeURIComponent(write.url).endsWith('1.1 Intro [CID-2].md')).content, /subtitle_lang: "English"/);
+});
+
+test('popup lists real Bilibili tracks from both endpoints and imports the selected track', async () => {
+  const h = boot({ subtitleLists: {
+    wbi: [{ id: 11, lan: 'ai-zh', lan_doc: '中文（自动生成）', subtitle_url: '//aisubtitle.hdslb.com/zh' }],
+    v2: [{ id: 12, lan: 'ja', lan_doc: '日本語', subtitle_url: '//aisubtitle.hdslb.com/ja' }]
+  } });
+  const available = await h.message({ type: 'course-request', action: 'tracks', meta: quickMeta, page: quickMeta.pages[0] }, popupSender);
+  assert.equal(available.ok, true);
+  assert.deepEqual([...available.tracks.map(t => t.lan)], ['ai-zh', 'ja']);
+  assert.ok(available.tracks.every(t => !t.subtitleUrl));
+  assert.ok(h.fetched.every(url => !url.includes('hdslb.com')));
+  const language = available.tracks[1];
+  const preview = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0], language }, popupSender);
+  assert.equal(preview.track.lan, 'ja');
+  const imported = await h.message({ ...quickMessage, language }, popupSender);
+  assert.equal(imported.status, 'saved');
+  assert.match(h.writes.find(write => decodeURIComponent(write.url).endsWith('1.1 Intro [CID-2].md')).content, /subtitle_lang: "日本語"/);
+});
+
+test('exact Bilibili selection rejects another video or a missing track instead of falling back', async () => {
+  const h = boot();
+  for (const language of [
+    { platform: 'bilibili', videoId: '99', id: '1' },
+    { platform: 'bilibili', videoId: '2', id: 'missing' }
+  ]) {
+    const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0], language });
+    assert.equal(result.ok, false);
+    assert.match(result.error, /字幕轨/);
+  }
+  assert.ok(h.fetched.every(url => !url.includes('hdslb.com')));
 });
 test('an empty first subtitle list falls through to the second endpoint', async () => {
   const h = boot({ subtitleLists: { wbi: [], v2: [{ id: 1, lan: 'en', lan_doc: 'English', subtitle_url: '//aisubtitle.hdslb.com/en' }] } });
@@ -147,11 +189,11 @@ test('extension messages from an unrelated page are rejected', async () => {
   assert.equal((await h.message({ type: 'course-request', action: 'meta', bvid: 'BVexample' }, sender)).ok, false);
   assert.equal(h.fetched.length, 0);
 });
-test('manifest opens the popup and retains the workspace without extra permissions', () => {
+test('manifest opens the popup and grants YouTube page reading', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(extension, 'manifest.json')));
-  assert.deepEqual(manifest.permissions, ['storage', 'activeTab']);
+  assert.deepEqual(manifest.permissions, ['storage', 'activeTab', 'scripting']);
   assert.equal(manifest.action.default_popup, 'popup.html'); assert.equal(manifest.side_panel, undefined); assert.equal(manifest.content_scripts, undefined);
-  assert.ok(!manifest.host_permissions.includes('https://*/*')); assert.equal(manifest.options_page, 'course.html');
+  assert.ok(manifest.host_permissions.includes('https://www.youtube.com/*')); assert.ok(!manifest.host_permissions.includes('https://*/*')); assert.equal(manifest.options_page, 'course.html');
 });
 
 const popupSender = { id: 'test', url: 'chrome-extension://test/popup.html' };
@@ -174,6 +216,42 @@ test('quick import saves raw subtitles, index and durable status; repeat skips r
   assert.equal((await h.message(quickMessage, popupSender)).status, 'exists');
   assert.equal(h.writes.filter(w => decodeURIComponent(w.url).endsWith('1.1 Intro [CID-2].md')).length, 1);
   assert.ok(h.writes.at(-1).content.includes('已存在，跳过'));
+});
+
+test('YouTube video previews and imports through the same Obsidian workflow', async () => {
+  const id = 'GWwL_pLuX-U';
+  const h = boot({ youtubeVideo: id });
+  const data = await h.message({ type: 'course-request', action: 'meta', youtubeId: id }, popupSender);
+  assert.equal(data.meta.platform, 'youtube');
+  assert.equal(data.folder, 'Clippings/YouTube');
+  const preview = await h.message({ type: 'course-request', action: 'preview', meta: data.meta, page: data.meta.pages[0], language: 'en' }, popupSender);
+  assert.equal(preview.body[0].content, 'First lesson');
+  const message = { type: 'quick-import', meta: data.meta, bvid: data.meta.bvid, cid: id, base: data.folder, language: 'en' };
+  const result = await h.message(message, popupSender);
+  assert.equal(result.status, 'saved');
+  assert.equal(h.youtubeCalls.length, 2, 'import reuses the immediately preceding preview');
+  assert.ok(h.writes.some(write => decodeURIComponent(write.url).endsWith(`Lecture [YT-${id}].md`) && write.content.includes('platform: youtube')));
+});
+test('YouTube playlist imports the selected lecture using its own video ID', async () => {
+  const id = 'GWwL_pLuX-U', playlistId = 'PLKq1TCpsv3Y4';
+  const h = boot({ youtubeVideo: id, youtubePlaylist: playlistId });
+  const data = await h.message({ type: 'course-request', action: 'meta', youtubeId: id, playlistId }, popupSender);
+  assert.equal(data.meta.pages.length, 2);
+  assert.equal(data.meta.bvid, `YTPL_${playlistId}`);
+  const selected = data.meta.pages[1];
+  const preview = await h.message({ type: 'course-request', action: 'preview', meta: data.meta, page: selected, language: 'en' }, popupSender);
+  assert.equal(preview.body[0].content, 'First lesson');
+  const result = await h.message({ type: 'quick-import', meta: data.meta, bvid: data.meta.bvid, cid: selected.cid, base: data.folder, language: 'en' }, popupSender);
+  assert.equal(result.status, 'saved');
+  assert.ok(h.youtubeCalls.some(args => args[0] === selected.cid && args[2] === true));
+  assert.ok(h.writes.some(write => decodeURIComponent(write.url).endsWith(`Lecture 2 [YT-${selected.cid}].md`)));
+});
+test('metadata accepts a pasted YouTube watch-and-list URL from an older page', async () => {
+  const id = 'GWwL_pLuX-U', playlistId = 'PLKq1TCpsv3Y4';
+  const h = boot({ youtubeVideo: id, youtubePlaylist: playlistId });
+  const result = await h.message({ type: 'course-request', action: 'meta', bvid: `https://www.youtube.com/watch?v=${id}&list=${playlistId}` });
+  assert.equal(result.ok, true);
+  assert.equal(result.meta.pages.length, 2);
 });
 test('closing popup does not own or cancel the background operation; duplicate requests share it', async () => {
   let release, entered, saved;

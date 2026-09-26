@@ -4,8 +4,8 @@
 
 ## 先选一种用法
 
-- **聊天工具**：把 `documents/` 中的指南、模板和指令，以及课程清单和对应字幕，交给你使用的 AI。
-- **支持 skill 的本地工具**：安装 `course-notes`，之后直接指定课程和范围。绘图技能可按需要安装。
+- **聊天工具**：把 `documents/WORKFLOW.md`、`documents/NOTE_TEMPLATE.md`、课程清单和对应字幕交给 AI；`PROMPTS.md` 是可选的提示词示例。
+- **支持 skill 的本地工具**：安装 `course-notes`，指定课程、范围和学习文档路径。绘图技能可按需要安装。
 
 ## 包含什么
 
@@ -26,10 +26,10 @@
 
 安装后，在对应项目打开会话并调用技能；列表未刷新时重新打开工具。已有同名绘图技能时可继续使用，只补装核心整理技能。
 
-- Codex 示例：`$course-notes 请整理这门课程第 2 章，保留例题和推导。`
-- Claude Code 示例：`/course-notes 请整理这门课程第 2 章，保留例题和推导。`
+- Codex 示例：`$course-notes 请按 <学习工作流/WORKFLOW.md> 和 <学习工作流/NOTE_TEMPLATE.md> 整理这门课程第 2 章。`
+- Claude Code 示例：`/course-notes 请按 <学习工作流/WORKFLOW.md> 和 <学习工作流/NOTE_TEMPLATE.md> 整理这门课程第 2 章。`
 
-把个人目录、署名和学习目标填写在 `documents/WORKFLOW.md`，使用时与素材一起提供。技能内的笔记模板是默认结构，个人模板优先。
+使用插件时，在 Obsidian 的 `学习工作流/WORKFLOW.md` 和 `NOTE_TEMPLATE.md` 修改个人偏好，并通过插件“复制任务指令”提供它们的路径。包内 `documents/` 是不使用插件时可单独提供的默认文档；技能内置模板仅在找不到个人模板时使用。
 
 安装位置与调用方式参考：[Codex 官方文档](https://learn.chatgpt.com/docs/build-skills)、[Claude Code 官方文档](https://code.claude.com/docs/en/skills)。
 

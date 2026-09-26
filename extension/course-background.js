@@ -53,9 +53,9 @@ async function courseRawFiles(meta, base) {
 }
 function existingRawPath(meta, page, base, files) {
   const currentName = CourseCore.rawPath(meta, page, base).split("/").pop();
-  const suffix = ` [CID-${page.cid}].md`;
+  const suffix = meta.platform === "youtube" ? ` [YT-${page.cid}].md` : ` [CID-${page.cid}].md`;
   const name = files.includes(currentName) ? currentName
-    : files.find(file => file === `CID-${page.cid}.md` || file.endsWith(suffix));
+    : files.find(file => (meta.platform !== "youtube" && file === `CID-${page.cid}.md`) || file.endsWith(suffix));
   return name ? `${CourseCore.courseFolder(meta, base)}/原始字幕/${name}` : null;
 }
 async function courseRawSources(meta, pages, base) {
@@ -74,7 +74,15 @@ function courseEnglishTextIsChinese(body) {
   const latin = (sample.match(/[a-z]/gi) || []).length;
   return chinese >= 24 && chinese > latin * 2;
 }
-async function courseSubtitle(meta, page, preference = "auto") {
+async function courseSubtitle(meta, page, preference = "auto", purpose = "read") {
+  if (meta.platform === "youtube") {
+    const result = await youtubeRead(page.cid, preference, true, false, "", purpose);
+    return result.missing ? null : result;
+  }
+  const chosen = preference && typeof preference === "object" ? preference : null;
+  if (chosen && (chosen.platform !== "bilibili" || chosen.videoId !== String(page.cid))) throw new Error("字幕轨不属于当前视频，请重新选择。");
+  const trackId = track => track.id || `${track.lan}:${track.lanDoc}`;
+  const available = new Map();
   const requests = buildSubtitleInfoRequests({ bvid: meta.bvid, aid: meta.aid, cid: page.cid });
   const language = ["zh", "en"].includes(preference) ? preference : "auto";
   let lastError, trackError, foundOtherLanguage = false, mismatchedEnglish = false, fallback = null;
@@ -88,8 +96,10 @@ async function courseSubtitle(meta, page, preference = "auto") {
       throw error;
     }
     const tracks = normalizeSubtitleTracks(mapSubtitleTracks(payload.data?.subtitle?.subtitles || []));
+    for (const track of tracks) available.set(trackId(track), { platform: "bilibili", videoId: String(page.cid), id: trackId(track), lan: track.lan, lanDoc: track.lanDoc || track.lan });
+    if (purpose === "tracks") continue;
     if (!tracks.length) continue;
-    const matching = language === "auto" ? tracks : tracks.filter(track => courseTrackLanguage(track) === language);
+    const matching = chosen ? tracks.filter(track => trackId(track) === chosen.id) : language === "auto" ? tracks : tracks.filter(track => courseTrackLanguage(track) === language);
     if (language !== "auto" && matching.length < tracks.length) foundOtherLanguage = true;
     for (const track of matching) {
       try {
@@ -99,26 +109,41 @@ async function courseSubtitle(meta, page, preference = "auto") {
         const body = (Array.isArray(subtitle.body) ? subtitle.body : []).filter(item => Number.isFinite(item.from) && item.from >= 0 && typeof item.content === "string" && item.content.trim());
         if (!body.length) continue;
         if (page.duration > 0 && body.some(item => Number(item.to || item.from) > page.duration + 15)) throw new Error("字幕超出该 P 的时长，已停止保存，请核对字幕轨。");
-        if (language === "en" && courseEnglishTextIsChinese(body)) { mismatchedEnglish = true; continue; }
-        if (language !== "auto" || courseTrackLanguage(track) === "zh") return { track, body };
+        if ((language === "en" || (chosen && courseTrackLanguage(track) === "en")) && courseEnglishTextIsChinese(body)) { mismatchedEnglish = true; continue; }
+        if (chosen || language !== "auto" || courseTrackLanguage(track) === "zh") return { track, body };
         if (!fallback || (courseTrackLanguage(track) === "en" && courseTrackLanguage(fallback.track) !== "en")) fallback = { track, body };
       } catch (error) { if (error.fatal) throw error; trackError = error; }
     }
   }
+  if (purpose === "tracks") {
+    if (!available.size && lastError) throw lastError;
+    return { tracks: [...available.values()] };
+  }
   if (fallback) return fallback;
   if (mismatchedEnglish) throw new Error("B站标为英文的字幕轨返回了中文内容，已尝试其他字幕入口；请在视频页核对字幕来源。");
   if (trackError || lastError) throw trackError || lastError;
+  if (chosen) throw new Error("所选字幕轨暂时不可用，请重新读取或选择其他字幕轨。");
   if (language !== "auto" && foundOtherLanguage) throw new Error(`没有可用的${language === "zh" ? "中文" : "英文"}字幕，请切换为自动选择。`);
   return null;
 }
 async function handleCourseMessage(message) {
   const { action, meta, page, base } = message;
   if (action === "meta") {
-    if (!/^BV[0-9A-Za-z]+$/.test(message.bvid || "")) throw new Error("请输入有效的 BV 视频链接。");
-    const payload = await courseBiliJson(`https://api.bilibili.com/x/web-interface/view?bvid=${encodeURIComponent(message.bvid)}`);
+    const parsed = CourseCore.parseSource(message.bvid);
+    const youtubeId = message.youtubeId || (parsed?.platform === "youtube" ? parsed.id : "");
+    const playlistId = message.playlistId || (parsed?.platform === "youtube" ? parsed.playlistId : "");
+    if (youtubeId) {
+      const result = await youtubeRead(youtubeId, "auto", false, false, playlistId);
+      const settings = await getMergedSettings();
+      const folder = String(settings.noteFolder || "Clippings/Bilibili").replace(/\{\{created\}\}/g, formatLocalDate()).replace(/\{\{upload_date\}\}/g, formatLocalDate()).replace(/\{\{author\}\}/g, CourseCore.safeName(result.meta.author)).replace(/\{\{bvid\}\}/g, result.meta.videoId);
+      return { meta: result.meta, folder: folder === "Clippings/Bilibili" ? "Clippings/YouTube" : folder };
+    }
+    const bvid = parsed?.platform === "bilibili" ? parsed.id : message.bvid;
+    if (!/^BV[0-9A-Za-z]+$/.test(bvid || "")) throw new Error("请输入有效的 B站或 YouTube 视频链接。");
+    const payload = await courseBiliJson(`https://api.bilibili.com/x/web-interface/view?bvid=${encodeURIComponent(bvid)}`);
     const data = payload.data;
     const settings = await getMergedSettings();
-    const folder = String(settings.noteFolder || "Clippings/Bilibili").replace(/\{\{created\}\}/g, formatLocalDate()).replace(/\{\{upload_date\}\}/g, formatLocalDate(data.pubdate * 1000)).replace(/\{\{author\}\}/g, CourseCore.safeName(data.owner?.name)).replace(/\{\{bvid\}\}/g, message.bvid);
+    const folder = String(settings.noteFolder || "Clippings/Bilibili").replace(/\{\{created\}\}/g, formatLocalDate()).replace(/\{\{upload_date\}\}/g, formatLocalDate(data.pubdate * 1000)).replace(/\{\{author\}\}/g, CourseCore.safeName(data.owner?.name)).replace(/\{\{bvid\}\}/g, bvid);
     return { meta: { bvid: data.bvid, aid: String(data.aid), title: data.title, author: data.owner?.name || "", pages: (data.pages || []).map(p => ({ cid: String(p.cid), page: p.page, part: p.part, duration: p.duration })) }, folder };
   }
   if (action === "workflow") {
@@ -135,10 +160,10 @@ async function handleCourseMessage(message) {
     }
     return { results };
   }
-  if (!meta || !/^BV[0-9A-Za-z]+$/.test(meta.bvid || "")) throw new Error("课程信息无效，请重新读取目录。");
+  if (!meta || !(meta.platform === "youtube" ? /^[\w-]{11}$/.test(meta.videoId || "") && (meta.playlistId ? /^[\w-]{8,60}$/.test(meta.playlistId) && meta.bvid === `YTPL_${meta.playlistId}` : meta.bvid === `YT_${meta.videoId}`) : /^BV[0-9A-Za-z]+$/.test(meta.bvid || ""))) throw new Error("课程信息无效，请重新读取目录。");
   if (action === "raw-paths") return { sources: await courseRawSources(meta, message.pages || meta.pages, base) };
   if (["asr-start", "asr-poll", "asr-finish", "asr-cancel"].includes(action)) {
-    if (!/^\d+$/.test(page?.cid || "") || !meta.pages?.some(item => item.cid === page.cid)) throw new Error("分 P 信息无效。");
+    if (!(meta.platform === "youtube" ? /^[\w-]{11}$/.test(page?.cid || "") : /^\d+$/.test(page?.cid || "")) || !meta.pages?.some(item => item.cid === page.cid)) throw new Error("视频信息无效。");
     if (action === "asr-poll") {
       const job = await asrPoll(message.jobId);
       return { status: job.status, detail: job.detail, progress: job.progress };
@@ -148,7 +173,7 @@ async function handleCourseMessage(message) {
     const existingPath = existingRawPath(meta, page, base, await courseRawFiles(meta, base));
     if (existingPath) return { status: "exists", path: existingPath };
     if (action === "asr-start") {
-      const subtitle = await courseSubtitle(meta, page);
+      const subtitle = await courseSubtitle(meta, page, message.language);
       if (subtitle) return { status: "subtitle-available" };
       return asrStart(meta, page);
     }
@@ -164,9 +189,10 @@ async function handleCourseMessage(message) {
     await courseLocalRequest(path, "PUT", CourseCore.buildRaw(meta, page, track, job.body));
     return { status: "saved", path };
   }
-  if (action === "preview") {
-    if (!/^\d+$/.test(page?.cid || "")) throw new Error("分 P 信息无效。");
-    const subtitle = await courseSubtitle(meta, page, message.language);
+  if (action === "preview" || action === "tracks") {
+    if (!(meta.platform === "youtube" ? /^[\w-]{11}$/.test(page?.cid || "") && meta.pages?.some(item => item.cid === page.cid) : /^\d+$/.test(page?.cid || ""))) throw new Error("视频信息无效。");
+    const subtitle = await courseSubtitle(meta, page, message.language, action);
+    if (action === "tracks") return { tracks: subtitle?.tracks || [] };
     return subtitle ? { track: { lan: subtitle.track.lan, lanDoc: subtitle.track.lanDoc }, body: subtitle.body } : { body: [], missing: true };
   }
   const folder = CourseCore.courseFolder(meta, base);
@@ -184,11 +210,11 @@ async function handleCourseMessage(message) {
     return { path, sources };
   }
   if (action === "import") {
-    if (!/^\d+$/.test(page?.cid || "")) throw new Error("分 P 信息无效。");
+    if (!(meta.platform === "youtube" ? /^[\w-]{11}$/.test(page?.cid || "") && meta.pages?.some(item => item.cid === page.cid) : /^\d+$/.test(page?.cid || ""))) throw new Error("视频信息无效。");
     const path = CourseCore.rawPath(meta, page, base);
     const existingPath = existingRawPath(meta, page, base, await courseRawFiles(meta, base));
     if (existingPath) return { status: "exists", path: existingPath };
-    const subtitle = await courseSubtitle(meta, page, message.language);
+    const subtitle = await courseSubtitle(meta, page, message.language, "import");
     if (!subtitle) return { status: "missing" };
     // Recheck after network work in case a note appeared while fetching subtitles.
     const appearedPath = existingRawPath(meta, page, base, await courseRawFiles(meta, base));
@@ -200,7 +226,7 @@ async function handleCourseMessage(message) {
 }
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type !== "course-request") return false;
-  if (sender.id !== chrome.runtime.id || !(String(sender.url || "").split(/[?#]/)[0] === chrome.runtime.getURL("course.html") || (["meta", "preview"].includes(message.action) && String(sender.url || "").split(/[?#]/)[0] === chrome.runtime.getURL("popup.html")))) {
+  if (sender.id !== chrome.runtime.id || !(String(sender.url || "").split(/[?#]/)[0] === chrome.runtime.getURL("course.html") || (["meta", "tracks", "preview"].includes(message.action) && String(sender.url || "").split(/[?#]/)[0] === chrome.runtime.getURL("popup.html")))) {
     sendResponse({ ok: false, error: "请从扩展的课程导入页面操作。" });
     return false;
   }

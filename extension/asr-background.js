@@ -42,7 +42,7 @@ async function asrStatus() {
   try {
     await asrRequest("/pair", "GET", null, token);
     return { installed: true, connected: true, paired: true,
-      device: health.device, gpuEnabled: health.gpu_enabled, gpuNotice: health.gpu_notice };
+      device: health.device, gpuEnabled: health.gpu_enabled, gpuNotice: health.gpu_notice, youtubeAudio: health.youtube_audio === true };
   }
   catch (error) {
     return error.status === 401
@@ -61,6 +61,7 @@ async function asrPair(value) {
 }
 
 async function asrAudioUrls(meta, page) {
+  if (meta.platform === "youtube") return (await youtubeRead(page.cid, "auto", false, true)).audioUrls;
   const query = new URLSearchParams({ bvid: meta.bvid, cid: page.cid, qn: "16", fnval: "16", fourk: "0" });
   const payload = await courseBiliJson(`https://api.bilibili.com/x/player/playurl?${query}`);
   const dashAudio = payload.data?.dash?.audio || [];

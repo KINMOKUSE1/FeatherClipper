@@ -1,6 +1,7 @@
 const $ = id => document.getElementById(id);
 let meta = null, page = null, base = "", settings = null, jobKey = "";
 let busy = false, reading = false, previewing = false, hasSubtitle = false;
+let subtitleLanguage;
 function status(text, error = false) {
   $("status").textContent = text; $("status").classList.toggle("error", error);
 }
@@ -12,7 +13,7 @@ async function send(message) {
 function controls() {
   $("read").disabled = $("url").disabled = busy || reading || previewing;
   $("import").disabled = busy || reading || previewing || !page || !hasSubtitle || !settings?.hasApiKey;
-  $("import").textContent = busy ? "正在导入…" : page ? `导入 P${page.page}` : "导入当前视频";
+  $("import").textContent = busy ? "正在导入…" : page ? meta?.platform === "youtube" ? "导入视频" : `导入 P${page.page}` : "导入当前视频";
   $("settings").disabled = busy || reading || previewing || !settings;
   $("workspace").disabled = busy || reading;
   $("asr-open").disabled = busy || reading || previewing || !settings?.hasApiKey;
@@ -33,14 +34,17 @@ async function preview() {
   previewing = true; hasSubtitle = false; controls();
   $("asr-open").hidden = true;
   $("subtitles").textContent = "正在读取字幕…";
+  $("subtitle-track").textContent = "";
   try {
-    const result = await send({ type: "course-request", action: "preview", meta, page, language: SubtitleLanguage.current() });
+    const result = await send({ type: "course-request", action: "preview", meta, page, language: subtitleLanguage.current() });
+    $("subtitle-track").textContent = result.track?.lanDoc || result.track?.lan || "";
     hasSubtitle = Boolean(result.body?.length);
     $("asr-open").hidden = hasSubtitle;
-    $("subtitles").textContent = hasSubtitle ? "" : "B站没有可用字幕。可在课程工作台使用可选的本地转写。";
-    for (const item of (result.body || []).slice(0, 12)) {
-      const line = document.createElement("p"), time = document.createElement("time");
+    $("subtitles").textContent = hasSubtitle ? "" : "没有可用字幕，可在课程工作台尝试本地转写。";
+    for (const item of CourseCore.groupSubtitles(result.body, meta.platform).slice(0, 12)) {
+      const line = document.createElement("p"), time = document.createElement("a");
       time.textContent = new Date(Math.floor(item.from) * 1000).toISOString().slice(11, 19);
+      time.href = CourseCore.timestampUrl(meta, page, item.from); time.target = "_blank"; time.rel = "noopener";
       line.append(time, document.createTextNode(item.content)); $("subtitles").append(line);
     }
   } catch (error) { $("subtitles").textContent = `字幕读取失败：${error.message}`; }
@@ -49,27 +53,31 @@ async function preview() {
 async function loadVideo() {
   if (busy || reading || previewing) return;
   const source = $("url").value.trim();
-  const bvid = source.match(/BV[0-9A-Za-z]+/)?.[0];
-  if (!bvid) { status("请粘贴 B站视频链接或 BV 号。", true); return; }
-  let number = 1;
-  if (source.startsWith("http")) {
-    try { number = Math.max(1, Number(new URL(source).searchParams.get("p")) || 1); } catch { /* A BV alone also works. */ }
-  }
+  const parsed = CourseCore.parseSource(source);
+  if (!parsed) { status("请粘贴 B站或 YouTube 视频链接。", true); return; }
+  const number = parsed.page;
   reading = true; page = null; jobKey = ""; hasSubtitle = false; controls();
+  subtitleLanguage.tracks([], "auto", "正在读取语言选项…");
   $("video").hidden = true; status("正在识别视频…");
   try {
-    const data = await send({ type: "course-request", action: "meta", bvid });
-    meta = data.meta; page = meta.pages.find(item => item.page === number);
+    const data = await send({ type: "course-request", action: "meta", ...(parsed.platform === "youtube" ? { youtubeId: parsed.id, playlistId: parsed.playlistId } : { bvid: parsed.id }) });
+    meta = data.meta; page = meta.pages.find(item => parsed.platform === "youtube" ? item.cid === parsed.id : item.page === number);
     if (!page) throw new Error(`课程中没有 P${number}，请核对链接。`);
     const baseKey = `boc-course-base:${meta.bvid}`;
     base = (await chrome.storage.local.get(baseKey))[baseKey] || data.folder;
-    $("course-name").textContent = `${meta.title} · 共 ${meta.pages.length} P`;
-    $("part-name").textContent = `P${page.page} · ${page.part}`;
+    $("course-name").textContent = meta.platform === "youtube" ? `${meta.title} · ${meta.pages.length} 个视频` : `${meta.title} · 共 ${meta.pages.length} P`;
+    $("part-name").textContent = meta.platform === "youtube" ? page.part : `P${page.page} · ${page.part}`;
+    $("workspace").textContent = meta.playlistId ? "批量导入播放列表" : meta.platform === "youtube" ? "打开导入工作台" : "批量导入整门课";
+    $("workspace-hint").textContent = meta.platform === "youtube" ? "查看完整字幕、保存学习文档，可进入导入工作台。" : "按章整理和多选导入，请进入课程工作台。";
     $("folder").textContent = base; $("folder").title = CourseCore.courseFolder(meta, base);
     $("video").hidden = false;
     status(settings.hasApiKey ? "" : "先配置 Obsidian 连接，即可导入。");
     const job = await send({ type: "quick-status", bvid: meta.bvid, cid: page.cid, base });
     jobKey = job.key; showJob(job.state);
+    try {
+      const result = await send({ type: "course-request", action: "tracks", meta, page });
+      subtitleLanguage.tracks(result.tracks);
+    } catch { subtitleLanguage.tracks([], "auto", "暂未读取到语言选项，可点击“读取”重试；仍可使用自动。"); }
     await preview();
   } catch (error) { page = null; status(error.message, true); }
   finally { reading = false; controls(); }
@@ -78,7 +86,8 @@ $("source-form").addEventListener("submit", event => { event.preventDefault(); l
 $("asr-open").addEventListener("click", async () => {
   if ($( "asr-open").disabled || !meta || !page) return;
   const target = new URL(chrome.runtime.getURL("course.html"));
-  target.searchParams.set("bvid", meta.bvid);
+  target.searchParams.set(meta.platform === "youtube" ? "youtubeId" : "bvid", meta.platform === "youtube" ? meta.videoId : meta.bvid);
+  if (meta.playlistId) target.searchParams.set("playlistId", meta.playlistId);
   target.searchParams.set("p", page.page);
   target.searchParams.set("asr", "1");
   await chrome.tabs.create({ url: target.href }); window.close();
@@ -86,7 +95,7 @@ $("asr-open").addEventListener("click", async () => {
 $("import").addEventListener("click", async () => {
   if ($("import").disabled) return;
   showJob({ status: "running" });
-  try { showJob(await send({ type: "quick-import", bvid: meta.bvid, cid: page.cid, meta, base, language: SubtitleLanguage.current() })); }
+  try { showJob(await send({ type: "quick-import", bvid: meta.bvid, cid: page.cid, meta, base, language: subtitleLanguage.current() })); }
   catch (error) { showJob({ status: "failed", error: error.message }); }
 });
 chrome.storage.onChanged.addListener((changes, area) => {
@@ -94,7 +103,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 $("workspace").addEventListener("click", async () => {
   const target = new URL(chrome.runtime.getURL("course.html"));
-  if (meta && page) { target.searchParams.set("bvid", meta.bvid); target.searchParams.set("p", page.page); }
+  if (meta && page) { target.searchParams.set(meta.platform === "youtube" ? "youtubeId" : "bvid", meta.platform === "youtube" ? meta.videoId : meta.bvid); if (meta.playlistId) target.searchParams.set("playlistId", meta.playlistId); target.searchParams.set("p", page.page); }
   await chrome.tabs.create({ url: target.href }); window.close();
 });
 $("settings").addEventListener("click", () => {
@@ -122,12 +131,12 @@ async function saveSettings(testOnly) {
 $("test").addEventListener("click", () => saveSettings(true));
 $("save").addEventListener("click", () => saveSettings(false));
 async function init() {
-  await SubtitleLanguage.init(() => { if (page) preview(); });
+  subtitleLanguage = await SubtitleLanguage.create({ onChange: () => { if (page) preview(); } });
   await refreshSettings();
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   try {
     const url = new URL(tab?.url);
-    if (url.hostname === "www.bilibili.com" && /^\/video\/BV[0-9A-Za-z]+/.test(url.pathname)) {
+    if (CourseCore.parseSource(url.href)) {
       $("url").value = url.href; await loadVideo();
     }
   } catch { /* Non-video tabs use the manual input. */ }

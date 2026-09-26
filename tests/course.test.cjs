@@ -41,8 +41,29 @@ function harness({ existing = null, rawFiles = [], tracks = true, needLogin = fa
   vm.runInContext(background, context);
   return { calls, writes, run: (action, extra = {}) => context.handleCourseMessage({ action, meta, page, base: 'Clippings/Bilibili', ...extra }) };
 }
-test('chapter grouping uses chapter prefix, not gaps between lesson numbers', () => {
-  for (const [title, expected] of [['课程指南','0'], ['2.2.1_3 ALU','2'], ['5.6_流水线','5'], ['1.2.1+1.2.2_硬件','1']]) assert.equal(core.chapterOf(title), expected);
+test('chapter grouping keeps two numeric levels and recognizes lecture and Chinese numbering', () => {
+  for (const [title, expected] of [
+    ['课程指南', '0'], ['2.2.4_4 无符号整数的除法运算原理', '2.2'], ['2.3.1_1 浮点数的表示', '2.3'],
+    ['5.6_流水线', '5.6'], ['1.2.1+1.2.2_硬件', '1.2'], ['２．１０．１_例题', '2.10'], ['2. 绪论', '2'],
+    ['p76 CS 285: Lecture 18, Variational Inference, Part 4', '18'],
+    ['p77 CS 285: Lecture 19, Control as Inference, Part 1', '19'],
+    ['p80 CS 285: Lecture 19, Control as Inference, Part 4', '19'], ['lec2 Frequent items', '2'],
+    ['第二章第三节 浮点数', '2.3'], ['第2章 第10节 例题', '2.10'], ['第十八讲', '18'], ['第二十章', '20'],
+    ['第一百零二课', '102'], ['第一节 绪论', '1'], ['CS 285 Introduction', '0'], ['p77 Intro', '0'], ['2024.09 课程介绍', '0']
+  ]) assert.equal(core.chapterOf(title), expected, title);
+});
+
+test('section identifiers stay strings and sort as hierarchy rather than decimal fractions', () => {
+  assert.equal(core.normalizeChapter('02.010'), '2.10');
+  for (const input of ['2.3.4', '-2', '2e3', '1000', '2.', 'abc']) assert.equal(core.normalizeChapter(input), null);
+  assert.deepEqual(['2.10', '3', '2.3', '2', '2.2'].sort(core.compareChapters), ['2', '2.2', '2.3', '2.10', '3']);
+  assert.equal(core.chapterLabel('2.10'), '第2.10节');
+  const parts = ['2.10', '2.3', '2.2'].map((chapter, index) => ({ ...page, chapter, page: index + 1 }));
+  const index = core.buildIndex(meta, parts, 'Clippings/Bilibili');
+  assert.ok(index.indexOf('## 第2.2节') < index.indexOf('## 第2.3节'));
+  assert.ok(index.indexOf('## 第2.3节') < index.indexOf('## 第2.10节'));
+  const prompt = core.buildStudyPrompt(meta, [{ ...page, chapter: '2.10', selected: true }], 'Clippings/Bilibili');
+  assert.match(prompt, /章节分组：第2\.10节/);
 });
 test('readable filenames remain unique for matching part titles', () => {
   assert.notEqual(core.rawPath(meta, page, 'Clippings/Bilibili'), core.rawPath(meta, { ...page, page: 20, part: 'renamed', chapter: '3' }, 'Clippings/Bilibili'));

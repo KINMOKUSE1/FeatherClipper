@@ -20,6 +20,16 @@ test('local transcription receives Bilibili backup audio addresses', async () =>
   assert.deepEqual([...urls], ['https://first.bilivideo.com/audio', 'https://backup.bilivideo.com/audio']);
 });
 
+test('local transcription uses YouTube audio found on the video page', async () => {
+  const context = vm.createContext({ URL, URLSearchParams,
+    chrome: { runtime: { onMessage: { addListener() {} } } },
+    youtubeRead: async () => ({ audioUrls: ['https://rr1.googlevideo.com/audio'] }),
+  });
+  vm.runInContext(source, context);
+  const urls = await context.asrAudioUrls({ platform: 'youtube', videoId: 'GWwL_pLuX-U' }, { cid: 'GWwL_pLuX-U' });
+  assert.deepEqual([...urls], ['https://rr1.googlevideo.com/audio']);
+});
+
 test('running old local service asks for restart before transcription', async () => {
   const context = vm.createContext({
     URL, URLSearchParams, AbortSignal,

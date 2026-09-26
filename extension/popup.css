@@ -2,6 +2,11 @@
 html, body { scrollbar-width: none; }
 html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
 * { box-sizing: border-box; }
+*:not(html):not(body) { scrollbar-width: thin; scrollbar-color: #606e8561 transparent; }
+*:not(html):not(body)::-webkit-scrollbar { width: 6px; height: 6px; }
+*:not(html):not(body)::-webkit-scrollbar-track { background: transparent; }
+*:not(html):not(body)::-webkit-scrollbar-thumb { background: #606e8561; border-radius: 6px; }
+*:not(html):not(body)::-webkit-scrollbar-thumb:hover { background: #606e8580; }
 [hidden] { display: none !important; }
 body { width: 400px; max-height: 600px; overflow-y: auto; margin: 0; font-size: 14px; line-height: 1.5; }
 header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 18px; background: #fff; border-bottom: 1px solid var(--line); }
@@ -46,10 +51,21 @@ button.language-trigger:hover:not(:disabled), button.language-trigger[aria-expan
 #subtitles { height: 140px; overflow: auto; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
 #subtitles p { display: flex; gap: 9px; margin: 0 0 10px; line-height: 1.65; }
 #subtitles p:last-child { margin-bottom: 0; }
-#subtitles time { flex: none; color: var(--muted); font-size: 11px; padding-top: 3px; font-variant-numeric: tabular-nums; }
+#subtitles a { text-decoration: none; flex: none; color: var(--muted); font-size: 11px; padding-top: 3px; font-variant-numeric: tabular-nums; }
 .destination { margin: 10px 0 0; overflow-wrap: anywhere; }
 .footnote { margin: 10px 0 0; }
 [role=status] { font-size: 12px; margin: 10px 0 0; color: var(--accent); overflow-wrap: anywhere; }
 [role=status]:empty { display: none; }
 [role=status].error { color: #b4474b; }
 #connection > label { margin-top: 15px; }
+
+.language-options { max-height: 240px; max-width: min(320px, 80vw); overflow-y: auto; }
+.language-options button { white-space: normal; gap: 12px; overflow-wrap: anywhere; }
+.language-note { margin: 5px 9px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+button.language-trigger { max-width: 260px; min-width: 0; }
+.language-trigger > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.language-chevron { flex: none; }
+
+#subtitle-track:empty { display: none; }
+
+#subtitles a:hover { color: var(--accent); text-decoration: underline; }

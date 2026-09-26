@@ -2,6 +2,8 @@ const $ = id => document.getElementById(id);
 const statusLabels = { pending: "待导入", running: "处理中", saved: "已导入", exists: "已存在", missing: "无字幕", failed: "失败" };
 let meta = null, pages = [], running = false, loading = false, stopping = false;
 let previewId = "", previewRun = 0, previewLoading = false, savedSettings = null;
+let subtitleLanguage, batchLanguage;
+const subtitleChoices = new Map();
 let workflowFile = "WORKFLOW.md", workflowRun = 0;
 let chapterFilter = "all";
 let asrConnected = false, activeAsrJob = "", activeAsrPage = null, pendingAsrPages = [];
@@ -28,7 +30,8 @@ async function send(message) {
   return response;
 }
 function request(action, extra = {}) {
-  return send({ type: "course-request", action, meta, base: $("folder").value, language: SubtitleLanguage.current(), ...extra });
+  const language = subtitleChoices.get(extra.page?.cid) || batchLanguage.current();
+  return send({ type: "course-request", action, meta, base: $("folder").value, language, ...extra });
 }
 function applyRawSources(sources) {
   for (const page of pages) page.sourcePath = sources?.[page.cid] || "";
@@ -54,7 +57,9 @@ function syncControls() {
   $("current").disabled = locked || !meta;
   $("asr-current").disabled = locked || previewLoading || !meta || !activeAsrPage;
   $("asr-selected").disabled = locked || previewLoading;
-  $("language-trigger").disabled = locked || previewLoading;
+  $("language-trigger").disabled = locked || previewLoading || !previewId;
+  $("batch-language-trigger").disabled = locked || previewLoading;
+  $("recognize-chapters").disabled = locked || !meta;
 }
 function visiblePages() {
   return pages.filter(p => chapterFilter === "all" || p.chapter === chapterFilter);
@@ -63,7 +68,8 @@ function render() {
   syncControls();
   if (!meta) return;
   $("title").textContent = meta.title;
-  $("course-meta").textContent = `${meta.author || "课程作者"} · ${pages.length} 个分 P`;
+  $("course-meta").textContent = meta.platform === "youtube" ? `${meta.author || "视频作者"} · ${pages.length} 个视频` : `${meta.author || "课程作者"} · ${pages.length} 个分 P`;
+  $("number-label").textContent = meta.platform === "youtube" ? "视频" : "P";
   const selected = pages.filter(p => p.selected).length;
   const missingSelected = pages.filter(p => p.selected && p.status === "missing").length;
   $("asr-selected").hidden = missingSelected === 0;
@@ -72,7 +78,7 @@ function render() {
   $("start").textContent = selected ? `导入 ${selected} 个视频` : "导入 Obsidian";
   $("import-summary").textContent = selected ? `已选 ${selected} 个视频，已有文件会自动跳过。` : "请先勾选要导入的视频。";
   const group = chapterFilter;
-  $("current").textContent = `仅选当前 P${currentPage}`;
+  $("current").textContent = meta.platform === "youtube" ? "仅选当前视频" : `仅选当前 P${currentPage}`;
   $("current").title = `只勾选课程链接指向的第 ${currentPage} 个视频，取消其他视频的勾选`;
   $("select").textContent = group === "all" ? "全选视频" : group === "0" ? "全选未分章" : "全选本章";
   $("clear").textContent = group === "all" ? "取消全选" : group === "0" ? "取消该组选择" : "取消本章选择";
@@ -86,7 +92,7 @@ function render() {
     const cells = Array.from({ length: 5 }, () => row.appendChild(document.createElement("td")));
     const check = document.createElement("input");
     check.type = "checkbox"; check.checked = page.selected; check.disabled = running || loading;
-    check.setAttribute("aria-label", `选择 P${page.page}`);
+    check.setAttribute("aria-label", meta.platform === "youtube" ? "选择 YouTube 视频" : `选择 P${page.page}`);
     check.addEventListener("change", () => { page.selected = check.checked; render(); }); cells[0].append(check);
     cells[1].textContent = String(page.page).padStart(2, "0"); cells[1].className = "part-number";
     const button = document.createElement("button");
@@ -100,11 +106,15 @@ function render() {
     previewButton.setAttribute("aria-label", `预览 P${page.page} 字幕`);
     previewButton.addEventListener("click", () => preview(page)); cells[2].append(previewButton);
     const chapter = document.createElement("input");
-    chapter.type = "number"; chapter.min = "0"; chapter.max = "999"; chapter.value = page.chapter;
+    chapter.type = "text"; chapter.className = "chapter-number"; chapter.inputMode = "decimal"; chapter.value = page.chapter;
+    chapter.title = "可填写 2 或 2.3；0 表示未分章";
     chapter.disabled = running || loading; chapter.setAttribute("aria-label", `P${page.page} 章节号`);
-    chapter.addEventListener("change", () => {
-      page.chapter = String(Math.min(999, Math.max(0, Math.floor(Number(chapter.value) || 0))));
+    chapter.addEventListener("change", async () => {
+      const value = CourseCore.normalizeChapter(chapter.value);
+      if (value === null) { chapter.value = page.chapter; status("章节号请填写 2、2.3 这样的编号；0 表示未分章。", true); return; }
+      page.chapter = value;
       renderFilters(); render();
+      try { await persist(); } catch (error) { status(error.message, true); }
     }); cells[3].append(chapter);
     const badge = document.createElement("span"); badge.className = `badge ${page.status}`;
     badge.textContent = statusLabels[page.status] || "待导入"; cells[4].append(badge);
@@ -127,7 +137,7 @@ function openFilter(last = false) {
 }
 function renderFilters() {
   closeFilter();
-  const chapters = [...new Set(pages.map(p => p.chapter))].sort((a, b) => Number(a) - Number(b));
+  const chapters = [...new Set(pages.map(p => p.chapter))].sort(CourseCore.compareChapters);
   if (!chapters.includes(chapterFilter)) chapterFilter = "all";
   const label = chapterFilter === "all" ? "全部章节" : CourseCore.chapterLabel(chapterFilter);
   $("filter-label").textContent = label;
@@ -148,20 +158,19 @@ function renderFilters() {
 async function loadCourse() {
   if (running || loading) return;
   const source = $("url").value.trim();
-  const bvid = source.match(/BV[0-9A-Za-z]+/)?.[0];
-  if (!bvid) { status("请输入包含 BV 号的 B站视频链接。", true); return; }
-  currentPage = 1;
-  if (source.startsWith("http")) {
-    try { currentPage = Math.max(1, Number(new URL(source).searchParams.get("p")) || 1); } catch { currentPage = 1; }
-  }
+  const parsed = CourseCore.parseSource(source);
+  if (!parsed) { status("请输入 B站或 YouTube 视频链接。", true); return; }
+  currentPage = parsed.page;
   loading = true; previewLoading = false; previewRun++; previewId = "";
+  subtitleChoices.clear(); subtitleLanguage.tracks([], "auto", "先选择一个视频预览字幕。");
   activeAsrPage = null; $("asr-panel").hidden = true;
-  previewMessage("点击左侧的“预览字幕”查看内容。"); $("preview-caption").textContent = "预览前 100 条，导入时保存完整字幕与时间戳。";
+  previewMessage("点击左侧的“预览字幕”查看内容。"); $("preview-caption").textContent = "预览前 100 段，导入时保存全文与段落起始时间。";
   $("preview-title").textContent = "字幕预览"; $("source-link").hidden = true;
   render(); syncControls(); status("正在读取课程目录…");
   try {
-    const result = await request("meta", { bvid }); meta = result.meta;
+    const result = await request("meta", parsed.platform === "youtube" ? { youtubeId: parsed.id, playlistId: parsed.playlistId } : { bvid: parsed.id }); meta = result.meta;
     if (!meta.pages.length) throw new Error("该视频没有可读取的分 P 目录。");
+    if (meta.platform === "youtube") currentPage = meta.pages.find(item => item.cid === parsed.id)?.page || 1;
     const baseKey = `boc-course-base:${meta.bvid}`;
     $("folder").value = (await chrome.storage.local.get(baseKey))[baseKey] || result.folder;
     const cached = (await chrome.storage.local.get(snapshotKey()))[snapshotKey()];
@@ -176,31 +185,52 @@ async function loadCourse() {
     meta = null; pages = []; $("course").hidden = true; $("empty").hidden = false; status(error.message, true);
   } finally { loading = false; render(); syncControls(); }
 }
-async function preview(page) {
+async function preview(page, refreshTracks = true) {
   const run = ++previewRun;
   previewId = page.cid; previewLoading = true; render();
   activeAsrPage = null; $("asr-panel").hidden = true;
-  $("preview-title").textContent = `P${page.page} · ${page.part}`;
+  $("preview-title").textContent = meta.platform === "youtube" ? page.part : `P${page.page} · ${page.part}`;
   $("preview-caption").textContent = "正在读取这一节的字幕。"; previewMessage("正在获取字幕，请稍候…");
   $("source-link").href = CourseCore.videoUrl(meta, page); $("source-link").hidden = false;
   try {
+    if (refreshTracks) {
+      subtitleLanguage.tracks([], "auto", "正在读取语言选项…");
+      try {
+        const available = await request("tracks", { page });
+        if (run !== previewRun) return;
+        subtitleLanguage.tracks(available.tracks, subtitleChoices.get(page.cid));
+        if (subtitleLanguage.current() === "auto") subtitleChoices.delete(page.cid);
+      } catch {
+        if (run !== previewRun) return;
+        // Keep an explicit selection on a failed lookup, rather than silently importing another language.
+        const chosen = subtitleChoices.get(page.cid);
+        subtitleLanguage.tracks(chosen ? [chosen] : [], chosen, "暂未读取到语言选项，再点“预览字幕”可重试。");
+      }
+    }
     const result = await request("preview", { page });
     if (run !== previewRun) return;
     if (result.missing) {
       if (!["saved", "exists"].includes(page.status)) page.status = "missing";
       activeAsrPage = page;
       $("preview-caption").textContent = "未找到字幕";
-      previewMessage("B站未提供可用字幕。可以使用可选的本地组件转写音频。");
+      previewMessage("没有可用字幕。可以尝试用本地组件转写音频。");
       $("asr-panel").hidden = false;
       try { await refreshAsrStatus(); } catch { /* Setup button remains available. */ }
       render(); return;
     }
+    if (["failed", "missing"].includes(page.status)) {
+      page.status = "pending"; page.error = "";
+      await persist();
+      if (run !== previewRun) return;
+      render();
+    }
     $("preview-body").replaceChildren();
-    $("preview-caption").textContent = `${result.track.lanDoc || result.track.lan} · ${result.body.length} 条字幕 · 预览前 100 条`;
-    for (const item of result.body.slice(0, 100)) {
+    const groups = CourseCore.groupSubtitles(result.body, meta.platform);
+    $("preview-caption").textContent = `${result.track.lanDoc || result.track.lan} · ${groups.length} 段字幕 · 预览前 100 段`;
+    for (const item of groups.slice(0, 100)) {
       const paragraph = document.createElement("p"), time = document.createElement("a");
       time.textContent = new Date(Math.floor(item.from) * 1000).toISOString().slice(11, 19);
-      time.href = `${CourseCore.videoUrl(meta, page)}&t=${Math.floor(item.from)}`; time.target = "_blank"; time.rel = "noopener";
+      time.href = CourseCore.timestampUrl(meta, page, item.from); time.target = "_blank"; time.rel = "noopener";
       paragraph.append(time, document.createTextNode(item.content)); $("preview-body").append(paragraph);
     }
   } catch (error) { if (run === previewRun) { $("preview-caption").textContent = "字幕预览失败"; previewMessage(error.message, true); } }
@@ -211,7 +241,7 @@ async function refreshAsrStatus() {
   asrConnected = result.connected;
   $("asr-current").textContent = asrConnected ? "本地转写并导入此 P" : result.paired ? "检查本地转写连接" : "安装／连接本地转写";
   $("asr-panel-text").textContent = asrConnected
-    ? "B站没有可用字幕，点击后由本机转写这段视频。"
+    ? "没有可用字幕，点击后由本机转写这段视频。"
     : result.paired ? "连接码已保存；检查本地组件状态即可继续。" : "本地转写是可选扩展，需单独安装并连接。";
   return result;
 }
@@ -233,6 +263,10 @@ async function continuePendingAsr() {
 async function runAsrQueue(selected) {
   if (running || loading || previewLoading || !meta || !selected.length) return;
   const connection = await refreshAsrStatus();
+  if (meta.platform === "youtube" && connection.connected && !connection.youtubeAudio) {
+    status("本地转写组件需要更新：运行新版安装向导覆盖原目录，再重新启动服务。", true);
+    return;
+  }
   if (!connection.connected) {
     if (connection.installed && connection.paired && !connection.needsPairing) {
       status(connection.error || "本地转写暂时无法连接，请稍后重试。", true);
@@ -326,6 +360,13 @@ async function refreshSettings() {
   $("connection-label").textContent = savedSettings.hasApiKey ? "连接已配置" : "配置 Obsidian";
   if (!meta) $("folder").value = savedSettings.noteFolder;
 }
+$("recognize-chapters").addEventListener("click", async () => {
+  if (running || loading || !meta) return;
+  for (const page of pages) page.chapter = CourseCore.chapterOf(page.part);
+  renderFilters(); render();
+  try { await persist(); status("已按标题重新识别章节。导入时更新课程清单，已有字幕文件保持不变。"); }
+  catch (error) { status(error.message, true); }
+});
 async function openSettings() {
   try {
     await refreshSettings();
@@ -465,14 +506,21 @@ $("install-workflow").addEventListener("click", async () => {
 for (const button of document.querySelectorAll("[data-close]")) button.addEventListener("click", () => $(button.dataset.close).close());
 window.addEventListener("beforeunload", event => { if (running) { event.preventDefault(); event.returnValue = ""; } });
 async function init() {
-  await SubtitleLanguage.init(() => {
+  batchLanguage = await SubtitleLanguage.create({ prefix: "batch-language", batch: true, onChange: () => {
     const page = pages.find(item => item.cid === previewId);
-    if (page) preview(page);
-  });
+    if (page && !subtitleChoices.has(page.cid)) preview(page, false);
+  } });
+  subtitleLanguage = await SubtitleLanguage.create({ autoLabel: "自动（跟随批量偏好）", onChange: choice => {
+    const page = pages.find(item => item.cid === previewId);
+    if (!page) return;
+    if (choice === "auto") subtitleChoices.delete(page.cid); else subtitleChoices.set(page.cid, choice);
+    preview(page, false);
+  } });
   syncControls(); await refreshSettings();
-  const bvid = new URLSearchParams(location.search).get("bvid");
-  if (bvid) {
-    $("url").value = `https://www.bilibili.com/video/${bvid}/?p=${currentPage}`; await loadCourse();
+  const params = new URLSearchParams(location.search);
+  const bvid = params.get("bvid"), youtubeId = params.get("youtubeId"), playlistId = params.get("playlistId");
+  if (bvid || youtubeId) {
+    $("url").value = youtubeId ? `https://www.youtube.com/watch?v=${youtubeId}${playlistId ? `&list=${playlistId}` : ""}` : `https://www.bilibili.com/video/${bvid}/?p=${currentPage}`; await loadCourse();
     if (meta && new URLSearchParams(location.search).get("asr") === "1") {
       const page = pages.find(item => item.page === currentPage);
       if (page) { await preview(page); if (activeAsrPage) await runAsrQueue([page]); }
