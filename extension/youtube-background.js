@@ -155,16 +155,22 @@ async function youtubePageRead(videoId, preference, includeBody, includeAudio, p
     }
     return null;
   };
-  const panelSelector = 'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]';
+  const panelSelector = "ytd-engagement-panel-section-list-renderer";
+  const legacyPanelSelector = `${panelSelector}[target-id="engagement-panel-searchable-transcript"]`;
   const usable = node => node && !node.disabled && node.getAttribute("aria-disabled") !== "true" && node.getClientRects().length;
-  const panelOpen = () => document.querySelector(panelSelector)?.getAttribute("visibility") === "ENGAGEMENT_PANEL_VISIBILITY_EXPANDED";
+  const panelOpen = () => currentContainer()?.closest(panelSelector)?.getAttribute("visibility") === "ENGAGEMENT_PANEL_VISIBILITY_EXPANDED";
   const readBody = container => [...(container?.querySelectorAll(segmentSelector) || [])].map(item => ({
     from: seconds(item.querySelector(".segment-timestamp, .ytwTranscriptSegmentViewModelTimestamp")?.textContent?.trim() || ""),
-    content: item.querySelector(".segment-text, span.yt-core-attributed-string")?.textContent?.replace(/\s+/g, " ").trim() || ""
+    content: item.querySelector('.segment-text, span.yt-core-attributed-string, span.ytAttributedStringHost[role="text"]')?.textContent?.replace(/\s+/g, " ").trim() || ""
   })).filter(item => Number.isFinite(item.from) && item.content);
   const currentContainer = () => {
     const owner = document.querySelector("ytd-watch-flexy")?.getAttribute("video-id");
-    return owner && owner !== videoId ? null : document.querySelector(containerSelector);
+    if (owner && owner !== videoId) return null;
+    // Panel IDs and wrapper nodes vary. Usable timestamp/text pairs identify
+    // the transcript; an empty legacy panel must not hide a populated one.
+    const candidates = [...document.querySelectorAll(panelSelector)].filter(panel => readBody(panel).length);
+    return candidates.find(panel => panel.getAttribute("visibility") === "ENGAGEMENT_PANEL_VISIBILITY_EXPANDED")
+      || candidates[0] || document.querySelector(containerSelector) || document.querySelector(legacyPanelSelector);
   };
   const validContainer = () => {
     const container = currentContainer();
@@ -209,8 +215,8 @@ async function youtubePageRead(videoId, preference, includeBody, includeAudio, p
       if (!container) { report("页面文稿", "8 秒内未出现有效正文"); return null; }
     }
     if (!container) return null;
-    const languageButton = () => document.querySelector(
-      'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"] #footer yt-sort-filter-sub-menu-renderer yt-dropdown-menu button, ytd-transcript-footer-renderer yt-dropdown-menu button'
+    const languageButton = (current = container) => (current?.closest(panelSelector) || current)?.querySelector(
+      '#footer yt-sort-filter-sub-menu-renderer yt-dropdown-menu button, ytd-transcript-footer-renderer yt-dropdown-menu button'
     );
     const exactName = value => value.replace(/\s+/g, " ").trim().toLowerCase();
     const normalize = value => value.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
@@ -237,7 +243,7 @@ async function youtubePageRead(videoId, preference, includeBody, includeAudio, p
         option.click();
         const updated = await wait(() => {
           const current = validContainer();
-          return exactName(languageButton()?.textContent || "") === exactName(name(target))
+          return exactName(languageButton(current)?.textContent || "") === exactName(name(target))
             && current?.querySelector(segmentSelector) && current.querySelector(segmentSelector) !== previous ? current : null;
         });
         if (!updated) return null;

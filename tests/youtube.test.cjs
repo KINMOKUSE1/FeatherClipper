@@ -7,7 +7,7 @@ const core = require('../extension/course-core.js');
 const source = fs.readFileSync(path.join(__dirname, '../extension/youtube-background.js'), 'utf8');
 
 const videoId = 'GWwL_pLuX-U';
-function page({ tracks, entries, audio = [], playlist = null, mobilePlayer = null, domTranscript = null, inlineOnly = false, noPlayer = false, fetchOverride = null, metadataNodes = {} }) {
+function page({ tracks, entries, audio = [], playlist = null, mobilePlayer = null, domTranscript = null, inlineOnly = false, noPlayer = false, fetchOverride = null, metadataNodes = {}, otherPanels = [] }) {
   const player = { videoDetails: { videoId, title: 'Course video', author: 'Teacher', lengthSeconds: '240' },
     captions: { playerCaptionsTracklistRenderer: { captionTracks: tracks } },
     streamingData: { adaptiveFormats: audio } };
@@ -17,20 +17,40 @@ function page({ tracks, entries, audio = [], playlist = null, mobilePlayer = nul
   let transcriptOpened = Boolean(domTranscript?.visible);
   let menuOpen = false, transcriptLanguage = domTranscript?.language;
   const makeSegments = lines => lines.map(([time, text]) => ({
-    querySelector: selector => selector.includes('.segment-timestamp') ? { textContent: time }
-      : selector.includes('.segment-text') ? { textContent: text } : null
+    querySelector: selector => {
+      const selectors = selector.split(',').map(value => value.trim());
+      if (selectors.includes(domTranscript?.modern ? '.ytwTranscriptSegmentViewModelTimestamp' : '.segment-timestamp')) return { textContent: time };
+      if (selectors.includes(domTranscript?.modern ? 'span.ytAttributedStringHost[role="text"]' : '.segment-text')) return { textContent: text };
+      return null;
+    }
   }));
   let segments = makeSegments(domTranscript?.lines || []);
   const currentSegments = () => now < (domTranscript?.bodyAt || 0) ? []
     : now < (domTranscript?.completeAt || 0) ? segments.slice(0, 1) : segments;
   const transcriptContainer = {
+    closest: () => transcriptPanel,
     querySelector: selector => selector.includes('ytd-transcript-segment-renderer') ? currentSegments()[0] || null : null,
     querySelectorAll: selector => selector.includes('ytd-transcript-segment-renderer') ? currentSegments() : []
+  };
+  const transcriptPanel = {
+    closest: () => transcriptPanel,
+    getAttribute: name => name === 'visibility' ? transcriptOpened ? 'ENGAGEMENT_PANEL_VISIBILITY_EXPANDED' : 'ENGAGEMENT_PANEL_VISIBILITY_HIDDEN'
+      : domTranscript?.modern ? null : 'engagement-panel-searchable-transcript',
+    querySelector: selector => selector.includes('yt-dropdown-menu button')
+      ? { textContent: transcriptLanguage, click: () => { menuOpen = !menuOpen; } }
+      : transcriptOpened ? transcriptContainer.querySelector(selector) : null,
+    querySelectorAll: selector => transcriptOpened ? transcriptContainer.querySelectorAll(selector) : []
+  };
+  const emptyLegacyPanel = {
+    closest: () => emptyLegacyPanel,
+    getAttribute: () => 'ENGAGEMENT_PANEL_VISIBILITY_HIDDEN',
+    querySelector: () => null, querySelectorAll: () => []
   };
   const context = vm.createContext({ URL, Date: Clock, AbortSignal, AbortController, location: { href: `https://www.youtube.com/watch?v=${videoId}${playlist ? '&list=PLKq1TCpsv3Y4' : ''}` },
     window: { ytInitialPlayerResponse: inlineOnly || noPlayer ? undefined : player,
       ytInitialData: playlist ? { contents: { twoColumnWatchNextResults: { playlist: { playlist } } } } : {} },
     document: { title: 'Course video - YouTube', scripts: inlineOnly ? [{ textContent: `var ytInitialPlayerResponse = ${JSON.stringify(player)};` }] : [], querySelectorAll: selector => {
+      if (selector === 'ytd-engagement-panel-section-list-renderer') return domTranscript ? [...otherPanels, ...(domTranscript.modern ? [emptyLegacyPanel] : []), transcriptPanel] : otherPanels;
       if (!selector.includes('tp-yt-paper-listbox') || !menuOpen) return [];
       return (domTranscript?.alternatives || []).map(item => ({ textContent: item.language, getClientRects: () => [1], click: () => {
         transcriptLanguage = item.language; segments = makeSegments(item.lines); menuOpen = false;
@@ -38,7 +58,7 @@ function page({ tracks, entries, audio = [], playlist = null, mobilePlayer = nul
     }, querySelector: selector => {
       if (metadataNodes[selector]) return metadataNodes[selector];
       if (!domTranscript) return null;
-      if (selector.includes('#segments-container')) return transcriptOpened ? transcriptContainer : null;
+      if (selector.includes('#segments-container')) return transcriptOpened && !domTranscript.modern ? transcriptContainer : null;
       if (selector === 'ytd-video-description-transcript-section-renderer button') return now < (domTranscript.buttonAt || 0) || (domTranscript.needsExpand && !expanded) ? null : {
         getAttribute: () => null, getClientRects: () => [1],
         click: () => { clicks++; if (clicks > (domTranscript.ignoredClicks || 0)) transcriptOpened = true; }
@@ -46,11 +66,7 @@ function page({ tracks, entries, audio = [], playlist = null, mobilePlayer = nul
       if (selector === 'ytd-watch-metadata #description-inline-expander #expand') return domTranscript.needsExpand ? {
         getAttribute: () => null, getClientRects: () => [1], click: () => { expanded = true; }
       } : null;
-      if (selector === 'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]') return {
-        getAttribute: () => transcriptOpened ? 'ENGAGEMENT_PANEL_VISIBILITY_EXPANDED' : 'ENGAGEMENT_PANEL_VISIBILITY_HIDDEN',
-        querySelectorAll: () => now < (domTranscript.loadingUntil || 0) ? [{ getClientRects: () => [1] }] : []
-      };
-      if (selector.includes('#footer yt-sort-filter-sub-menu-renderer')) return { textContent: transcriptLanguage, click: () => { menuOpen = !menuOpen; } };
+      if (selector === 'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]') return domTranscript.modern ? emptyLegacyPanel : transcriptPanel;
       return null;
     } },
     DOMParser: class { parseFromString() { return { querySelectorAll: () => [] }; } },
@@ -64,7 +80,7 @@ function page({ tracks, entries, audio = [], playlist = null, mobilePlayer = nul
     },
     chrome: {} });
   vm.runInContext(source, context);
-  return { read: (...args) => context.youtubePageRead(videoId, ...args), requested, state: () => ({ now, clicks, expanded }) };
+  return { read: (...args) => context.youtubePageRead(videoId, ...args), requested, panel: transcriptPanel, state: () => ({ now, clicks, expanded }) };
 }
 
 test('YouTube video data is read from inline script when the window global is absent', async () => {
@@ -152,6 +168,49 @@ test('an already visible transcript is read without a network request', async ()
   const result = await h.read('en', true, false);
   assert.equal(result.body[0].content, 'All right.');
   assert.equal(h.requested.length, 0);
+});
+
+test('an unnamed modern panel supplies all rendered segments despite an empty legacy panel', async () => {
+  const lines = Array.from({ length: 561 }, (_, index) => [`${Math.floor((index + 1) / 60)}:${String((index + 1) % 60).padStart(2, '0')}`, `Line ${index + 1}`]);
+  lines[0] = ['0:01', "yep can anybody people hear what i'm saying or you're good"];
+  const h = page({ tracks: [], entries: {}, domTranscript: { modern: true, visible: true, language: 'English', lines } });
+  const result = await h.read('auto', true, false);
+  assert.equal(h.panel.getAttribute('target-id'), null);
+  assert.equal(result.body.length, 561);
+  assert.equal(result.body[0].from, 1);
+  assert.equal(result.body[0].content, lines[0][1]);
+  assert.equal(result.body[560].from, 561);
+  assert.equal(result.body[560].content, 'Line 561');
+  assert.equal(h.requested.length, 0);
+  assert.equal(h.state().clicks, 0);
+});
+
+test('expanded valid content wins over hidden content and other expanded panels with invalid segments', async () => {
+  const hidden = page({ tracks: [], entries: {}, domTranscript: { visible: true, language: '中文', lines: [['0:01', '隐藏旧正文']] } }).panel;
+  hidden.getAttribute = () => 'ENGAGEMENT_PANEL_VISIBILITY_HIDDEN';
+  const invalid = page({ tracks: [], entries: {}, domTranscript: { visible: true, language: '中文', lines: [['invalid', 'Invalid time'], ['0:01', ' ']] } }).panel;
+  const h = page({ tracks: [], entries: {}, otherPanels: [hidden, invalid],
+    domTranscript: { modern: true, visible: true, language: 'English', lines: [['0:07', 'Current panel']] } });
+  const result = await h.read('en', true, false);
+  assert.equal(result.body[0].content, 'Current panel');
+  assert.equal(result.track.lan, 'en');
+  assert.equal(h.requested.length, 0);
+});
+
+test('valid collapsed content is still usable when no expanded panel has a valid transcript', async () => {
+  const h = page({ tracks: [], entries: {}, domTranscript: { modern: true, visible: true, language: 'English', lines: [['0:07', 'Retained transcript']] } });
+  h.panel.getAttribute = () => 'ENGAGEMENT_PANEL_VISIBILITY_HIDDEN';
+  const result = await h.read('auto', true, false);
+  assert.equal(result.body[0].content, 'Retained transcript');
+  assert.equal(h.requested.length, 0);
+});
+
+test('opening the transcript can populate a modern panel without the old container', async () => {
+  const h = page({ tracks: [], entries: {}, domTranscript: { modern: true, bodyAt: 900, language: 'English', lines: [['0:07', 'Newly opened panel']] } });
+  const result = await h.read('auto', true, false);
+  assert.equal(result.body[0].content, 'Newly opened panel');
+  assert.equal(h.state().clicks, 1);
+  assert.equal(h.state().now, 900);
 });
 
 test('rendered transcript never substitutes Chinese for an explicit English choice', async () => {
@@ -371,14 +430,16 @@ test('different exact track choices cannot share the preview import cache', asyn
 });
 
 test('exact track fallback switches the platform transcript and waits for the new segments', async () => {
-  const h = page({ tracks: [
-    { vssId: '.en', languageCode: 'en', name: { simpleText: 'English' }, baseUrl: 'https://www.youtube.com/api/timedtext?lang=en&exp=xpe' },
-    { vssId: '.zh', languageCode: 'zh', name: { simpleText: '中文' }, baseUrl: 'https://www.youtube.com/api/timedtext?lang=zh&exp=xpe' }
-  ], entries: {}, domTranscript: { visible: true, language: '中文', lines: [['0:07', '你好']],
-    alternatives: [{ language: 'English', lines: [['0:07', 'All right.']] }] } });
-  const result = await h.read({ platform: 'youtube', videoId, id: '.en' }, true, false);
-  assert.equal(result.track.lan, 'en');
-  assert.equal(result.body[0].content, 'All right.');
+  for (const modern of [false, true]) {
+    const h = page({ tracks: [
+      { vssId: '.en', languageCode: 'en', name: { simpleText: 'English' }, baseUrl: 'https://www.youtube.com/api/timedtext?lang=en&exp=xpe' },
+      { vssId: '.zh', languageCode: 'zh', name: { simpleText: '中文' }, baseUrl: 'https://www.youtube.com/api/timedtext?lang=zh&exp=xpe' }
+    ], entries: {}, domTranscript: { modern, visible: true, language: '中文', lines: [['0:07', '你好']],
+      alternatives: [{ language: 'English', lines: [['0:07', 'All right.']] }] } });
+    const result = await h.read({ platform: 'youtube', videoId, id: '.en' }, true, false);
+    assert.equal(result.track.lan, 'en');
+    assert.equal(result.body[0].content, 'All right.');
+  }
 });
 
 test('transcript fallback expands the description and returns as soon as valid text appears', async () => {
