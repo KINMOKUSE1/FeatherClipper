@@ -77,6 +77,9 @@ function render() {
   $("count").textContent = `已选择 ${selected} / ${pages.length}`;
   $("start").textContent = selected ? `导入 ${selected} 个视频` : "导入 Obsidian";
   $("import-summary").textContent = selected ? `已选 ${selected} 个视频，已有文件会自动跳过。` : "请先勾选要导入的视频。";
+  document.querySelector(".import-hint").textContent = meta.platform === "youtube"
+    ? "导入时会自动切到视频标签页并逐个读取，请保持视频页可见、工作台打开。需要停止或查看结果时回到工作台。"
+    : "导入期间请保持此页打开。停止后可继续，已有文件会自动跳过。";
   const group = chapterFilter;
   $("current").textContent = meta.platform === "youtube" ? "仅选当前视频" : `仅选当前 P${currentPage}`;
   $("current").title = `只勾选课程链接指向的第 ${currentPage} 个视频，取消其他视频的勾选`;
@@ -343,7 +346,7 @@ async function runQueue(retryOnly) {
         if (stopping) break;
         page.status = "running"; page.error = ""; render();
         status(`正在处理 ${done + 1}/${selected.length}：P${page.page} ${page.part}`);
-        try { const result = await request("import", { page }); page.status = result.status; page.sourcePath = result.path || ""; }
+        try { const result = await request("import", { page, activateVideo: meta.platform === "youtube" }); page.status = result.status; page.sourcePath = result.path || ""; }
         catch (error) { page.status = "failed"; page.error = error.message; if (error.fatal) fatalError = error; }
         counts[page.status] = (counts[page.status] || 0) + 1; done++; $("progress").value = done;
         await persist(); render(); await updateIndex();

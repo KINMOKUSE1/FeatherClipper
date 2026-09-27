@@ -26,8 +26,8 @@
 
 安装后，在对应项目打开会话并调用技能；列表未刷新时重新打开工具。已有同名绘图技能时可继续使用，只补装核心整理技能。
 
-- Codex 示例：`$course-notes 请按 <学习工作流/WORKFLOW.md> 和 <学习工作流/NOTE_TEMPLATE.md> 整理这门课程第 2 章。`
-- Claude Code 示例：`/course-notes 请按 <学习工作流/WORKFLOW.md> 和 <学习工作流/NOTE_TEMPLATE.md> 整理这门课程第 2 章。`
+- Codex 示例：`$course-notes 请按 <学习工作流/WORKFLOW.md> 和 <学习工作流/NOTE_TEMPLATE.md> 整理课程清单中 2.2 分组的素材。`
+- Claude Code 示例：`/course-notes 请按 <学习工作流/WORKFLOW.md> 和 <学习工作流/NOTE_TEMPLATE.md> 整理课程清单中 2.2 分组的素材。`
 
 使用插件时，在 Obsidian 的 `学习工作流/WORKFLOW.md` 和 `NOTE_TEMPLATE.md` 修改个人偏好，并通过插件“复制任务指令”提供它们的路径。包内 `documents/` 是不使用插件时可单独提供的默认文档；技能内置模板仅在找不到个人模板时使用。
 

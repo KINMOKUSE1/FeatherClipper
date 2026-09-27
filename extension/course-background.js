@@ -74,9 +74,9 @@ function courseEnglishTextIsChinese(body) {
   const latin = (sample.match(/[a-z]/gi) || []).length;
   return chinese >= 24 && chinese > latin * 2;
 }
-async function courseSubtitle(meta, page, preference = "auto", purpose = "read") {
+async function courseSubtitle(meta, page, preference = "auto", purpose = "read", activate = false) {
   if (meta.platform === "youtube") {
-    const result = await youtubeRead(page.cid, preference, true, false, "", purpose);
+    const result = await youtubeRead(page.cid, preference, true, false, "", purpose, activate);
     return result.missing ? null : result;
   }
   const chosen = preference && typeof preference === "object" ? preference : null;
@@ -214,7 +214,7 @@ async function handleCourseMessage(message) {
     const path = CourseCore.rawPath(meta, page, base);
     const existingPath = existingRawPath(meta, page, base, await courseRawFiles(meta, base));
     if (existingPath) return { status: "exists", path: existingPath };
-    const subtitle = await courseSubtitle(meta, page, message.language, "import");
+    const subtitle = await courseSubtitle(meta, page, message.language, "import", message.activateVideo === true);
     if (!subtitle) return { status: "missing" };
     // Recheck after network work in case a note appeared while fetching subtitles.
     const appearedPath = existingRawPath(meta, page, base, await courseRawFiles(meta, base));

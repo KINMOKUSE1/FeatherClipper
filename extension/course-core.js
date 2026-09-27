@@ -133,9 +133,10 @@
       lines.push(`课程：${meta.title}`, `课程清单：${courseFolder(meta, folder)}/课程导入清单.md`,
         `本次范围：${targets.map(page => `P${page.page}`).join("、")}。`,
         ...targets.map(page => `- P${page.page} ${page.part}（章节分组：${chapterLabel(page.chapter)}）：${page.sourcePath || rawPath(meta, page, folder)}`),
-        "核对这些文件的实际可用情况。本次只处理上述 P；章节归属以本次列出的分组为准，按学习规则确定笔记范围与组织方式。");
+        "核对这些文件的实际可用情况。本次只处理上述 P；章节归属以本次列出的分组为准，不采用原始字幕中的旧章号重新分组。",
+        "默认按完整章节编号每组一篇：2.2 与 2.3 分别成篇，不合并为第 2 章；同组多个 P 合并，部分选中时注明覆盖范围。0 表示未分章，不自动合成一章。用户本次要求或个人偏好明确另定粒度时优先采用。");
     } else {
-      lines.push("课程目录：[填写已导入课程的目录]", "本次范围：[填写章号、P序号或文件名]");
+      lines.push("课程目录：[填写已导入课程的目录]", "本次范围：[填写完整章节编号（如 2.2）、P序号或文件名]");
     }
     lines.push("请读取上述学习文档、课程清单与所选素材，按其中的个人偏好整理。",
       "使用可访问笔记库的 Agent 时直接读取上述文件；使用网页聊天工具时，我会一并上传或粘贴文档与素材。");
@@ -145,7 +146,7 @@
     const lines = [marker, `# ${meta.title} · 课程导入清单`, "", "> 此文件由批量导入器更新。学习批注请写入最终章节笔记。", "",
       `课程：[${meta.platform === "youtube" ? meta.playlistId || meta.videoId : meta.bvid}](${meta.playlistId ? `https://www.youtube.com/playlist?list=${meta.playlistId}` : videoUrl(meta, pages[0])})`, `更新：${new Date().toISOString()}`, "",
       meta.platform === "youtube" ? "原始字幕以视频标题命名，YouTube 视频 ID 用于避免同名冲突。" : "原始字幕以分 P 名称命名，CID 用于区分同名视频；分章以本清单为准。", "",
-      "下一步：在导入器点击“开始整理笔记”，保存学习指南与模板，或下载 course-notes 技能。将本清单与指定范围的字幕交给你选择的 AI，按章整理学习笔记。", ""];
+      "下一步：在导入器点击“开始整理笔记”，保存学习指南与模板，或下载 course-notes 技能。将本清单与指定范围的字幕交给你选择的 AI，默认按完整章节编号每组整理一篇笔记（如 2.2、2.3 分别成篇）；未分章项需确定整理范围。", ""];
     const chapters = [...new Set(pages.map(p => p.chapter))].sort(compareChapters);
     for (const chapter of chapters) {
       lines.push(`## ${chapterLabel(chapter)}`, "", "| P | 标题 | 状态 | 原始素材 |", "|---|---|---|---|");

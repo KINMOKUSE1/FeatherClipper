@@ -36,7 +36,24 @@ async function youtubePageRead(videoId, preference, includeBody, includeAudio, p
   if (player?.videoDetails?.videoId !== videoId) player = inlineJson("ytInitialPlayerResponse");
   const inlinePlayer = player?.videoDetails?.videoId === videoId ? player : null;
   player = inlinePlayer;
-  if (!includeBody && (player?.videoDetails?.videoId !== videoId || (includeAudio && !player?.streamingData?.adaptiveFormats?.some(item => String(item.mimeType || "").startsWith("audio/") && item.url)))) {
+  let pageDetails = null;
+  if (!includeBody && !includeAudio) {
+    // Metadata need not wait for captions or a fresh initialization response.
+    try {
+      const live = document.querySelector("#movie_player")?.getVideoData?.();
+      if (live?.video_id === videoId && live.title?.trim()) pageDetails = { videoId, title: live.title, author: live.author || "" };
+    } catch { /* The player may still be mounting. */ }
+    if (!pageDetails && !player?.videoDetails?.title?.trim()) {
+      const watch = document.querySelector("ytd-watch-flexy");
+      const title = watch?.getAttribute("video-id") === videoId ? watch.querySelector("ytd-watch-metadata h1")?.textContent?.trim() : "";
+      const ogUrl = document.querySelector('meta[property="og:url"]')?.getAttribute("content");
+      let matchingUrl = false;
+      try { matchingUrl = new URL(ogUrl).searchParams.get("v") === videoId; } catch { /* No validated metadata URL. */ }
+      const ogTitle = matchingUrl ? document.querySelector('meta[property="og:title"]')?.getAttribute("content")?.trim() : "";
+      if (title || ogTitle) pageDetails = { videoId, title: title || ogTitle, author: "" };
+    }
+  }
+  if (!includeBody && ((!pageDetails && !player?.videoDetails?.title?.trim()) || (includeAudio && !player?.streamingData?.adaptiveFormats?.some(item => String(item.mimeType || "").startsWith("audio/") && item.url)))) {
     try {
       const response = await fetch("/youtubei/v1/player?prettyPrint=false", {
         method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
@@ -51,7 +68,8 @@ async function youtubePageRead(videoId, preference, includeBody, includeAudio, p
   }
   if (!includeBody && player?.playabilityStatus?.status === "LOGIN_REQUIRED") throw new Error("YouTube 要求验证登录状态；请在 Edge 打开视频并确认能播放后重试。");
   // A rendered transcript is usable even when the player response is unavailable.
-  const details = player?.videoDetails?.videoId === videoId ? player.videoDetails : {};
+  if (new URL(location.href).searchParams.get("v") !== videoId) throw new Error("YouTube 页面已切换视频，请重新读取。");
+  const details = pageDetails || (player?.videoDetails?.videoId === videoId ? player.videoDetails : {});
   if (!includeBody && !details.videoId) throw new Error("无法读取 YouTube 视频信息；请先打开视频页并确认能播放。");
   const meta = { platform: "youtube", videoId, bvid: `YT_${videoId}`, title: details.title || document.title.replace(/\s*-\s*YouTube$/, ""), author: details.author || "", pages: [{ cid: videoId, page: 1, part: details.title || "视频字幕", duration: Number(details.lengthSeconds) || 0 }] };
   if (playlistId && !includeBody && !includeAudio) {
@@ -127,37 +145,70 @@ async function youtubePageRead(videoId, preference, includeBody, includeAudio, p
   };
   const containerSelector = 'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"] #segments-container, ytm-macro-markers-list-renderer .ytm-macro-markers-list-container';
   const segmentSelector = "ytd-transcript-segment-renderer, transcript-segment-view-model";
-  const poll = async predicate => {
-    for (let attempt = 0; attempt < 20; attempt++) {
+  const poll = async (predicate, timeout = 5000) => {
+    const deadline = Date.now() + timeout;
+    while (Date.now() < deadline) {
       checkVideo();
       const found = predicate();
       if (found) return found;
-      await new Promise(resolve => setTimeout(resolve, 250));
+      await new Promise(resolve => setTimeout(resolve, Math.min(150, Math.max(0, deadline - Date.now()))));
     }
     return null;
   };
+  const panelSelector = 'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]';
+  const usable = node => node && !node.disabled && node.getAttribute("aria-disabled") !== "true" && node.getClientRects().length;
+  const panelOpen = () => document.querySelector(panelSelector)?.getAttribute("visibility") === "ENGAGEMENT_PANEL_VISIBILITY_EXPANDED";
+  const readBody = container => [...(container?.querySelectorAll(segmentSelector) || [])].map(item => ({
+    from: seconds(item.querySelector(".segment-timestamp, .ytwTranscriptSegmentViewModelTimestamp")?.textContent?.trim() || ""),
+    content: item.querySelector(".segment-text, span.yt-core-attributed-string")?.textContent?.replace(/\s+/g, " ").trim() || ""
+  })).filter(item => Number.isFinite(item.from) && item.content);
+  const currentContainer = () => {
+    const owner = document.querySelector("ytd-watch-flexy")?.getAttribute("video-id");
+    return owner && owner !== videoId ? null : document.querySelector(containerSelector);
+  };
+  const validContainer = () => {
+    const container = currentContainer();
+    return readBody(container).length ? container : null;
+  };
   async function readTranscript(openPanel = false) {
-    let container = document.querySelector(containerSelector);
-    if (openPanel && !container?.querySelector(segmentSelector)) {
+    let container = validContainer();
+    // One short budget for opening the panel and, if requested, changing its language.
+    const deadline = Date.now() + 8000;
+    const wait = predicate => poll(predicate, Math.max(0, deadline - Date.now()));
+    if (openPanel && !container) {
+      const ready = await wait(() => {
+        const owner = document.querySelector("ytd-watch-flexy")?.getAttribute("video-id");
+        return !owner || owner === videoId;
+      });
+      if (!ready) return null;
       if (document.querySelector('ytm-slim-video-metadata-section-renderer')) {
         document.querySelector('button[aria-label="Show more"]')?.click();
-        const viewAll = await poll(() => document.querySelector('button[aria-label="View all"]'));
+        const viewAll = await wait(() => document.querySelector('button[aria-label="View all"]'));
         if (!viewAll) return null;
         viewAll.click();
-        const timeline = await poll(() => document.querySelector('button[aria-label="Timeline"]'));
+        const timeline = await wait(() => document.querySelector('button[aria-label="Timeline"]'));
         if (!timeline) return null;
         timeline.click();
       } else {
-        const button = document.querySelector("ytd-video-description-transcript-section-renderer button");
-        if (!button) return null;
-        button.click();
+        let expanded = false;
+        const entry = await wait(() => {
+          if (validContainer() || panelOpen()) return true;
+          const button = document.querySelector("ytd-video-description-transcript-section-renderer button");
+          if (usable(button)) return button;
+          const more = document.querySelector("ytd-watch-metadata #description-inline-expander #expand");
+          if (!expanded && usable(more)) { more.click(); expanded = true; }
+          return null;
+        });
+        if (!entry) { report("页面文稿", "8 秒内未找到可用入口或正文"); return null; }
+        if (entry !== true) {
+          entry.click();
+          report("文稿入口", "已点击，等待有效正文");
+        }
       }
-      container = await poll(() => {
-        const current = document.querySelector(containerSelector);
-        return current?.querySelector(segmentSelector) ? current : null;
-      });
+      container = await wait(validContainer);
+      if (!container) { report("页面文稿", "8 秒内未出现有效正文"); return null; }
     }
-    if (!container?.querySelector(segmentSelector)) return null;
+    if (!container) return null;
     const languageButton = () => document.querySelector(
       'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"] #footer yt-sort-filter-sub-menu-renderer yt-dropdown-menu button, ytd-transcript-footer-renderer yt-dropdown-menu button'
     );
@@ -179,13 +230,13 @@ async function youtubePageRead(videoId, preference, includeBody, includeAudio, p
     // Never accept a different visible language as the requested one.
     if (openPanel && (chosen || language !== "auto") && !alreadySelected && target && languageButton()) {
       languageButton().click();
-      const option = await poll(() => [...document.querySelectorAll('tp-yt-paper-listbox [role="option"], tp-yt-paper-listbox tp-yt-paper-item')]
+      const option = await wait(() => [...document.querySelectorAll('tp-yt-paper-listbox [role="option"], tp-yt-paper-listbox tp-yt-paper-item')]
         .find(item => exactName(item.textContent || "") === exactName(name(target)) && item.getClientRects().length));
       if (option) {
         const previous = container.querySelector(segmentSelector);
         option.click();
-        const updated = await poll(() => {
-          const current = document.querySelector(containerSelector);
+        const updated = await wait(() => {
+          const current = validContainer();
           return exactName(languageButton()?.textContent || "") === exactName(name(target))
             && current?.querySelector(segmentSelector) && current.querySelector(segmentSelector) !== previous ? current : null;
         });
@@ -199,10 +250,7 @@ async function youtubePageRead(videoId, preference, includeBody, includeAudio, p
     const selectedLanguage = labelLanguage || family(track);
     if (chosen && (!track || trackId(track) !== chosen.id)) return null;
     if (language !== "auto" && selectedLanguage !== language) return null;
-    const body = [...container.querySelectorAll(segmentSelector)].map(item => ({
-      from: seconds(item.querySelector(".segment-timestamp, .ytwTranscriptSegmentViewModelTimestamp")?.textContent?.trim() || ""),
-      content: item.querySelector(".segment-text, span.yt-core-attributed-string")?.textContent?.replace(/\s+/g, " ").trim() || ""
-    })).filter(item => Number.isFinite(item.from) && item.content);
+    const body = readBody(container);
     if (!body.length) return null;
     checkVideo();
     report("页面文稿", `${body.length} 条`);
@@ -304,24 +352,25 @@ async function youtubePageRead(videoId, preference, includeBody, includeAudio, p
   }
 }
 
-// One background page is reused for URL-only and playlist imports. Never navigate
-// a user-owned tab, or a helper tab the user has since activated/navigated elsewhere.
-async function youtubeTab(videoId, playlistId) {
+// Batch imports activate the reading tab so YouTube can render the transcript.
+// Only navigate our helper, and only while its URL is still the one we set.
+async function youtubeTab(videoId, playlistId, activate = false) {
   const matches = tab => {
     try { const url = new URL(tab.url); return url.searchParams.get("v") === videoId && (!playlistId || url.searchParams.get("list") === playlistId); }
     catch { return false; }
   };
   const tabs = await chrome.tabs.query({ url: ["https://www.youtube.com/watch*", "https://m.youtube.com/watch*"] });
   let tab = tabs.filter(matches).sort((a, b) => Number(b.status === "complete") - Number(a.status === "complete") || Number(b.active) - Number(a.active))[0];
+  if (tab && activate && !tab.active) tab = await chrome.tabs.update(tab.id, { active: true });
   if (tab?.status === "complete") return tab;
   if (!tab) {
     const key = "course-cove-youtube-tab";
     const saved = (await chrome.storage.session.get(key))[key];
     const helper = saved && await chrome.tabs.get(saved.id).catch(() => null);
     const url = `https://www.youtube.com/watch?v=${videoId}${playlistId ? `&list=${playlistId}` : ""}`;
-    tab = helper && !helper.active && helper.url === saved.url
-      ? await chrome.tabs.update(helper.id, { url })
-      : await chrome.tabs.create({ url, active: false });
+    tab = helper && (!helper.active || activate) && helper.url === saved.url
+      ? await chrome.tabs.update(helper.id, { url, ...(activate ? { active: true } : {}) })
+      : await chrome.tabs.create({ url, active: activate });
     await chrome.storage.session.set({ [key]: { id: tab.id, url } });
   }
   for (let attempt = 0; attempt < 40; attempt++) {
@@ -336,30 +385,52 @@ async function youtubeTab(videoId, playlistId) {
 const youtubePendingReads = new Map();
 let youtubeReadQueue = Promise.resolve();
 let youtubePreview = null;
-async function youtubeRead(videoId, preference = "auto", includeBody = false, includeAudio = false, playlistId = "", purpose = "read") {
+async function youtubeRead(videoId, preference = "auto", includeBody = false, includeAudio = false, playlistId = "", purpose = "read", activate = false) {
   if (!/^[\w-]{11}$/.test(videoId || "")) throw new Error("请输入有效的 YouTube 视频链接。");
   if (playlistId && !/^[\w-]{8,60}$/.test(playlistId)) throw new Error("YouTube 播放列表链接无效。");
   const resultKey = `${videoId}:${JSON.stringify(preference)}:${includeBody}:${includeAudio}:${playlistId}`;
-  const requestKey = `${resultKey}:${purpose}`;
+  const requestKey = `${resultKey}:${purpose}:${activate}`;
   if (youtubePendingReads.has(requestKey)) return youtubePendingReads.get(requestKey);
-  const work = youtubeReadQueue.then(async () => {
+  const metadataOnly = !includeBody && !includeAudio;
+  const expires = Date.now() + 12000;
+  let timer;
+  const timeoutError = () => new Error("视频信息读取超时，请在视频页加载完成后点击“读取”重试。");
+  const timeout = metadataOnly ? new Promise((resolve, reject) => { timer = setTimeout(() => reject(timeoutError()), 12000); }) : null;
+  const run = async existingTab => {
+    if (metadataOnly && Date.now() >= expires) throw timeoutError();
     // Keep only the latest preview for one subsequent import. Reads and retries
     // always inspect the page again; no subtitle results live in session storage.
     if (purpose === "import") {
       const preview = youtubePreview;
       youtubePreview = null;
       if (preview?.key === resultKey) return preview.result;
-    } else if (includeBody || !includeAudio) youtubePreview = null;
-    const tab = await youtubeTab(videoId, playlistId);
-    const results = await chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", func: youtubePageRead, args: [videoId, preference, includeBody, includeAudio, playlistId, purpose === "tracks"] });
+    } else if (includeBody && purpose !== "tracks") youtubePreview = null;
+    const tab = existingTab || await youtubeTab(videoId, playlistId, activate);
+    if (metadataOnly && Date.now() >= expires) throw timeoutError();
+    const request = chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", ...(metadataOnly ? { injectImmediately: true } : {}), func: youtubePageRead, args: [videoId, preference, includeBody, includeAudio, playlistId, purpose === "tracks"] });
+    const results = await (metadataOnly ? Promise.race([request, timeout]) : request);
     const result = results?.[0]?.result;
     if (!result) throw new Error("无法读取 YouTube 页面，请确认视频可以播放。");
     if (result.error) throw new Error(result.error);
     if (purpose === "preview" && result.body?.length) youtubePreview = { key: resultKey, result };
     return result;
-  });
-  youtubeReadQueue = work.catch(() => {});
+  };
+  const enqueue = () => {
+    const queued = youtubeReadQueue.then(() => run());
+    youtubeReadQueue = queued.catch(() => {});
+    return queued;
+  };
+  const work = metadataOnly ? Promise.race([(async () => {
+    const tabs = await chrome.tabs.query({ url: ["https://www.youtube.com/watch*", "https://m.youtube.com/watch*"] });
+    const existing = tabs.filter(tab => {
+      try { const url = new URL(tab.url); return url.searchParams.get("v") === videoId && (!playlistId || url.searchParams.get("list") === playlistId); }
+      catch { return false; }
+    }).sort((a, b) => Number(b.active) - Number(a.active))[0];
+    // Reading an existing page cannot navigate the shared helper. Only requests
+    // needing a new page stay queued with subtitle reads.
+    return existing ? run(existing) : enqueue();
+  })(), timeout]) : enqueue();
   youtubePendingReads.set(requestKey, work);
   try { return await work; }
-  finally { youtubePendingReads.delete(requestKey); }
+  finally { if (metadataOnly) clearTimeout(timer); youtubePendingReads.delete(requestKey); }
 }

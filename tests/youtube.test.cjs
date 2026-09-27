@@ -7,11 +7,13 @@ const core = require('../extension/course-core.js');
 const source = fs.readFileSync(path.join(__dirname, '../extension/youtube-background.js'), 'utf8');
 
 const videoId = 'GWwL_pLuX-U';
-function page({ tracks, entries, audio = [], playlist = null, mobilePlayer = null, domTranscript = null, inlineOnly = false, noPlayer = false, fetchOverride = null }) {
+function page({ tracks, entries, audio = [], playlist = null, mobilePlayer = null, domTranscript = null, inlineOnly = false, noPlayer = false, fetchOverride = null, metadataNodes = {} }) {
   const player = { videoDetails: { videoId, title: 'Course video', author: 'Teacher', lengthSeconds: '240' },
     captions: { playerCaptionsTracklistRenderer: { captionTracks: tracks } },
     streamingData: { adaptiveFormats: audio } };
   const requested = [];
+  let now = 0, clicks = 0, expanded = false;
+  class Clock extends Date { static now() { return now; } }
   let transcriptOpened = Boolean(domTranscript?.visible);
   let menuOpen = false, transcriptLanguage = domTranscript?.language;
   const makeSegments = lines => lines.map(([time, text]) => ({
@@ -19,11 +21,13 @@ function page({ tracks, entries, audio = [], playlist = null, mobilePlayer = nul
       : selector.includes('.segment-text') ? { textContent: text } : null
   }));
   let segments = makeSegments(domTranscript?.lines || []);
+  const currentSegments = () => now < (domTranscript?.bodyAt || 0) ? []
+    : now < (domTranscript?.completeAt || 0) ? segments.slice(0, 1) : segments;
   const transcriptContainer = {
-    querySelector: selector => selector.includes('ytd-transcript-segment-renderer') ? segments[0] || null : null,
-    querySelectorAll: selector => selector.includes('ytd-transcript-segment-renderer') ? segments : []
+    querySelector: selector => selector.includes('ytd-transcript-segment-renderer') ? currentSegments()[0] || null : null,
+    querySelectorAll: selector => selector.includes('ytd-transcript-segment-renderer') ? currentSegments() : []
   };
-  const context = vm.createContext({ URL, AbortSignal, AbortController, location: { href: `https://www.youtube.com/watch?v=${videoId}${playlist ? '&list=PLKq1TCpsv3Y4' : ''}` },
+  const context = vm.createContext({ URL, Date: Clock, AbortSignal, AbortController, location: { href: `https://www.youtube.com/watch?v=${videoId}${playlist ? '&list=PLKq1TCpsv3Y4' : ''}` },
     window: { ytInitialPlayerResponse: inlineOnly || noPlayer ? undefined : player,
       ytInitialData: playlist ? { contents: { twoColumnWatchNextResults: { playlist: { playlist } } } } : {} },
     document: { title: 'Course video - YouTube', scripts: inlineOnly ? [{ textContent: `var ytInitialPlayerResponse = ${JSON.stringify(player)};` }] : [], querySelectorAll: selector => {
@@ -32,14 +36,25 @@ function page({ tracks, entries, audio = [], playlist = null, mobilePlayer = nul
         transcriptLanguage = item.language; segments = makeSegments(item.lines); menuOpen = false;
       } }));
     }, querySelector: selector => {
+      if (metadataNodes[selector]) return metadataNodes[selector];
       if (!domTranscript) return null;
       if (selector.includes('#segments-container')) return transcriptOpened ? transcriptContainer : null;
-      if (selector === 'ytd-video-description-transcript-section-renderer button') return { click: () => { transcriptOpened = true; } };
+      if (selector === 'ytd-video-description-transcript-section-renderer button') return now < (domTranscript.buttonAt || 0) || (domTranscript.needsExpand && !expanded) ? null : {
+        getAttribute: () => null, getClientRects: () => [1],
+        click: () => { clicks++; if (clicks > (domTranscript.ignoredClicks || 0)) transcriptOpened = true; }
+      };
+      if (selector === 'ytd-watch-metadata #description-inline-expander #expand') return domTranscript.needsExpand ? {
+        getAttribute: () => null, getClientRects: () => [1], click: () => { expanded = true; }
+      } : null;
+      if (selector === 'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]') return {
+        getAttribute: () => transcriptOpened ? 'ENGAGEMENT_PANEL_VISIBILITY_EXPANDED' : 'ENGAGEMENT_PANEL_VISIBILITY_HIDDEN',
+        querySelectorAll: () => now < (domTranscript.loadingUntil || 0) ? [{ getClientRects: () => [1] }] : []
+      };
       if (selector.includes('#footer yt-sort-filter-sub-menu-renderer')) return { textContent: transcriptLanguage, click: () => { menuOpen = !menuOpen; } };
       return null;
     } },
     DOMParser: class { parseFromString() { return { querySelectorAll: () => [] }; } },
-    setTimeout,
+    setTimeout: (callback, delay) => { now += delay; queueMicrotask(callback); },
     fetch: async (url, options) => {
       requested.push(String(url));
       if (fetchOverride) return fetchOverride(String(url), options);
@@ -49,7 +64,7 @@ function page({ tracks, entries, audio = [], playlist = null, mobilePlayer = nul
     },
     chrome: {} });
   vm.runInContext(source, context);
-  return { read: (...args) => context.youtubePageRead(videoId, ...args), requested };
+  return { read: (...args) => context.youtubePageRead(videoId, ...args), requested, state: () => ({ now, clicks, expanded }) };
 }
 
 test('YouTube video data is read from inline script when the window global is absent', async () => {
@@ -154,7 +169,7 @@ test('rendered transcript never substitutes Chinese for an explicit English choi
 });
 
 test('a ready video tab is preferred over another loading tab for the same video', async () => {
-  const context = vm.createContext({ URL, chrome: { tabs: { query: async () => [
+  const context = vm.createContext({ URL, setTimeout, clearTimeout, chrome: { tabs: { query: async () => [
     { id: 1, url: `https://www.youtube.com/watch?v=${videoId}`, status: 'loading', active: true },
     { id: 2, url: `https://www.youtube.com/watch?v=${videoId}`, status: 'complete', active: false }
   ] } } });
@@ -172,7 +187,7 @@ function workerHarness() {
       return [{ result: fail ? { error: 'temporary failure' } : { meta: { videoId }, track: { lan: 'en' }, body: [{ from: 7, content: `Read ${reads}` }] } }];
     } }
   };
-  const context = vm.createContext({ URL, chrome });
+  const context = vm.createContext({ URL, setTimeout, clearTimeout, chrome });
   vm.runInContext(source, context);
   return { context, chrome, reads: () => reads, fail: value => { fail = value; },
     read: (purpose, language = 'en') => context.youtubeRead(videoId, language, true, false, '', purpose) };
@@ -207,7 +222,7 @@ test('language changes and worker restarts cannot reuse a previous preview', asy
   await h.read('import', 'zh');
   assert.equal(h.reads(), 2);
   await h.read('preview');
-  const restarted = vm.createContext({ URL, chrome: h.chrome });
+  const restarted = vm.createContext({ URL, setTimeout, clearTimeout, chrome: h.chrome });
   vm.runInContext(source, restarted);
   await restarted.youtubeRead(videoId, 'en', true, false, '', 'import');
   assert.equal(h.reads(), 4);
@@ -259,7 +274,7 @@ test('visible transcripts do not depend on player metadata', async () => {
 test('metadata and preview reuse the same helper tab and later videos navigate only that helper', async () => {
   const session = {}, tabs = [];
   let creates = 0, updates = 0;
-  const context = vm.createContext({ URL, chrome: {
+  const context = vm.createContext({ URL, setTimeout, clearTimeout, chrome: {
     storage: { session: { get: async key => ({ [key]: session[key] }), set: async values => Object.assign(session, values) } },
     tabs: {
       query: async () => tabs,
@@ -364,4 +379,172 @@ test('exact track fallback switches the platform transcript and waits for the ne
   const result = await h.read({ platform: 'youtube', videoId, id: '.en' }, true, false);
   assert.equal(result.track.lan, 'en');
   assert.equal(result.body[0].content, 'All right.');
+});
+
+test('transcript fallback expands the description and returns as soon as valid text appears', async () => {
+  const h = page({ tracks: [], entries: {}, domTranscript: {
+    needsExpand: true, buttonAt: 600, bodyAt: 1200, loadingUntil: 16000,
+    language: 'English', lines: [['0:07', 'Ready while the panel still changes.']]
+  } });
+  const result = await h.read('auto', true, false);
+  assert.equal(result.body[0].content, 'Ready while the panel still changes.');
+  assert.deepEqual(h.state(), { now: 1200, clicks: 1, expanded: true });
+});
+
+test('an already visible valid transcript returns immediately despite a loading indicator', async () => {
+  const h = page({ tracks: [], entries: {}, domTranscript: {
+    visible: true, loadingUntil: 16000, completeAt: 15000,
+    language: 'English', lines: [['0:07', 'Available now.'], ['0:20', 'A later addition.']]
+  } });
+  const result = await h.read('auto', true, false);
+  assert.equal(result.body[0].content, 'Available now.');
+  assert.equal(h.state().now, 0);
+  assert.equal(h.state().clicks, 0);
+  assert.equal(h.requested.length, 0);
+});
+
+test('an open panel waits only until the first valid segments appear and is not clicked again', async () => {
+  const h = page({ tracks: [], entries: {}, domTranscript: {
+    visible: true, bodyAt: 1050, loadingUntil: 16000,
+    language: 'English', lines: [['0:07', 'First line.'], ['0:20', 'Second line.']]
+  } });
+  const result = await h.read('auto', true, false);
+  assert.equal(result.body.length, 2);
+  assert.equal(h.state().clicks, 0);
+  assert.equal(h.state().now, 1050);
+});
+
+test('missing entry, ignored click and invalid body all exit within the same eight-second budget', async () => {
+  for (const fixture of [
+    { buttonAt: 12000, lines: [['0:07', 'Too late.']] },
+    { ignoredClicks: 1, lines: [['0:07', 'Not opened.']] },
+    { visible: true, lines: [['invalid', 'No valid timestamp.'], ['0:07', '  ']] }
+  ]) {
+    const h = page({ tracks: [], entries: {}, domTranscript: fixture });
+    const result = await h.read('auto', true, false);
+    assert.match(result.error, /尚不能判定视频无字幕/);
+    assert.equal(result.body, undefined);
+    assert.equal(h.state().now, 8000);
+    assert.ok(h.state().clicks <= 1);
+  }
+});
+
+test('invalid existing transcript falls through to caption files without a DOM wait', async () => {
+  const h = page({ tracks: [{ languageCode: 'en', baseUrl: 'https://www.youtube.com/api/timedtext?lang=en' }],
+    entries: { en: { events: [{ tStartMs: 1000, segs: [{ utf8: 'Caption fallback' }] }] } },
+    domTranscript: { visible: true, language: 'English', lines: [['invalid', 'Not usable']] }
+  });
+  const result = await h.read('en', true, false);
+  assert.equal(result.body[0].content, 'Caption fallback');
+  assert.equal(h.state().now, 0);
+});
+
+test('a reused page waits for its target video before reading transcript nodes', async () => {
+  let h;
+  h = page({ tracks: [], entries: {}, metadataNodes: {
+    'ytd-watch-flexy': { getAttribute: () => h.state().now < 600 ? 'abcdef12345' : videoId }
+  }, domTranscript: { visible: true, language: 'English', lines: [['0:07', 'Target page transcript']] } });
+  const result = await h.read('auto', true, false);
+  assert.equal(result.body[0].content, 'Target page transcript');
+  assert.equal(h.state().now, 600);
+  assert.equal(h.state().clicks, 0);
+});
+
+test('batch imports activate before reading and reuse only the owned tab across videos', async () => {
+  const originalUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  const session = {}, tabs = [{ id: 1, active: false, status: 'complete', url: originalUrl }], reads = [];
+  const update = (id, options) => {
+    if (options.active) tabs.forEach(tab => { tab.active = false; });
+    return Object.assign(tabs.find(tab => tab.id === id), options);
+  };
+  const context = vm.createContext({ URL, setTimeout, clearTimeout, chrome: {
+    storage: { session: { get: async key => ({ [key]: session[key] }), set: async data => Object.assign(session, data) } },
+    tabs: {
+      query: async () => tabs, get: async id => tabs.find(tab => tab.id === id), update: async (id, data) => update(id, data),
+      create: async data => { const id = tabs.length + 1; tabs.push({ id, status: 'complete' }); return update(id, data); }
+    },
+    scripting: { executeScript: async ({ target, args }) => {
+      const tab = tabs.find(tab => tab.id === target.tabId);
+      assert.equal(tab.active, true);
+      assert.equal(new URL(tab.url).searchParams.get('v'), args[0]);
+      reads.push(target.tabId);
+      return [{ result: { body: [{ from: 0, content: 'Read in active tab' }] } }];
+    } }
+  } });
+  vm.runInContext(source, context);
+  const read = id => context.youtubeRead(id, 'auto', true, false, '', 'import', true);
+  await read(videoId);
+  await read('abcdef12345');
+  await read('12345abcdef');
+  assert.deepEqual(reads, [1, 2, 2]);
+  assert.equal(tabs[0].url, originalUrl);
+  tabs[1].url = 'https://example.com/user-navigation';
+  await read('zyxwv987654');
+  assert.equal(reads[3], 3);
+  assert.equal(tabs[1].url, 'https://example.com/user-navigation');
+});
+
+test('metadata uses the current live player or validated page title without requesting player data', async () => {
+  const live = page({ tracks: [], entries: {}, metadataNodes: {
+    '#movie_player': { getVideoData: () => ({ video_id: videoId, title: 'Current live title', author: 'Teacher' }) }
+  } });
+  assert.equal((await live.read('auto', false, false)).meta.title, 'Current live title');
+  assert.equal(live.requested.length, 0);
+  const og = page({ noPlayer: true, tracks: [], entries: {}, metadataNodes: {
+    'meta[property="og:url"]': { getAttribute: () => `https://www.youtube.com/watch?v=${videoId}` },
+    'meta[property="og:title"]': { getAttribute: () => 'Page title' }
+  } });
+  assert.equal((await og.read('auto', false, false)).meta.title, 'Page title');
+  assert.equal(og.requested.length, 0);
+  const stale = page({ noPlayer: true, tracks: [], entries: {}, metadataNodes: {
+    '#movie_player': { getVideoData: () => ({ video_id: 'abcdef12345', title: 'Wrong video' }) },
+    'meta[property="og:url"]': { getAttribute: () => 'https://www.youtube.com/watch?v=abcdef12345' },
+    'meta[property="og:title"]': { getAttribute: () => 'Wrong video' }
+  } });
+  assert.ok((await stale.read('auto', false, false)).error);
+});
+
+test('metadata bypasses an unfinished subtitle read and uses the active tab without waiting for complete', async () => {
+  const h = workerHarness();
+  let release, started;
+  const waiting = new Promise(resolve => { started = resolve; });
+  h.chrome.scripting.executeScript = async ({ args, target, injectImmediately }) => {
+    if (args[2]) { started(); await new Promise(resolve => { release = resolve; }); return [{ result: { body: [] } }]; }
+    assert.equal(target.tabId, 3);
+    assert.equal(injectImmediately, true);
+    return [{ result: { meta: { title: 'Immediate metadata' } } }];
+  };
+  const body = h.read('preview');
+  await waiting;
+  h.chrome.tabs.query = async () => [
+    { id: 2, active: false, status: 'complete', url: `https://www.youtube.com/watch?v=${videoId}` },
+    { id: 3, active: true, status: 'loading', url: `https://www.youtube.com/watch?v=${videoId}` }
+  ];
+  try {
+    const meta = await Promise.race([h.context.youtubeRead(videoId), new Promise(resolve => setImmediate(() => resolve(null)))]);
+    assert.equal(meta?.meta.title, 'Immediate metadata');
+  } finally { release(); await body; }
+});
+
+test('expired queued metadata does not navigate later and a subsequent read can succeed', async () => {
+  let now = 0, release, calls = 0;
+  const timers = [];
+  class Clock extends Date { static now() { return now; } }
+  const chrome = {
+    tabs: { query: async () => [{ id: 2, status: 'complete', url: `https://www.youtube.com/watch?v=${videoId}` }] },
+    scripting: { executeScript: async () => { calls++; await new Promise(resolve => { release = resolve; }); return [{ result: { body: [] } }]; } }
+  };
+  const context = vm.createContext({ URL, Date: Clock, chrome,
+    setTimeout: fn => { timers.push(fn); return timers.length; }, clearTimeout() {} });
+  vm.runInContext(source, context);
+  const body = context.youtubeRead(videoId, 'auto', true);
+  await new Promise(setImmediate);
+  const meta = context.youtubeRead('abcdef12345');
+  const rejected = assert.rejects(meta, /视频信息读取超时/);
+  await new Promise(setImmediate);
+  now = 12000; timers[0](); await rejected;
+  release(); await body; await new Promise(setImmediate);
+  assert.equal(calls, 1);
+  chrome.scripting.executeScript = async () => [{ result: { meta: { title: 'Retry works' } } }];
+  assert.equal((await context.youtubeRead(videoId)).meta.title, 'Retry works');
 });

@@ -2,6 +2,7 @@ const $ = id => document.getElementById(id);
 let meta = null, page = null, base = "", settings = null, jobKey = "";
 let busy = false, reading = false, previewing = false, hasSubtitle = false;
 let subtitleLanguage;
+let videoRun = 0;
 function status(text, error = false) {
   $("status").textContent = text; $("status").classList.toggle("error", error);
 }
@@ -56,6 +57,7 @@ async function loadVideo() {
   const parsed = CourseCore.parseSource(source);
   if (!parsed) { status("请粘贴 B站或 YouTube 视频链接。", true); return; }
   const number = parsed.page;
+  const run = ++videoRun;
   reading = true; page = null; jobKey = ""; hasSubtitle = false; controls();
   subtitleLanguage.tracks([], "auto", "正在读取语言选项…");
   $("video").hidden = true; status("正在识别视频…");
@@ -74,13 +76,14 @@ async function loadVideo() {
     status(settings.hasApiKey ? "" : "先配置 Obsidian 连接，即可导入。");
     const job = await send({ type: "quick-status", bvid: meta.bvid, cid: page.cid, base });
     jobKey = job.key; showJob(job.state);
+    reading = false;
+    await preview();
     try {
       const result = await send({ type: "course-request", action: "tracks", meta, page });
-      subtitleLanguage.tracks(result.tracks);
-    } catch { subtitleLanguage.tracks([], "auto", "暂未读取到语言选项，可点击“读取”重试；仍可使用自动。"); }
-    await preview();
-  } catch (error) { page = null; status(error.message, true); }
-  finally { reading = false; controls(); }
+      if (run === videoRun) subtitleLanguage.tracks(result.tracks);
+    } catch { if (run === videoRun) subtitleLanguage.tracks([], "auto", "暂未读取到语言选项，可点击“读取”重试；仍可使用自动。"); }
+  } catch (error) { if (run === videoRun) { page = null; status(error.message, true); } }
+  finally { if (run === videoRun) { reading = false; controls(); } }
 }
 $("source-form").addEventListener("submit", event => { event.preventDefault(); loadVideo(); });
 $("asr-open").addEventListener("click", async () => {

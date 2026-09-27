@@ -26,7 +26,7 @@ function boot({ authenticated = true, existing = null, beforeSubtitle, missing =
         ...(args[2] ? { track: { lan: 'en', lanDoc: 'English' }, body: [{ from: 3, to: 5, content: 'First lesson' }] } : {}) } }];
     } }
   };
-  context = vm.createContext({ chrome, console, URL, URLSearchParams, AbortSignal, setInterval, clearInterval,
+  context = vm.createContext({ chrome, console, URL, URLSearchParams, AbortSignal, setInterval, clearInterval, setTimeout, clearTimeout,
     navigator: { locks: { request: async (name, options, run) => {
       if (locks.has(name)) return run(null);
       locks.add(name); try { return await run({ name }); } finally { locks.delete(name); }
@@ -252,6 +252,17 @@ test('metadata accepts a pasted YouTube watch-and-list URL from an older page', 
   const result = await h.message({ type: 'course-request', action: 'meta', bvid: `https://www.youtube.com/watch?v=${id}&list=${playlistId}` });
   assert.equal(result.ok, true);
   assert.equal(result.meta.pages.length, 2);
+});
+
+test('workbench import activates the selected YouTube video through the normal import action', async () => {
+  const h = boot({ youtubeVideo: 'GWwL_pLuX-U', youtubePlaylist: 'PLKq1TCpsv3Y4' });
+  const data = await h.message({ type: 'course-request', action: 'meta', youtubeId: 'GWwL_pLuX-U', playlistId: 'PLKq1TCpsv3Y4' });
+  const selected = data.meta.pages[1];
+  const result = await h.message({ type: 'course-request', action: 'import', meta: data.meta, page: selected, base: data.folder, activateVideo: true });
+  assert.equal(result.status, 'saved');
+  assert.equal(h.opened.length, 1);
+  assert.equal(h.opened[0].active, true);
+  assert.equal(new URL(h.opened[0].url).searchParams.get('v'), selected.cid);
 });
 test('closing popup does not own or cancel the background operation; duplicate requests share it', async () => {
   let release, entered, saved;
