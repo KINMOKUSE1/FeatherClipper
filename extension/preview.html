@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Course Cove · 开发预览</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #eceef1; color: #303a4a; font: 14px/1.6 "Segoe UI", "Microsoft YaHei", sans-serif; }
+      header { padding: 16px 20px; background: #fff; border-bottom: 1px solid #dadddf; }
+      h1 { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+      p { margin: 0; font-size: 12px; color: #646c78; }
+      .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 14px; }
+      label { display: inline-flex; align-items: center; gap: 6px; }
+      button, select { font: inherit; padding: 6px 9px; border: 1px solid #c9cdd3; border-radius: 5px; background: #fff; color: inherit; }
+      button { cursor: pointer; }
+      main { padding: 24px 16px; overflow-x: auto; }
+      iframe { display: block; width: 400px; height: 500px; margin: 0 auto; border: 0; box-shadow: 0 8px 28px #303a4a18; background: #faf8f2; }
+      #notice { margin-top: 10px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Course Cove · 开发预览</h1>
+      <p>示例数据，不会写入 Obsidian。修改 popup.html / popup.css 后，点击刷新预览。</p>
+      <div class="controls">
+        <label for="scenario">状态
+          <select id="scenario">
+            <option value="series">系列课程 · 92 P</option>
+            <option value="single">单 P · 长标题</option>
+            <option value="empty">未识别视频</option>
+            <option value="unconfigured">未配置 Obsidian</option>
+            <option value="missing">没有字幕</option>
+            <option value="error">字幕读取失败</option>
+            <option value="loading">正在读取字幕</option>
+            <option value="saving">正在保存</option>
+            <option value="saved">保存完成</option>
+          </select>
+        </label>
+        <label><input id="expanded" type="checkbox">展开字幕</label>
+        <button id="reload" type="button">刷新预览</button>
+      </div>
+      <p id="notice" role="status" aria-live="polite"></p>
+    </header>
+    <main>
+      <iframe id="popup-preview" title="实际弹窗界面预览" sandbox="allow-scripts allow-same-origin"></iframe>
+    </main>
+    <script src="preview.js"></script>
+  </body>
+</html>

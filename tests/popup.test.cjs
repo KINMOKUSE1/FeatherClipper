@@ -7,7 +7,7 @@ const core = require('../extension/course-core.js');
 test('popup displays preview and enables import before language options arrive; stale options are ignored', async () => {
   const elements = new Map(), pending = [], choices = [];
   const element = () => ({ textContent: '', value: '', children: [], classList: { toggle() {} },
-    addEventListener() {}, append(...items) { this.children.push(...items); } });
+    addEventListener() {}, setAttribute() {}, append(...items) { this.children.push(...items); } });
   const get = id => { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); };
   const context = vm.createContext({ URL, console, CourseCore: core, window: { close() {} },
     document: { getElementById: get, createElement: element, createTextNode: text => text },
@@ -44,4 +44,72 @@ test('popup displays preview and enables import before language options arrive; 
   pending[1]({ ok: true, tracks: [{ id: 'new' }] });
   await next;
   assert.equal(choices.at(-1)[0].id, 'new');
+});
+
+test('popup keeps single-video saves separate from explicit whole-course handoff and exposes preview errors', async () => {
+  const elements = new Map(), messages = [], opened = [];
+  const element = () => ({ textContent: '', value: '', children: [], attributes: {}, listeners: {}, classList: { toggle() {} },
+    setAttribute(name, value) { this.attributes[name] = value; },
+    addEventListener(name, handler) { this.listeners[name] = handler; },
+    append(...items) { this.children.push(...items); } });
+  const get = id => { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); };
+  let count = 1, previewError = false, missing = false;
+  const context = vm.createContext({ URL, console, CourseCore: core, window: { close() {} },
+    document: { getElementById: get, createElement: element, createTextNode: text => text },
+    SubtitleLanguage: { create: async () => ({ current: () => 'auto', tracks() {} }) },
+    chrome: {
+      tabs: { query: async () => [{ url: 'https://www.bilibili.com/video/BV1ps4y1d73V/' }], create: async tab => opened.push(tab) },
+      storage: { local: { get: async () => ({}) }, onChanged: { addListener() {} } },
+      runtime: { getURL: name => `chrome-extension://test/${name}`, sendMessage: async message => {
+        messages.push(message);
+        if (message.type === 'settings-get') return { ok: true, settings: { hasApiKey: true } };
+        if (message.type === 'quick-status') return { ok: true, key: 'job' };
+        if (message.type === 'quick-import') return { ok: true, status: 'saved' };
+        if (message.action === 'meta') return { ok: true, folder: 'Study', meta: {
+          bvid: message.bvid, title: 'A long course title',
+          pages: Array.from({ length: count }, (_, i) => ({ cid: String(i + 1), page: i + 1, part: `Lesson ${i + 1}` }))
+        } };
+        if (message.action === 'preview') {
+          if (previewError) return { ok: false, error: 'Please log in' };
+          return { ok: true, body: missing ? [] : [{ from: 0, content: 'Transcript' }] };
+        }
+        if (message.action === 'tracks') return { ok: true, tracks: [] };
+        throw new Error('Unexpected request');
+      } }
+    }
+  });
+  vm.runInContext(fs.readFileSync(require.resolve('../extension/popup.js'), 'utf8'), context);
+  await new Promise(setImmediate);
+  assert.equal(get('current-part').hidden, true);
+  assert.equal(get('save-scope').hidden, true);
+  assert.equal(get('source-panel').open, false);
+  assert.equal(get('preview-panel').open, false);
+  await get('import').listeners.click();
+  assert.equal(messages.filter(m => m.type === 'quick-import').length, 1);
+  assert.equal(opened.length, 0);
+
+  count = 92;
+  await context.loadVideo();
+  assert.equal(get('scope-current').attributes['aria-pressed'], 'true');
+  assert.equal(get('save-scope').hidden, false);
+  get('scope-all').listeners.click();
+  assert.match(get('import-label').textContent, /92 P/);
+  await get('import').listeners.click();
+  const target = new URL(opened[0].url);
+  assert.equal(target.searchParams.get('scope'), 'all');
+  assert.equal(target.searchParams.get('bvid'), 'BV1ps4y1d73V');
+  assert.equal(messages.filter(m => m.type === 'quick-import').length, 1);
+
+  missing = true;
+  await context.loadVideo();
+  assert.equal(get('import').disabled, true);
+  assert.equal(get('asr-open').hidden, false);
+  get('scope-all').listeners.click();
+  assert.equal(get('import').disabled, false);
+
+  previewError = true;
+  await context.loadVideo();
+  assert.equal(get('preview-panel').open, true);
+  assert.match(get('subtitles').textContent, /Please log in/);
+  assert.equal(get('import').disabled, true);
 });

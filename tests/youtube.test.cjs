@@ -7,7 +7,7 @@ const core = require('../extension/course-core.js');
 const source = fs.readFileSync(path.join(__dirname, '../extension/youtube-background.js'), 'utf8');
 
 const videoId = 'GWwL_pLuX-U';
-function page({ tracks, entries, audio = [], playlist = null, mobilePlayer = null, domTranscript = null, inlineOnly = false, noPlayer = false, fetchOverride = null, metadataNodes = {}, otherPanels = [] }) {
+function page({ tracks, entries, audio = [], playlist = null, mobilePlayer = null, domTranscript = null, inlineOnly = false, noPlayer = false, fetchOverride = null, metadataNodes = {}, otherPanels = [], playlistPanels = [], onWait = null }) {
   const player = { videoDetails: { videoId, title: 'Course video', author: 'Teacher', lengthSeconds: '240' },
     captions: { playerCaptionsTracklistRenderer: { captionTracks: tracks } },
     streamingData: { adaptiveFormats: audio } };
@@ -46,10 +46,11 @@ function page({ tracks, entries, audio = [], playlist = null, mobilePlayer = nul
     getAttribute: () => 'ENGAGEMENT_PANEL_VISIBILITY_HIDDEN',
     querySelector: () => null, querySelectorAll: () => []
   };
-  const context = vm.createContext({ URL, Date: Clock, AbortSignal, AbortController, location: { href: `https://www.youtube.com/watch?v=${videoId}${playlist ? '&list=PLKq1TCpsv3Y4' : ''}` },
+  const context = vm.createContext({ URL, URLSearchParams, Date: Clock, AbortSignal, AbortController, location: { href: `https://www.youtube.com/watch?v=${videoId}${playlist || playlistPanels.length ? '&list=PLKq1TCpsv3Y4' : ''}` },
     window: { ytInitialPlayerResponse: inlineOnly || noPlayer ? undefined : player,
       ytInitialData: playlist ? { contents: { twoColumnWatchNextResults: { playlist: { playlist } } } } : {} },
     document: { title: 'Course video - YouTube', scripts: inlineOnly ? [{ textContent: `var ytInitialPlayerResponse = ${JSON.stringify(player)};` }] : [], querySelectorAll: selector => {
+      if (selector === 'ytd-playlist-panel-renderer') return playlistPanels;
       if (selector === 'ytd-engagement-panel-section-list-renderer') return domTranscript ? [...otherPanels, ...(domTranscript.modern ? [emptyLegacyPanel] : []), transcriptPanel] : otherPanels;
       if (!selector.includes('tp-yt-paper-listbox') || !menuOpen) return [];
       return (domTranscript?.alternatives || []).map(item => ({ textContent: item.language, getClientRects: () => [1], click: () => {
@@ -70,7 +71,7 @@ function page({ tracks, entries, audio = [], playlist = null, mobilePlayer = nul
       return null;
     } },
     DOMParser: class { parseFromString() { return { querySelectorAll: () => [] }; } },
-    setTimeout: (callback, delay) => { now += delay; queueMicrotask(callback); },
+    setTimeout: (callback, delay) => { now += delay; onWait?.(now, context); queueMicrotask(callback); },
     fetch: async (url, options) => {
       requested.push(String(url));
       if (fetchOverride) return fetchOverride(String(url), options);
@@ -298,17 +299,121 @@ test('simultaneous identical previews share only their in-flight request', async
 test('a YouTube playlist becomes a numbered course with each video ID', async () => {
   const playlistId = 'PLKq1TCpsv3Y4';
   const h = page({ tracks: [{ languageCode: 'en', baseUrl: 'https://www.youtube.com/api/timedtext?lang=en' }], entries: {},
-    playlist: { title: 'Deep Reinforcement Learning', contents: [
+    playlist: { playlistId, title: 'Deep Reinforcement Learning', ownerName: { simpleText: 'Course owner' }, contents: [
       { playlistPanelVideoRenderer: { videoId, title: { simpleText: 'Lecture 1' }, lengthSeconds: '2658' } },
       { playlistPanelVideoRenderer: { videoId: 'abcdef12345', title: { simpleText: 'Lecture 2' }, lengthSeconds: '6960' } }
     ] } });
   const result = await h.read('auto', false, false, playlistId);
   assert.equal(result.meta.bvid, `YTPL_${playlistId}`);
   assert.equal(result.meta.title, 'Deep Reinforcement Learning');
+  assert.equal(result.meta.author, 'Course owner');
+  assert.equal(result.meta.currentVideo.title, 'Course video');
+  assert.equal(result.meta.currentVideo.author, 'Teacher');
   assert.deepEqual([...result.meta.pages.map(item => item.cid)], [videoId, 'abcdef12345']);
   assert.equal(result.meta.pages[1].page, 2);
   const parsed = core.parseSource(`https://www.youtube.com/watch?v=${videoId}&list=${playlistId}`);
   assert.equal(parsed.playlistId, playlistId);
+});
+
+function playlistData(id = 'PLKq1TCpsv3Y4', title = 'Current course', author = '') {
+  return { playlistId: id, title, ownerName: author, contents: [
+    { playlistPanelVideoRenderer: { videoId, title: { simpleText: 'Current lesson' }, navigationEndpoint: { watchEndpoint: { playlistId: id } } } }
+  ] };
+}
+
+function playlistPanel({ id = 'PLKq1TCpsv3Y4', itemId = id, title = 'DOM course', author = '', videos = [videoId] } = {}) {
+  const headerLink = { getAttribute: () => id ? `/playlist?list=${id}` : null };
+  const heading = { textContent: title, querySelector: () => headerLink };
+  return {
+    querySelector: selector => selector === '#header-description .title, #header-description #title, #title' ? heading
+      : selector === '#publisher-container' ? { textContent: author } : null,
+    querySelectorAll: selector => selector === 'ytd-playlist-panel-video-renderer' ? videos.map((cid, i) => ({
+      querySelector: selector => selector === 'a#wc-endpoint' ? { getAttribute: () => `/watch?v=${cid}&list=${itemId}` }
+        : selector === '#video-title' ? { textContent: `DOM lesson ${i + 1}` } : null
+    })) : []
+  };
+}
+
+test('stale initial course is rejected as a whole even when it has more videos', async () => {
+  const stale = playlistData('PLprevious123', 'Previous course', 'Previous owner');
+  stale.contents.push({ playlistPanelVideoRenderer: { videoId: 'abcdef12345', title: { simpleText: 'Old lesson' } } });
+  const h = page({ playlist: stale, playlistPanels: [playlistPanel({ author: 'DOM owner' })] });
+  const result = await h.read('auto', false, false, 'PLKq1TCpsv3Y4');
+  assert.equal(result.meta.title, 'DOM course');
+  assert.equal(result.meta.author, 'DOM owner');
+  assert.equal(result.meta.pages.length, 1);
+  assert.equal(result.meta.pages[0].part, 'DOM lesson 1');
+  assert.equal(h.state().now, 0);
+});
+
+test('a longer foreign DOM list cannot contribute fields to a valid initial candidate', async () => {
+  const h = page({ playlist: playlistData(), playlistPanels: [playlistPanel({ id: 'PLprevious123', author: 'Wrong owner', videos: [videoId, 'abcdef12345'] })] });
+  const result = await h.read('auto', false, false, 'PLKq1TCpsv3Y4');
+  assert.equal(result.meta.title, 'Current course');
+  assert.equal(result.meta.author, ''); // Never borrow the current video's uploader.
+  assert.equal(result.meta.pages.length, 1);
+  assert.equal(result.meta.pages[0].part, 'Current lesson');
+});
+
+test('matching but incomplete initial data cannot borrow a title from the DOM candidate', async () => {
+  const h = page({ playlist: playlistData('PLKq1TCpsv3Y4', '', 'Initial owner'), playlistPanels: [playlistPanel()] });
+  const result = await h.read('auto', false, false, 'PLKq1TCpsv3Y4');
+  assert.equal(result.meta.title, 'DOM course');
+  assert.equal(result.meta.author, '');
+  assert.equal(result.meta.pages[0].part, 'DOM lesson 1');
+});
+
+test('playlist identity is never manufactured from the URL and single-video title is not a fallback', async () => {
+  for (const data of [playlistData(undefined, ''), { title: 'Looks like a course', contents: playlistData().contents }]) {
+    const h = page({ playlist: data });
+    const result = await h.read('auto', false, false, 'PLKq1TCpsv3Y4');
+    assert.match(result.error, /暂时无法确认当前播放列表信息/);
+    assert.equal(result.meta, undefined);
+    assert.equal(h.state().now, 3000);
+  }
+});
+
+test('DOM header and item identities must agree, even when both have plausible content', async () => {
+  const h = page({ playlistPanels: [playlistPanel({ itemId: 'PLprevious123' })] });
+  const result = await h.read('auto', false, false, 'PLKq1TCpsv3Y4');
+  assert.match(result.error, /暂时无法确认当前播放列表信息/);
+  assert.equal(result.meta, undefined);
+});
+
+test('a missing DOM header link cannot inherit playlist identity from the current URL', async () => {
+  const h = page({ playlistPanels: [playlistPanel({ id: null, itemId: 'PLKq1TCpsv3Y4' })] });
+  const result = await h.read('auto', false, false, 'PLKq1TCpsv3Y4');
+  assert.match(result.error, /暂时无法确认当前播放列表信息/);
+  assert.equal(result.meta, undefined);
+});
+
+test('initial playlist and entry identities must agree', async () => {
+  const data = playlistData();
+  data.contents[0].playlistPanelVideoRenderer.navigationEndpoint.watchEndpoint.playlistId = 'PLprevious123';
+  const result = await page({ playlist: data }).read('auto', false, false, 'PLKq1TCpsv3Y4');
+  assert.match(result.error, /暂时无法确认当前播放列表信息/);
+});
+
+test('waiting re-reads stale then incomplete data and returns as soon as the target course is ready', async () => {
+  const h = page({ playlist: playlistData('PLprevious123', 'Old course'), onWait: (now, context) => {
+    context.window.ytInitialData.contents.twoColumnWatchNextResults.playlist.playlist = playlistData('PLKq1TCpsv3Y4', now < 450 ? '' : 'Loaded course');
+  } });
+  const result = await h.read('auto', false, false, 'PLKq1TCpsv3Y4');
+  assert.equal(result.meta.title, 'Loaded course');
+  assert.equal(h.state().now, 450);
+});
+
+test('navigation during a pending playlist read discards the old request, including same-list video changes', async () => {
+  for (const nextUrl of [`https://www.youtube.com/watch?v=${videoId}&list=PLdifferent123`, 'https://www.youtube.com/watch?v=abcdef12345&list=PLKq1TCpsv3Y4']) {
+    const h = page({ playlist: playlistData('PLKq1TCpsv3Y4', ''), onWait: (now, context) => {
+      context.location.href = nextUrl;
+      context.window.ytInitialData.contents.twoColumnWatchNextResults.playlist.playlist = playlistData();
+    } });
+    const result = await h.read('auto', false, false, 'PLKq1TCpsv3Y4');
+    assert.match(result.error, /已切换视频或播放列表/);
+    assert.equal(result.meta, undefined);
+    assert.equal(h.state().now, 150);
+  }
 });
 
 test('YouTube notes use video IDs and playable time links', () => {

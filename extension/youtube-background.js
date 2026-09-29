@@ -73,23 +73,81 @@ async function youtubePageRead(videoId, preference, includeBody, includeAudio, p
   if (!includeBody && !details.videoId) throw new Error("无法读取 YouTube 视频信息；请先打开视频页并确认能播放。");
   const meta = { platform: "youtube", videoId, bvid: `YT_${videoId}`, title: details.title || document.title.replace(/\s*-\s*YouTube$/, ""), author: details.author || "", pages: [{ cid: videoId, page: 1, part: details.title || "视频字幕", duration: Number(details.lengthSeconds) || 0 }] };
   if (playlistId && !includeBody && !includeAudio) {
-    if (new URL(location.href).searchParams.get("list") !== playlistId) throw new Error("YouTube 页面已切换播放列表，请重新读取。");
-    const playlist = (window.ytInitialData || inlineJson("ytInitialData"))?.contents?.twoColumnWatchNextResults?.playlist?.playlist;
-    const entries = (playlist?.contents || []).map(item => item.playlistPanelVideoRenderer).filter(Boolean);
-    const fromData = entries.map(item => ({ cid: item.videoId, part: item.title?.simpleText || item.title?.runs?.map(run => run.text).join("") || "视频字幕", duration: Number(item.lengthSeconds) || 0 }));
-    const fromDom = [...document.querySelectorAll("ytd-playlist-panel-video-renderer")].map(item => {
-      const link = item.querySelector("a#wc-endpoint");
-      let cid = "";
-      try { cid = new URL(link?.href || "", location.href).searchParams.get("v") || ""; } catch { /* Ignore unavailable item. */ }
-      return { cid, part: item.querySelector("#video-title")?.textContent?.trim() || link?.title || "视频字幕", duration: 0 };
-    });
-    const items = fromData.length >= fromDom.length ? fromData : fromDom;
-    const unique = [...new Map(items.filter(item => /^[\w-]{11}$/.test(item.cid)).map(item => [item.cid, item])).values()];
-    if (!unique.length) throw new Error("无法读取 YouTube 播放列表目录；请在浏览器中打开列表中的视频后重试。");
-    meta.playlistId = playlistId;
-    meta.bvid = `YTPL_${playlistId}`;
-    meta.title = (typeof playlist?.title === "string" ? playlist.title : "") || document.querySelector("ytd-playlist-panel-renderer #title")?.textContent?.trim() || details.title;
-    meta.pages = unique.map((item, index) => ({ ...item, page: index + 1 }));
+    const checkContext = () => {
+      const url = new URL(location.href);
+      if (url.searchParams.get("v") !== videoId || url.searchParams.get("list") !== playlistId) {
+        throw new Error("YouTube 页面已切换视频或播放列表，请重新读取。");
+      }
+    };
+    const text = value => (typeof value === "string" ? value : value?.simpleText || value?.runs?.map(run => run.text || "").join("") || "").trim();
+    const linkParams = href => {
+      if (!href || href.trim().startsWith("#")) return new URLSearchParams();
+      try { return new URL(href, location.href).searchParams; }
+      catch { return new URLSearchParams(); }
+    };
+    const fromInitialData = () => {
+      const data = (window.ytInitialData || inlineJson("ytInitialData"))?.contents?.twoColumnWatchNextResults?.playlist?.playlist;
+      if (!data) return null;
+      const entries = (data.contents || []).map(item => item.playlistPanelVideoRenderer).filter(Boolean);
+      return {
+        source: "initialData",
+        evidence: { idSource: "playlist.playlistId", ids: [data.playlistId, ...entries.map(item => item.navigationEndpoint?.watchEndpoint?.playlistId).filter(Boolean)] },
+        playlist: { id: data.playlistId, title: text(data.title), author: text(data.ownerName),
+          videos: entries.map(item => ({ cid: item.videoId, part: text(item.title), duration: Number(item.lengthSeconds) || 0 })) }
+      };
+    };
+    const fromDOM = panel => {
+      const heading = panel.querySelector("#header-description .title, #header-description #title, #title");
+      const headerLink = heading?.querySelector("a[href]") || heading?.closest("a[href]") || panel.querySelector('#header-description a[href*="list="]');
+      const id = linkParams(headerLink?.getAttribute("href") || "").get("list");
+      const entries = [...panel.querySelectorAll("ytd-playlist-panel-video-renderer")].map(item => {
+        const link = item.querySelector("a#wc-endpoint");
+        const params = linkParams(link?.getAttribute("href") || "");
+        return { id: params.get("list"), cid: params.get("v"), part: item.querySelector("#video-title")?.textContent?.trim() || link?.title?.trim() || "", duration: 0 };
+      });
+      return {
+        source: "dom",
+        evidence: { idSource: "playlist-header-and-item-links", ids: [id, ...entries.map(item => item.id)] },
+        playlist: { id, title: heading?.textContent?.trim() || "", author: panel.querySelector("#publisher-container")?.textContent?.trim() || "",
+          videos: entries.map(({ cid, part, duration }) => ({ cid, part, duration })) }
+      };
+    };
+    const validate = candidate => {
+      if (!candidate) return "pending";
+      const { playlist, evidence } = candidate;
+      // IDs must come from the source itself, never from the requested URL.
+      if (evidence.ids.some(id => id && id !== playlistId)) return "stale";
+      if (!playlist.id || evidence.ids.some(id => !id)) return "pending";
+      if (!playlist.title || !playlist.videos.length || !playlist.videos.some(item => item.cid === videoId)
+        || playlist.videos.some(item => !/^[\w-]{11}$/.test(item.cid || "") || !item.part)) return "pending";
+      return "ready";
+    };
+    const deadline = Date.now() + 3000;
+    let accepted = null, lastDiagnostic = "";
+    do {
+      checkContext();
+      const candidates = [fromInitialData(), ...[...document.querySelectorAll("ytd-playlist-panel-renderer")].map(fromDOM)].filter(Boolean);
+      const states = candidates.map(candidate => ({ candidate, status: validate(candidate) }));
+      // Select a whole validated source; field-by-field fallbacks can mix courses.
+      accepted = states.find(item => item.status === "ready")?.candidate;
+      const diagnostic = JSON.stringify(states.map(({ candidate, status }) => ({ source: candidate.source, status,
+        idSource: candidate.evidence.idSource, ids: [...new Set(candidate.evidence.ids)] })));
+      if (diagnostic !== lastDiagnostic) {
+        console.debug("[Course Cove YouTube] playlist", playlistId, diagnostic);
+        lastDiagnostic = diagnostic;
+      }
+      if (accepted || Date.now() >= deadline) break;
+      await new Promise(resolve => setTimeout(resolve, Math.min(150, deadline - Date.now())));
+    } while (true);
+    checkContext();
+    if (!accepted) throw new Error("暂时无法确认当前播放列表信息，请等待页面加载完成后重新读取。");
+    const playlist = accepted.playlist;
+    meta.currentVideo = { id: videoId, title: details.title || "", author: details.author || "" };
+    meta.playlistId = playlist.id;
+    meta.bvid = `YTPL_${playlist.id}`;
+    meta.title = playlist.title;
+    meta.author = playlist.author;
+    meta.pages = [...new Map(playlist.videos.map(item => [item.cid, item])).values()].map((item, index) => ({ ...item, page: index + 1 }));
   }
   if (includeAudio) {
     const formats = (player.streamingData?.adaptiveFormats || inlinePlayer?.streamingData?.adaptiveFormats || []).filter(item => String(item.mimeType || "").startsWith("audio/") && item.url);

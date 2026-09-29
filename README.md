@@ -136,6 +136,14 @@ YouTube 接入、播放列表与本地转写更新已加入本仓库的 v1.3.5 �
 
 ## 开发与打包
 
+只调整弹窗样式时，可以在 VS Code 内使用示例数据预览。在仓库根目录运行：
+
+```sh
+python -m http.server 8000 --bind 127.0.0.1 --directory extension
+```
+
+在 VS Code 命令面板选择 `Simple Browser: Show`，打开 `http://127.0.0.1:8000/preview.html`。顶部可切换单 P、系列课程、无字幕、加载与保存等状态，也可展开字幕。修改 `extension/popup.html` 或 `extension/popup.css` 后，点击“刷新预览”。预览复用正式弹窗文件，所有扩展接口使用内存中的示例数据，不请求视频平台或写入 Obsidian；真实读取与保存仍在浏览器扩展中验证。
+
 直接加载 `extension/` 开发。运行测试：
 
 ```sh

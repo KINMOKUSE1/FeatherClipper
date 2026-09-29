@@ -524,6 +524,9 @@ async function init() {
   const bvid = params.get("bvid"), youtubeId = params.get("youtubeId"), playlistId = params.get("playlistId");
   if (bvid || youtubeId) {
     $("url").value = youtubeId ? `https://www.youtube.com/watch?v=${youtubeId}${playlistId ? `&list=${playlistId}` : ""}` : `https://www.bilibili.com/video/${bvid}/?p=${currentPage}`; await loadCourse();
+    if (meta && params.get("scope") === "all") {
+      pages.forEach(page => page.selected = true); render();
+    }
     if (meta && new URLSearchParams(location.search).get("asr") === "1") {
       const page = pages.find(item => item.page === currentPage);
       if (page) { await preview(page); if (activeAsrPage) await runAsrQueue([page]); }
