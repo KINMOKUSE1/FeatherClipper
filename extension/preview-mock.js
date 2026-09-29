@@ -16,23 +16,12 @@
       cid: String(i + 1), page: i + 1, part: i === 0 ? "课程白嫖指南" : `第 ${i + 1} 节 · 课程内容`, duration: 1800
     }))
   };
-  const tracks = [
-    { platform: "bilibili", videoId: "1", id: "zh", lan: "zh", lanDoc: "中文" },
-    { platform: "bilibili", videoId: "1", id: "en", lan: "en", lanDoc: "English" }
-  ];
   const chinese = [
     "这节课我们从浏览器输入网址开始，理解一次请求的完整过程。",
     "浏览器首先需要确定服务器的地址，然后建立连接，发送 HTTP 请求。",
     "服务器处理请求并返回响应，浏览器开始解析 HTML，构建页面的结构。",
     "CSS 决定内容的布局与样式，JavaScript 则可以修改页面并响应用户操作。",
     "结构、样式和行为共同决定了你最终看到的网页。"
-  ];
-  const english = [
-    "We will follow a request from the address bar to the rendered page.",
-    "The browser locates the server, establishes a connection, and sends an HTTP request.",
-    "The server returns a response. The browser parses the HTML to build the page structure.",
-    "CSS controls layout and appearance. JavaScript responds to user actions.",
-    "Structure, style, and behavior work together to create the page."
   ];
   let jobState = scenario === "saving" ? { status: "running" } : scenario === "saved" ? { status: "saved" } : null;
   async function sendMessage(message) {
@@ -52,13 +41,11 @@
     }
     if (message.type === "course-request") {
       if (message.action === "meta") return { ok: true, meta, folder: settings.noteFolder };
-      if (message.action === "tracks") return { ok: true, tracks: scenario === "missing" ? [] : tracks };
       if (message.action === "preview") {
         if (scenario === "loading") return new Promise(() => {});
         if (scenario === "error") return { ok: false, error: "字幕读取失败，请登录视频平台后重试。（示例）" };
         if (scenario === "missing") return { ok: true, body: [], missing: true };
-        const useEnglish = message.language?.id === "en";
-        return { ok: true, track: tracks[useEnglish ? 1 : 0], body: (useEnglish ? english : chinese).map((content, i) => ({ from: i * 35, to: i * 35 + 12, content })) };
+        return { ok: true, track: { lan: "zh", lanDoc: "中文" }, body: chinese.map((content, i) => ({ from: i * 35, to: i * 35 + 12, content })) };
       }
     }
     return { ok: false, error: "开发预览未模拟此操作。" };

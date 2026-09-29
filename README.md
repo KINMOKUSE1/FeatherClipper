@@ -13,7 +13,7 @@
 ## 主要功能
 
 - **视频与课程导入**：在 B站或 YouTube 视频页预览并导入字幕；B站课程可批量选择同一 BV 下的分 P，YouTube 可选择播放列表中的视频。
-- **字幕与回看链接**：按视频实际提供的语言选择字幕轨，区分人工字幕与自动字幕；保存完整字幕、时间戳和视频链接。
+- **字幕与回看链接**：自动获取可用字幕，保留实际语言和来源信息；保存完整字幕、时间戳和视频链接。
 - **课程素材管理**：按标题预分章，也可手动调整；自动生成课程清单，跳过已有字幕，支持停止和重试。
 - **自己的笔记工作流**：提供学习规则、模板和可选技能包，用你选择的 AI 整理章节笔记。
 - **可选本地转写**：无字幕时可手动尝试用本机模型转写视频音轨；整课模式只处理已勾选且无字幕的分 P。
@@ -51,9 +51,9 @@
 
 ### 3. 导入第一段视频
 
-在 Edge 打开一段 B站或 YouTube 视频，点击扩展图标。预览区默认 **自动（推荐）**，下拉菜单列出当前视频实际提供的字幕轨（例如 English、English 自动生成、简体中文）；选择后预览和导入使用同一条轨道。YouTube 自动翻译语言不作为已有字幕轨列出。确认内容后点击 **“导入”**，回到 Obsidian 就能找到原始字幕。YouTube 字幕从视频页读取；请保持该视频可正常播放。
+在 Edge 打开一段 B站或 YouTube 视频，点击扩展图标，窗口自动获取并预览字幕。确认内容后点击 **“导入”**，回到 Obsidian 就能找到原始字幕。YouTube 字幕从视频页读取；请保持该视频可正常播放。
 
-整课工作台保留 **批量语言偏好**（自动／中文／英文）；预览某个视频时，还可以单独选择它的真实字幕轨，此选择仅对该视频生效，并优先于批量偏好。指定的语言或字幕轨不可用时会提示失败，不会静默换成其他语言。
+弹窗和整课工作台均自动获取字幕，不提供语言选择。B站优先使用有效中文字幕，其次英文及其他可用字幕；YouTube 优先读取已有转写文稿，不切换文稿语言，无法直接读取时尝试字幕文件及打开文稿面板。保存的语言标签来自实际获取的字幕，不进行翻译。
 
 YouTube 播放列表导入会逐个读取视频页，并尽量复用插件创建的标签页。批量导入会自动激活读取页；部分页面仍需保持浏览器可见，最小化后可能无法加载文稿。获取方式见下方[技术路线](#技术路线)。
 
@@ -98,7 +98,7 @@ YouTube 接入、播放列表与本地转写更新已加入本仓库的 v1.3.5 �
 
 1. **先读已有文稿**：查找页面中实际包含有效时间戳与正文的面板，优先使用展开的面板；不以某个固定 panel ID 是否存在判断成功。
 2. **并行获取字幕文件**：一路使用当前页面播放器数据中的字幕地址，另一路请求播放器接口取得字幕地址；先取得有效正文的一路返回，取消另一条路径。
-3. **文稿面板兜底**：尝试展开视频简介、点击转写入口，等待有效正文，再按用户所选字幕轨读取。
+3. **文稿面板兜底**：尝试展开视频简介、点击转写入口，等待并读取当前文稿的有效正文，不切换语言。
 
 文稿识别以内容为主，保留旧固定选择器作为兼容兜底，并兼容新旧片段及正文节点。即使隐藏的旧面板仍存在且为空，也能优先找到另一面板中的实际字幕。重新预览会重新读取；只有紧接着导入同一视频、同一字幕选择时，才复用一次成功预览。
 
@@ -112,9 +112,9 @@ YouTube 接入、播放列表与本地转写更新已加入本仓库的 v1.3.5 �
 
 **相较于 Bilibili Obsidian Clipper，重点是从单个视频采集扩展到整门课。** [上游项目](https://github.com/haixiong1997/Bilibili-Obsidian-Clipper) 已有 B站字幕获取（包括平台 AI 字幕）、预览和 Obsidian 导入，也提供阅读视图、字幕下载和 AI 侧边栏。Course Cove 保留采集与入库核心，移除内置 AI 对话等界面，把整理交给用户自己的工具；新增整课多选、章节分组、导入清单、跳过已有文件与重试，并扩展 YouTube 播放列表和可选本地转写。
 
-**相较于 Obsidian Web Clipper，重点是课程组织与连续导入。** [Web Clipper](https://github.com/obsidianmd/obsidian-clipper) 面向通用网页剪藏，提供高亮、模板等功能，使用 Defuddle 提取内容。Course Cove 参考其 YouTube 提取思路，围绕分 P／播放列表增加批量处理、逐视频字幕轨选择、完整章节编号分组，以及“学习规则＋笔记模板＋任务指令”的整理流程。
+**相较于 Obsidian Web Clipper，重点是课程组织与连续导入。** [Web Clipper](https://github.com/obsidianmd/obsidian-clipper) 面向通用网页剪藏，提供高亮、模板等功能，使用 Defuddle 提取内容。Course Cove 参考其 YouTube 提取思路，围绕分 P／播放列表增加批量处理、字幕预览、完整章节编号分组，以及“学习规则＋笔记模板＋任务指令”的整理流程。
 
-在文稿兼容上，我们将原先依赖固定外层容器的定位改为“有效片段优先、旧选择器兜底”，处理无固定 ID 的新面板及空旧面板共存的情况；语言控件跟随实际选中的面板。对照的是 [Defuddle YouTube 提取器](https://github.com/kepano/defuddle/blob/main/src/extractors/youtube.ts) 于 2026-09-27 查阅的源码。这里说明具体适配与产品侧重，不代表所有视频上的速度或成功率都优于参考项目。
+在文稿兼容上，我们将原先依赖固定外层容器的定位改为“有效片段优先、旧选择器兜底”，处理无固定 ID 的新面板及空旧面板共存的情况；语言标签来自实际读取的面板。对照的是 [Defuddle YouTube 提取器](https://github.com/kepano/defuddle/blob/main/src/extractors/youtube.ts) 于 2026-09-27 查阅的源码。这里说明具体适配与产品侧重，不代表所有视频上的速度或成功率都优于参考项目。
 
 ## 常见问题
 
@@ -162,6 +162,6 @@ python scripts/build_install_package.py
 
 本项目基于 [haixiong1997/Bilibili-Obsidian-Clipper](https://github.com/haixiong1997/Bilibili-Obsidian-Clipper) 的概念与 MIT 代码二次开发，保留原许可证和署名。上游已提供字幕获取（包括 B站 AI 字幕）和 Obsidian 导入能力；本项目围绕自学场景，进一步组织了快捷导入、整课批量处理、章节清单与可自定义的学习工作流。
 
-YouTube 字幕提取流程参考 [Obsidian Web Clipper](https://github.com/obsidianmd/obsidian-clipper) 及其使用的 [Defuddle YouTube 提取器](https://github.com/kepano/defuddle/blob/main/src/extractors/youtube.ts)，针对字幕语言选择和整课导入作了适配。
+YouTube 字幕提取流程参考 [Obsidian Web Clipper](https://github.com/obsidianmd/obsidian-clipper) 及其使用的 [Defuddle YouTube 提取器](https://github.com/kepano/defuddle/blob/main/src/extractors/youtube.ts)，针对文稿面板读取和整课导入作了适配。
 
 感谢 [Obsidian Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) 提供本地笔记库连接。项目采用 [MIT License](./LICENSE)。

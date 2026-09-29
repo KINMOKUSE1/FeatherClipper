@@ -131,15 +131,6 @@ td small { display: block; color: var(--error); font-size: var(--text-small); li
 .preview { display: flex; flex-direction: column; align-self: stretch; min-height: 0; }
 .preview-header { padding: 16px 20px 8px; flex-shrink: 0; }
 .preview-header h3 { font-size: 18px; font-weight: 600; line-height: 1.5; margin: 0 0 6px; }
-.language-picker { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0 8px; color: var(--muted); font-size: var(--text-small); }
-button.language-trigger { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 34px; min-width: 154px; padding: 6px 10px; border: 1px solid var(--control-line); border-radius: 7px; background: #f7f9fd; color: var(--ink); font-size: var(--text-small); font-weight: 600; }
-button.language-trigger:hover:not(:disabled), button.language-trigger[aria-expanded=true] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-.language-chevron { width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg) translateY(-2px); }
-.language-options { position: absolute; right: 0; top: calc(100% + 4px); z-index: 4; min-width: 170px; padding: 5px; background: #fff; border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 8px 24px #202a4326; }
-.language-options button { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 34px; padding: 6px 10px; border: 0; border-radius: 5px; background: transparent; color: var(--ink); text-align: left; font-size: var(--text-small); font-weight: 400; }
-.language-options button:hover:not(:disabled), .language-options button:focus-visible { background: #f1f4ff; color: var(--accent); }
-.language-options button[aria-selected=true] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-.language-options button[aria-selected=true]::after { content: "✓"; }
 .preview-header .muted { margin: 0; }
 .preview-header a { display: inline-block; margin-top: 6px; }
 .muted { font-size: var(--text-small); color: var(--muted); line-height: 1.6; }
@@ -233,12 +224,5 @@ dialog [role=status] { font-size: var(--text-small); color: var(--accent); overf
   .workflow-tabs { flex-wrap: wrap; }
 }
 
-.language-options { max-height: 240px; max-width: min(320px, 80vw); overflow-y: auto; }
-.language-options button { white-space: normal; gap: 12px; overflow-wrap: anywhere; }
-.language-note { margin: 5px 9px; color: var(--muted); font-size: 12px; line-height: 1.5; }
-button.language-trigger { max-width: 260px; min-width: 0; }
-.language-trigger > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.language-chevron { flex: none; }
 
-.batch-language-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 0 0 14px; font-size: var(--text-small); }
-.batch-language-row .language-picker { margin: 0; }
+.chapter-tools { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 0 0 14px; font-size: var(--text-small); }

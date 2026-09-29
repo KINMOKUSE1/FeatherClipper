@@ -61,7 +61,7 @@ async function asrPair(value) {
 }
 
 async function asrAudioUrls(meta, page) {
-  if (meta.platform === "youtube") return (await youtubeRead(page.cid, "auto", false, true)).audioUrls;
+  if (meta.platform === "youtube") return (await youtubeRead(page.cid, false, true)).audioUrls;
   const query = new URLSearchParams({ bvid: meta.bvid, cid: page.cid, qn: "16", fnval: "16", fourk: "0" });
   const payload = await courseBiliJson(`https://api.bilibili.com/x/player/playurl?${query}`);
   const dashAudio = payload.data?.dash?.audio || [];

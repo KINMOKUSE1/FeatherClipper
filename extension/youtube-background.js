@@ -1,6 +1,6 @@
 /* Follows Obsidian Web Clipper / Defuddle: existing DOM, caption files, then open DOM.
  * Reference: https://github.com/kepano/defuddle/blob/main/src/extractors/youtube.ts */
-async function youtubePageRead(videoId, preference, includeBody, includeAudio, playlistId, tracksOnly = false) {
+async function youtubePageRead(videoId, includeBody, includeAudio, playlistId) {
   try {
   const currentId = new URL(location.href).searchParams.get("v");
   if (currentId !== videoId) throw new Error("YouTube 页面已切换视频，请重新读取。");
@@ -161,23 +161,13 @@ async function youtubePageRead(videoId, preference, includeBody, includeAudio, p
   if (!includeBody) return { meta };
   const getTracks = data => data?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
   let tracks = getTracks(player);
-  const chosen = preference && typeof preference === "object" ? preference : null;
-  if (chosen && (chosen.platform !== "youtube" || chosen.videoId !== videoId)) throw new Error("字幕轨不属于当前视频，请重新选择。");
-  const language = ["zh", "en"].includes(preference) ? preference : "auto";
   const name = (track = {}) => track.name?.simpleText || track.name?.runs?.map(run => run.text || "").join("") || track.languageCode || "字幕";
   const family = track => String(track?.languageCode || "").replace(/_/g, "-").toLowerCase().split("-")[0];
   const trackId = track => track.vssId || `${track.languageCode}:${track.kind || "manual"}:${name(track)}`;
-  const listTracks = () => [...new Map(tracks.map(track => [trackId(track), {
-    platform: "youtube", videoId, id: trackId(track), lan: track.languageCode || "", kind: track.kind || "manual",
-    lanDoc: track.kind === "asr" && !/自动|auto/i.test(name(track)) ? `${name(track)}（自动生成）` : name(track)
-  }])).values()];
-  if (tracksOnly && tracks.length) return { tracks: listTracks() };
   const pickTrack = data => {
     const available = getTracks(data);
-    if (chosen) return available.find(track => trackId(track) === chosen.id) || null;
-    const matching = available.filter(track => family(track) === (language === "auto" ? "zh" : language));
+    const matching = available.filter(track => family(track) === "zh");
     if (matching.length) return matching.find(track => track.kind !== "asr") || matching[0];
-    if (language !== "auto") return null;
     const renderer = data?.captions?.playerCaptionsTracklistRenderer;
     const audio = renderer?.audioTracks?.[renderer.defaultAudioTrackIndex || 0] || renderer?.audioTracks?.[0];
     const defaultTrack = available[audio?.defaultCaptionTrackIndex ?? renderer?.defaultCaptionTrackIndex];
@@ -236,7 +226,7 @@ async function youtubePageRead(videoId, preference, includeBody, includeAudio, p
   };
   async function readTranscript(openPanel = false) {
     let container = validContainer();
-    // One short budget for opening the panel and, if requested, changing its language.
+    // One short budget for opening the panel and reading its contents.
     const deadline = Date.now() + 8000;
     const wait = predicate => poll(predicate, Math.max(0, deadline - Date.now()));
     if (openPanel && !container) {
@@ -285,42 +275,17 @@ async function youtubePageRead(videoId, preference, includeBody, includeAudio, p
       return exact.length === 1 ? exact[0] : matching.length === 1 ? matching[0]
         : (tracks.length === 1 && (!labelFamily(label) || family(tracks[0]) === labelFamily(label)) ? tracks[0] : null);
     };
-    const currentLabel = languageButton()?.textContent?.trim() || "";
-    const currentTrack = panelTrack(currentLabel);
-    const alreadySelected = chosen ? currentTrack && trackId(currentTrack) === chosen.id
-      : (labelFamily(currentLabel) || family(currentTrack)) === language;
-    const target = pickTrack({ captions: { playerCaptionsTracklistRenderer: { captionTracks: tracks } } });
-    // Switch the platform's own menu only for an explicitly requested track/language.
-    // Never accept a different visible language as the requested one.
-    if (openPanel && (chosen || language !== "auto") && !alreadySelected && target && languageButton()) {
-      languageButton().click();
-      const option = await wait(() => [...document.querySelectorAll('tp-yt-paper-listbox [role="option"], tp-yt-paper-listbox tp-yt-paper-item')]
-        .find(item => exactName(item.textContent || "") === exactName(name(target)) && item.getClientRects().length));
-      if (option) {
-        const previous = container.querySelector(segmentSelector);
-        option.click();
-        const updated = await wait(() => {
-          const current = validContainer();
-          return exactName(languageButton(current)?.textContent || "") === exactName(name(target))
-            && current?.querySelector(segmentSelector) && current.querySelector(segmentSelector) !== previous ? current : null;
-        });
-        if (!updated) return null;
-        container = updated;
-      } else languageButton().click();
-    }
     const label = languageButton()?.textContent?.trim() || "";
     const labelLanguage = labelFamily(label);
     const track = panelTrack(label);
     const selectedLanguage = labelLanguage || family(track);
-    if (chosen && (!track || trackId(track) !== chosen.id)) return null;
-    if (language !== "auto" && selectedLanguage !== language) return null;
     const body = readBody(container);
     if (!body.length) return null;
     checkVideo();
     report("页面文稿", `${body.length} 条`);
     return { meta, track: { lan: track?.languageCode || selectedLanguage, lanDoc: label || name(track || {}), source: "youtube-transcript-panel" }, body };
   }
-  const visible = !tracksOnly && await readTranscript();
+  const visible = await readTranscript();
   if (visible) return visible;
 
   // Both caption paths run together. A usable result cancels the other path.
@@ -366,7 +331,7 @@ async function youtubePageRead(videoId, preference, includeBody, includeAudio, p
     }
   }
   const inlineTrack = pickTrack(player);
-  const inlineCaption = tracksOnly ? Promise.resolve(null) : readCaption(inlineTrack);
+  const inlineCaption = readCaption(inlineTrack);
   async function readPlayerCaption() {
     // Match Defuddle's player fallback, selecting one track rather than probing
     // every language/format. Reuse the inline request when its URL is identical.
@@ -378,7 +343,7 @@ async function youtubePageRead(videoId, preference, includeBody, includeAudio, p
       if (controller.signal.aborted || budget.aborted) break;
       try {
         const response = await captionFetch("/youtubei/v1/player?prettyPrint=false", {
-          method: "POST", headers: { "Content-Type": "application/json", ...(language === "auto" ? {} : { "Accept-Language": language }) },
+          method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ context: { client }, videoId })
         });
         if (!response.ok) continue;
@@ -386,7 +351,6 @@ async function youtubePageRead(videoId, preference, includeBody, includeAudio, p
         if (data?.videoDetails?.videoId && data.videoDetails.videoId !== videoId) continue;
         if (getTracks(data).length) {
           tracks = [...new Map([...tracks, ...getTracks(data)].map(track => [trackId(track), track])).values()];
-          if (tracksOnly) return { tracks: listTracks() };
         }
         const track = pickTrack(data);
         if (track?.baseUrl) return track.baseUrl === inlineTrack?.baseUrl ? inlineCaption : readCaption(track);
@@ -403,12 +367,10 @@ async function youtubePageRead(videoId, preference, includeBody, includeAudio, p
     })).catch(() => null);
   } finally { controller.abort(); }
   if (caption) { checkVideo(); return caption; }
-  if (tracksOnly) throw new Error("暂未读取到语言选项，可重试读取；仍可尝试自动获取页面文稿。");
   const opened = await readTranscript(true);
   if (opened) return opened;
   if (player?.playabilityStatus?.status === "LOGIN_REQUIRED") throw new Error("YouTube 要求登录验证；请在视频页完成验证后重试。");
-  if (chosen) throw new Error("所选字幕轨读取失败，请重试或在视频页切换到该字幕后再读取。");
-  report("页面文稿", "未读取到匹配语言的文稿");
+  report("页面文稿", "未读取到有效文稿");
   throw new Error(`YouTube 字幕获取失败，尚不能判定视频无字幕。${[...new Set(diagnostics)].join("；")}`);
   } catch (error) {
     // executeScript does not reliably propagate an injected function's thrown error.
@@ -449,10 +411,10 @@ async function youtubeTab(videoId, playlistId, activate = false) {
 const youtubePendingReads = new Map();
 let youtubeReadQueue = Promise.resolve();
 let youtubePreview = null;
-async function youtubeRead(videoId, preference = "auto", includeBody = false, includeAudio = false, playlistId = "", purpose = "read", activate = false) {
+async function youtubeRead(videoId, includeBody = false, includeAudio = false, playlistId = "", purpose = "read", activate = false) {
   if (!/^[\w-]{11}$/.test(videoId || "")) throw new Error("请输入有效的 YouTube 视频链接。");
   if (playlistId && !/^[\w-]{8,60}$/.test(playlistId)) throw new Error("YouTube 播放列表链接无效。");
-  const resultKey = `${videoId}:${JSON.stringify(preference)}:${includeBody}:${includeAudio}:${playlistId}`;
+  const resultKey = `${videoId}:${includeBody}:${includeAudio}:${playlistId}`;
   const requestKey = `${resultKey}:${purpose}:${activate}`;
   if (youtubePendingReads.has(requestKey)) return youtubePendingReads.get(requestKey);
   const metadataOnly = !includeBody && !includeAudio;
@@ -468,10 +430,10 @@ async function youtubeRead(videoId, preference = "auto", includeBody = false, in
       const preview = youtubePreview;
       youtubePreview = null;
       if (preview?.key === resultKey) return preview.result;
-    } else if (includeBody && purpose !== "tracks") youtubePreview = null;
+    } else if (includeBody) youtubePreview = null;
     const tab = existingTab || await youtubeTab(videoId, playlistId, activate);
     if (metadataOnly && Date.now() >= expires) throw timeoutError();
-    const request = chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", ...(metadataOnly ? { injectImmediately: true } : {}), func: youtubePageRead, args: [videoId, preference, includeBody, includeAudio, playlistId, purpose === "tracks"] });
+    const request = chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", ...(metadataOnly ? { injectImmediately: true } : {}), func: youtubePageRead, args: [videoId, includeBody, includeAudio, playlistId] });
     const results = await (metadataOnly ? Promise.race([request, timeout]) : request);
     const result = results?.[0]?.result;
     if (!result) throw new Error("无法读取 YouTube 页面，请确认视频可以播放。");

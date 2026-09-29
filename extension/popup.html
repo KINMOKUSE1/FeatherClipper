@@ -36,53 +36,52 @@
             <span class="preview-summary"><span class="icon icon-captions" aria-hidden="true"></span><span id="preview-label">字幕预览</span><span id="subtitle-track"></span></span>
             <span class="icon icon-chevron" aria-hidden="true"></span>
           </summary>
-          <div class="preview-heading">
-            <h2>字幕语言</h2>
-            <div id="language-picker" class="language-picker">
-              <button
-                id="language-trigger"
-                class="language-trigger"
-                type="button"
-                aria-label="选择当前视频字幕轨"
-                aria-haspopup="listbox"
-                aria-expanded="false"
-                aria-controls="language-options"
-              >
-                <span id="language-label">自动（推荐）</span>
-                <span class="icon icon-chevron" aria-hidden="true"></span>
-              </button>
-              <div
-                id="language-options"
-                class="language-options"
-                role="listbox"
-                aria-label="选择当前视频字幕轨"
-                hidden
-              ></div>
-            </div>
-          </div>
           <div id="subtitles" tabindex="0" aria-label="字幕内容"></div>
         </details>
         <button id="asr-open" class="secondary" hidden>本地转写并导入</button>
-        <p class="destination"><span>保存到 Obsidian</span><span id="folder"></span></p>
+        <p class="destination" hidden>
+          <span>保存到 Obsidian</span>
+          <span id="folder"></span>
+        </p>
         <button id="import" class="save-button" disabled>
           <span class="icon icon-save" aria-hidden="true"></span>
           <span id="import-label">保存字幕</span>
         </button>
       </section>
       <p id="status" role="status" aria-live="polite"></p>
-      <div class="popup-footer">
-        <details id="source-panel" open>
-          <summary id="source-label">视频链接</summary>
+        <!-- 第一块：两个入口 -->
+        <div class="popup-footer">
+          <button
+            id="source-label"
+            class="quiet"
+            type="button"
+            aria-expanded="true"
+            aria-controls="source-panel"
+            aria-label="更换链接"
+            title="更换链接"
+          ><span class="icon icon-link" aria-hidden="true"></span></button>
+
+          <button id="workspace" class="quiet" type="button" hidden>
+            <span id="workspace-label">进入工作台</span>
+            <span class="icon icon-chapters" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <!-- 第二块：下方的链接输入区 -->
+        <div id="source-panel">
           <form id="source-form">
             <label class="sr-only" for="url">视频链接</label>
             <div class="source-row">
-              <input id="url" placeholder="B站或 YouTube 视频链接" spellcheck="false" autocomplete="off">
-              <button id="read" class="secondary">读取</button>
+              <input
+                id="url"
+                placeholder="Bilibili 或 YouTube 视频链接"
+                spellcheck="false"
+                autocomplete="off"
+              >
+              <button id="read" class="secondary" type="submit">读取</button>
             </div>
           </form>
-        </details>
-        <button id="workspace" class="quiet" hidden>选择章节<span class="icon icon-external" aria-hidden="true"></span></button>
-      </div>
+        </div>
     </main>
 
     <section id="connection" hidden aria-labelledby="settings-title">
@@ -115,7 +114,6 @@
     </section>
 
     <script src="course-core.js"></script>
-    <script src="subtitle-language.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

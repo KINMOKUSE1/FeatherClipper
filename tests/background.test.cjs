@@ -23,7 +23,7 @@ function boot({ authenticated = true, existing = null, beforeSubtitle, missing =
       return [{ result: { meta: { platform: 'youtube', videoId: youtubeVideo, playlistId: youtubePlaylist || undefined,
         bvid: youtubePlaylist ? `YTPL_${youtubePlaylist}` : `YT_${youtubeVideo}`, title: 'Lecture', author: 'Teacher',
         pages: [{ cid: youtubeVideo, page: 1, part: youtubePlaylist ? 'Lecture 1' : 'Lecture', duration: 90 }, ...(youtubePlaylist ? [{ cid: 'abcdef12345', page: 2, part: 'Lecture 2', duration: 90 }] : [])] },
-        ...(args[2] ? { track: { lan: 'en', lanDoc: 'English' }, body: [{ from: 3, to: 5, content: 'First lesson' }] } : {}) } }];
+        ...(args[1] ? { track: { lan: 'en', lanDoc: 'English' }, body: [{ from: 3, to: 5, content: 'First lesson' }] } : {}) } }];
     } }
   };
   context = vm.createContext({ chrome, console, URL, URLSearchParams, AbortSignal, setInterval, clearInterval, setTimeout, clearTimeout,
@@ -97,48 +97,36 @@ test('full worker reads metadata and previews preferred Chinese AI subtitles wit
   const result = await h.message({ type: 'course-request', action: 'preview', meta: data.meta, page: data.meta.pages[0], base: 'Clippings/Bilibili' });
   assert.equal(result.ok, true); assert.equal(result.track.lan, 'ai-zh'); assert.equal(result.body[0].content, '实际解析链路'); assert.equal(h.writes.length, 0);
 });
-test('English preference previews and imports the English track', async () => {
+test('automatic preview and import preserve the actual subtitle language', async () => {
   const h = boot();
-  const preview = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0], language: 'en' });
-  assert.equal(preview.track.lan, 'en');
-  const imported = await h.message({ ...quickMessage, language: 'en' }, popupSender);
+  const preview = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0] });
+  assert.equal(preview.track.lan, 'ai-zh');
+  const imported = await h.message(quickMessage, popupSender);
   assert.equal(imported.status, 'saved');
-  assert.match(h.writes.find(write => decodeURIComponent(write.url).endsWith('1.1 Intro [CID-2].md')).content, /subtitle_lang: "English"/);
+  assert.match(h.writes.find(write => decodeURIComponent(write.url).endsWith('1.1 Intro [CID-2].md')).content, /subtitle_lang: "中文（自动生成）"/);
 });
 
-test('popup lists real Bilibili tracks from both endpoints and imports the selected track', async () => {
+test('automatic Bilibili retrieval imports the only available language', async () => {
   const h = boot({ subtitleLists: {
-    wbi: [{ id: 11, lan: 'ai-zh', lan_doc: '中文（自动生成）', subtitle_url: '//aisubtitle.hdslb.com/zh' }],
+    wbi: [],
     v2: [{ id: 12, lan: 'ja', lan_doc: '日本語', subtitle_url: '//aisubtitle.hdslb.com/ja' }]
   } });
-  const available = await h.message({ type: 'course-request', action: 'tracks', meta: quickMeta, page: quickMeta.pages[0] }, popupSender);
-  assert.equal(available.ok, true);
-  assert.deepEqual([...available.tracks.map(t => t.lan)], ['ai-zh', 'ja']);
-  assert.ok(available.tracks.every(t => !t.subtitleUrl));
-  assert.ok(h.fetched.every(url => !url.includes('hdslb.com')));
-  const language = available.tracks[1];
-  const preview = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0], language }, popupSender);
+  const preview = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0] }, popupSender);
   assert.equal(preview.track.lan, 'ja');
-  const imported = await h.message({ ...quickMessage, language }, popupSender);
+  const imported = await h.message(quickMessage, popupSender);
   assert.equal(imported.status, 'saved');
   assert.match(h.writes.find(write => decodeURIComponent(write.url).endsWith('1.1 Intro [CID-2].md')).content, /subtitle_lang: "日本語"/);
 });
 
-test('exact Bilibili selection rejects another video or a missing track instead of falling back', async () => {
+test('removed track-list action is not exposed to the popup', async () => {
   const h = boot();
-  for (const language of [
-    { platform: 'bilibili', videoId: '99', id: '1' },
-    { platform: 'bilibili', videoId: '2', id: 'missing' }
-  ]) {
-    const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0], language });
-    assert.equal(result.ok, false);
-    assert.match(result.error, /字幕轨/);
-  }
-  assert.ok(h.fetched.every(url => !url.includes('hdslb.com')));
+  const result = await h.message({ type: 'course-request', action: 'tracks', meta: quickMeta, page: quickMeta.pages[0] }, popupSender);
+  assert.equal(result.ok, false);
+  assert.equal(h.fetched.length, 0);
 });
 test('an empty first subtitle list falls through to the second endpoint', async () => {
   const h = boot({ subtitleLists: { wbi: [], v2: [{ id: 1, lan: 'en', lan_doc: 'English', subtitle_url: '//aisubtitle.hdslb.com/en' }] } });
-  const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0], language: 'en' });
+  const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0] });
   assert.equal(result.track.lan, 'en');
   assert.ok(h.fetched.some(url => url.includes('/x/player/wbi/v2')));
   assert.ok(h.fetched.some(url => url.includes('/x/player/v2')));
@@ -151,28 +139,20 @@ test('automatic language selection still prefers Chinese across endpoints', asyn
   const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0] });
   assert.equal(result.track.lan, 'ai-zh');
 });
-test('a missing selected language is reported without suggesting transcription', async () => {
+test('an available Chinese subtitle does not require a language selection', async () => {
   const h = boot({ subtitleLists: { wbi: [{ id: 1, lan: 'ai-zh', lan_doc: '中文（自动生成）', subtitle_url: '//aisubtitle.hdslb.com/zh' }], v2: [] } });
-  const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0], language: 'en' });
-  assert.equal(result.ok, false);
-  assert.match(result.error, /没有可用的英文字幕/);
+  const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0] });
+  assert.equal(result.ok, true);
+  assert.equal(result.track.lan, 'ai-zh');
 });
-test('English choice skips a mislabeled Chinese transcript and tries the second endpoint', async () => {
+test('an empty subtitle body falls through to the second endpoint', async () => {
   const h = boot({ subtitleLists: {
     wbi: [{ id: 1, lan: 'en', lan_doc: 'English', subtitle_url: '//aisubtitle.hdslb.com/wrong' }],
     v2: [{ id: 2, lan: 'en', lan_doc: 'English', subtitle_url: '//aisubtitle.hdslb.com/correct' }]
-  }, beforeSubtitle: url => [{ from: 1, to: 3, content: url.endsWith('/wrong') ? '欢迎来到今天的操作系统课程我们开始学习这些重要的概念' : 'Welcome to the operating systems course' }] });
-  const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0], language: 'en' });
+  }, beforeSubtitle: url => url.endsWith('/wrong') ? [] : [{ from: 1, to: 3, content: 'Welcome to the operating systems course' }] });
+  const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0] });
   assert.equal(result.track.lan, 'en');
   assert.equal(result.body[0].content, 'Welcome to the operating systems course');
-});
-test('English choice never silently previews Chinese-only subtitle content', async () => {
-  const h = boot({ subtitleLists: {
-    wbi: [{ id: 1, lan: 'en', lan_doc: 'English', subtitle_url: '//aisubtitle.hdslb.com/wrong' }], v2: []
-  }, beforeSubtitle: () => [{ from: 1, to: 3, content: '欢迎来到今天的操作系统课程我们开始学习这些重要的概念' }] });
-  const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0], language: 'en' });
-  assert.equal(result.ok, false);
-  assert.match(result.error, /返回了中文内容/);
 });
 test('workflow install skips customized documents instead of replacing them', async () => {
   const h = boot({ existing: '# user rules' });
@@ -224,9 +204,9 @@ test('YouTube video previews and imports through the same Obsidian workflow', as
   const data = await h.message({ type: 'course-request', action: 'meta', youtubeId: id }, popupSender);
   assert.equal(data.meta.platform, 'youtube');
   assert.equal(data.folder, 'Clippings/YouTube');
-  const preview = await h.message({ type: 'course-request', action: 'preview', meta: data.meta, page: data.meta.pages[0], language: 'en' }, popupSender);
+  const preview = await h.message({ type: 'course-request', action: 'preview', meta: data.meta, page: data.meta.pages[0] }, popupSender);
   assert.equal(preview.body[0].content, 'First lesson');
-  const message = { type: 'quick-import', meta: data.meta, bvid: data.meta.bvid, cid: id, base: data.folder, language: 'en' };
+  const message = { type: 'quick-import', meta: data.meta, bvid: data.meta.bvid, cid: id, base: data.folder };
   const result = await h.message(message, popupSender);
   assert.equal(result.status, 'saved');
   assert.equal(h.youtubeCalls.length, 2, 'import reuses the immediately preceding preview');
@@ -239,11 +219,11 @@ test('YouTube playlist imports the selected lecture using its own video ID', asy
   assert.equal(data.meta.pages.length, 2);
   assert.equal(data.meta.bvid, `YTPL_${playlistId}`);
   const selected = data.meta.pages[1];
-  const preview = await h.message({ type: 'course-request', action: 'preview', meta: data.meta, page: selected, language: 'en' }, popupSender);
+  const preview = await h.message({ type: 'course-request', action: 'preview', meta: data.meta, page: selected }, popupSender);
   assert.equal(preview.body[0].content, 'First lesson');
-  const result = await h.message({ type: 'quick-import', meta: data.meta, bvid: data.meta.bvid, cid: selected.cid, base: data.folder, language: 'en' }, popupSender);
+  const result = await h.message({ type: 'quick-import', meta: data.meta, bvid: data.meta.bvid, cid: selected.cid, base: data.folder }, popupSender);
   assert.equal(result.status, 'saved');
-  assert.ok(h.youtubeCalls.some(args => args[0] === selected.cid && args[2] === true));
+  assert.ok(h.youtubeCalls.some(args => args[0] === selected.cid && args[1] === true));
   assert.ok(h.writes.some(write => decodeURIComponent(write.url).endsWith(`Lecture 2 [YT-${selected.cid}].md`)));
 });
 test('metadata accepts a pasted YouTube watch-and-list URL from an older page', async () => {
