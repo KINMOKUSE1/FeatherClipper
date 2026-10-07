@@ -54,8 +54,7 @@
 
             <aside id="preview-panel" class="preview" aria-label="字幕核对" hidden>
               <div class="preview-header">
-                <div class="preview-tools-row"><button id="preview-close" class="text-button" type="button" aria-label="关闭字幕面板，返回目录">×</button></div>
-                <h2 id="preview-title">选择一节课程</h2>
+                <div class="preview-tools-row"><h2 id="preview-title">选择一节课程</h2><button id="preview-close" class="text-button" type="button" aria-label="关闭字幕面板，返回目录">×</button></div>
                 <!-- 保留 course.js 使用的状态节点，预览界面不展示。 -->
                 <div hidden><p id="preview-caption"></p><a id="source-link" target="_blank" rel="noopener" hidden></a></div>
               </div>
@@ -65,8 +64,7 @@
           </div>
 
           <section class="import-bar" aria-label="导入操作">
-            <div class="import-heading"><div class="import-details"><p id="import-summary">请先勾选要导入的视频。</p><div class="destination"><span>保存到</span><p id="destination"></p><button id="folder-edit" class="text-button" type="button">修改</button></div></div><div class="import-actions"><button id="retry" class="text-button" type="button" hidden>重试失败项</button><button id="asr-selected" class="secondary" type="button" hidden>本地转写无字幕视频</button><button id="stop" class="secondary" type="button" disabled>停止</button><button id="start" type="button"><span class="icon icon-save" aria-hidden="true"></span>导入 Obsidian</button></div></div>
-            <progress id="progress" value="0" max="1" aria-label="导入进度" hidden></progress>
+            <div class="import-heading"><div class="import-details"><p id="import-summary">请先勾选要导入的视频。</p><div class="destination"><span>保存到</span><p id="destination"></p><button id="folder-edit" class="text-button" type="button">修改</button></div></div><div class="import-actions"><button id="retry" class="text-button import-auxiliary" type="button" aria-label="重试失败项" hidden><span class="icon icon-retry" aria-hidden="true"></span>重试</button><button id="asr-selected" class="text-button import-auxiliary" type="button" aria-label="本地转写并导入无字幕视频" hidden><span class="icon icon-audio" aria-hidden="true"></span><span id="asr-selected-label">本地转写</span></button><button id="start" type="button"><span class="icon icon-save" aria-hidden="true"></span>导入 Obsidian</button></div></div>
           </section>
         </section>
         </div>

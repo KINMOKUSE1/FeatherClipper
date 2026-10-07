@@ -19,6 +19,20 @@ function reportImportResult(label, counts, remaining, error = null, detail = "")
   status(text, Boolean(error));
   return text;
 }
+function setImportProgress(done, total) {
+  $("progress").max = total;
+  $("progress").value = done;
+  $("progress").hidden = false;
+}
+function renderImportAction(selected) {
+  $("start").textContent = selected ? `导入 ${selected} 个视频` : "导入 Obsidian";
+}
+function stopImport() {
+  if (!running || stopping) return;
+  stopping = true;
+  syncControls();
+  status(activeAsrJob ? "正在停止本地转写…" : "正在停止，等待当前 P 保存完毕…");
+}
 function previewMessage(text, error = false) {
   const message = document.createElement("p");
   message.className = `preview-message${error ? " error" : ""}`;
@@ -57,7 +71,8 @@ function syncControls() {
   for (const id of ["load", "url", "folder", "settings", "workflow", "filter", "select", "clear", "current"]) $(id).disabled = locked;
   $("start").disabled = locked || previewLoading || !meta || !pages.some(p => p.selected);
   $("retry").disabled = locked || previewLoading || !pages.some(p => p.selected && ["failed", "missing"].includes(p.status));
-  $("stop").disabled = !running || stopping;
+  const stop = $("stop");
+  if (stop) stop.disabled = !running || stopping;
   $("current").disabled = locked || !meta;
   $("asr-current").disabled = locked || previewLoading || !meta || !activeAsrPage;
   $("asr-selected").disabled = locked || previewLoading;
@@ -78,7 +93,7 @@ function render() {
   $("asr-selected").hidden = missingSelected === 0;
   $("asr-selected").textContent = `本地转写并导入 ${missingSelected} 个无字幕视频`;
   $("count").textContent = `已选择 ${selected} / ${pages.length}`;
-  $("start").textContent = selected ? `导入 ${selected} 个视频` : "导入 Obsidian";
+  renderImportAction(selected);
   $("import-summary").textContent = selected ? `已选 ${selected} 个视频，已有文件会自动跳过。` : "请先勾选要导入的视频。";
   const importHint = document.querySelector(".import-hint");
   if (importHint) importHint.textContent = meta.platform === "youtube"
@@ -271,7 +286,7 @@ async function runAsrQueue(selected) {
   await navigator.locks.request(`boc-course:${meta.bvid}`, { ifAvailable: true }, async lock => {
     if (!lock) { status("这门课程正在另一个导入页处理，请回到该页面查看。", true); return; }
     running = true; stopping = false; render();
-    $("progress").max = selected.length; $("progress").value = 0; $("progress").hidden = false;
+    setImportProgress(0, selected.length, "转写");
     const counts = {}; let done = 0, runtimeNote = "";
     try {
       await persist(); await updateIndex();
@@ -290,6 +305,7 @@ async function runAsrQueue(selected) {
             activeAsrJob = started.id;
             while (!stopping) {
               const job = await request("asr-poll", { page, jobId: activeAsrJob });
+              if (stopping) break;
               if (job.status === "done") {
                 runtimeNote = job.gpu_notice || (job.device === "cuda" ? "本次使用 GPU 转写。" : "本次使用 CPU 转写。");
                 const result = await request("asr-finish", { page, jobId: activeAsrJob });
@@ -310,7 +326,7 @@ async function runAsrQueue(selected) {
           $("asr-panel").hidden = true;
           previewMessage(page.status === "saved" ? "本地转写已导入 Obsidian；原始笔记包含完整时间戳。" : "这一 P 的原始素材已存在，已跳过。 ");
         }
-        counts[page.status] = (counts[page.status] || 0) + 1; done++; $("progress").value = done;
+        counts[page.status] = (counts[page.status] || 0) + 1; done++; setImportProgress(done, selected.length, "转写");
         await persist(); render(); await updateIndex();
       }
       reportImportResult(stopping ? "已停止" : "本地转写完成", counts, selected.length - done, null, runtimeNote);
@@ -326,7 +342,7 @@ async function runQueue(retryOnly) {
   await navigator.locks.request(`boc-course:${meta.bvid}`, { ifAvailable: true }, async lock => {
     if (!lock) { status("这门课程正在另一个导入页处理，请回到该页面查看。", true); return; }
     stopping = false; running = true; render();
-    $("progress").max = selected.length; $("progress").value = 0; $("progress").hidden = false;
+    setImportProgress(0, selected.length);
     let done = 0, fatalError = null;
     const counts = {};
     try {
@@ -337,7 +353,7 @@ async function runQueue(retryOnly) {
         status(`正在处理 ${done + 1}/${selected.length}：P${page.page} ${page.part}`);
         try { const result = await request("import", { page, activateVideo: meta.platform === "youtube" }); page.status = result.status; page.sourcePath = result.path || ""; }
         catch (error) { page.status = "failed"; page.error = error.message; if (error.fatal) fatalError = error; }
-        counts[page.status] = (counts[page.status] || 0) + 1; done++; $("progress").value = done;
+        counts[page.status] = (counts[page.status] || 0) + 1; done++; setImportProgress(done, selected.length);
         await persist(); render(); await updateIndex();
         if (fatalError) break;
         if (!stopping && done < selected.length) await new Promise(resolve => setTimeout(resolve, 1200));
@@ -458,7 +474,7 @@ $("asr-refresh").addEventListener("click", async () => {
   finally { $("asr-refresh").disabled = false; }
 });
 $("retry").addEventListener("click", () => runQueue(true).catch(error => status(error.message, true)));
-$("stop").addEventListener("click", () => { stopping = true; syncControls(); status(activeAsrJob ? "正在停止本地转写…" : "正在停止，等待当前 P 保存完毕…"); });
+$("stop")?.addEventListener("click", stopImport);
 $("workflow").addEventListener("click", async () => {
   $("workflow-status").textContent = "";
   try {
