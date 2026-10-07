@@ -156,7 +156,7 @@ python -m http.server 8000 --bind 127.0.0.1 --directory extension
 
 在 VS Code 命令面板选择 `Simple Browser: Show`，打开 `http://127.0.0.1:8000/preview.html`。顶部可切换单 P、系列课程、无字幕、加载与保存等状态，也可展开字幕。修改 `extension/popup.html` 或 `extension/popup.css` 后，点击“刷新预览”。预览复用正式弹窗文件，所有扩展接口使用内存中的示例数据，不请求视频平台或写入 Obsidian；真实读取与保存仍在浏览器扩展中验证。
 
-新工作台布局在 `http://127.0.0.1:8000/workbench-preview.html` 独立预览，原工作台仍使用 `course.html`。新界面结构在 `extension/workbench-preview-ui.html`，样式在 `extension/workbench-preview.css`；预览复用 `course.js` 和 `course-core.js` 的工作台行为，通过 `workbench-preview-mock.js` 模拟读取、导入、跳过已有文件、连接设置、本地转写与学习文档保存。所有模拟写入只在当前预览内存中，刷新后重置。顶部可切换 B站系列课程、单 P、YouTube、空状态、无字幕、失败等场景；修改文件后点击“刷新预览”。
+正式工作台使用 `extension/course.html`，样式在 `extension/course.css`，页面交互在 `extension/workbench.js`，课程操作由 `course.js` 和 `course-core.js` 负责。`http://127.0.0.1:8000/workbench-preview.html` 直接复用正式页面，通过 `workbench-preview-mock.js` 模拟读取、导入、跳过已有文件、连接设置、本地转写与学习文档保存。所有模拟写入只在当前预览内存中，刷新后重置。顶部可切换 B站系列课程、单 P、YouTube、空状态、无字幕、失败等场景；修改文件后点击“刷新预览”。
 
 直接加载 `extension/` 开发。运行测试：
 

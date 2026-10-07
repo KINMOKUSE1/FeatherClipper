@@ -18,9 +18,16 @@
     type.className = "property-type"; type.setAttribute("aria-label", "自定义属性类型");
     for (const [value, label] of Object.entries(types)) type.add(new Option(label, value));
     type.value = property.type;
+    const typeControl = document.createElement("div");
+    typeControl.className = "property-type-control";
+    const typeIcon = document.createElement("span");
+    typeIcon.className = "icon property-type-icon"; typeIcon.setAttribute("aria-hidden", "true");
+    typeControl.append(typeIcon, type);
     const valueContainer = document.createElement("div");
     valueContainer.className = "property-value-container";
     function setValue(value = "") {
+      row.dataset.type = type.value;
+      type.title = `属性类型：${types[type.value]}`;
       const control = type.value === "boolean" ? document.createElement("select") : document.createElement("input");
       control.className = "property-value";
       control.setAttribute("aria-label", "自定义属性值");
@@ -38,10 +45,10 @@
     setValue(property.value);
     type.addEventListener("change", () => setValue());
     const remove = document.createElement("button");
-    remove.type = "button"; remove.className = "text-button"; remove.textContent = "删除";
+    remove.type = "button"; remove.className = "text-button property-remove"; remove.textContent = "×";
     remove.setAttribute("aria-label", "删除此属性");
     remove.addEventListener("click", () => { row.remove(); document.getElementById("add-note-property").focus(); });
-    row.append(name, type, valueContainer, remove);
+    row.append(typeControl, name, valueContainer, remove);
     properties.append(row);
     return name;
   }

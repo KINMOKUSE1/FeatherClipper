@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Course Cove · 新工作台开发预览</title>
     <!-- 预览工具条复用工作台的字体和颜色变量，避免另写一套配色。 -->
-    <link rel="stylesheet" href="workbench-preview.css">
+    <link rel="stylesheet" href="course.css">
     <style>
       * { box-sizing: border-box; }
       body { margin: 0; height: 100vh; display: flex; flex-direction: column; font: 12px/1.5 var(--font-ui); color: var(--muted); }
@@ -43,6 +43,6 @@
     </header>
     <p id="host-error" role="alert" hidden></p>
     <iframe id="workbench-preview" title="新工作台界面" sandbox="allow-scripts allow-same-origin allow-popups allow-downloads allow-forms"></iframe>
-    <script src="workbench-preview-host.js"></script>
+    <script src="workbench-preview-host.js?v=2"></script>
   </body>
 </html>

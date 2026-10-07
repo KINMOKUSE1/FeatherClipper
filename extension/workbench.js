@@ -1,11 +1,5 @@
-/* Layout bridge for the new preview; the course operations remain in course.js. */
+/* Layout bridge for the workbench; the course operations remain in course.js. */
 (() => {
-  if (!window.WorkbenchPreview) {
-    const toast = document.getElementById("import-toast");
-    toast.textContent = "请打开 workbench-preview.html 使用开发预览。";
-    toast.hidden = false;
-    return;
-  }
   const workspace = document.querySelector(".workspace");
   const previewPanel = document.getElementById("preview-panel");
   let previewOpen = !previewPanel.hidden;
@@ -292,6 +286,53 @@
   document.getElementById("source-open").addEventListener("click", () => openSource());
   document.getElementById("empty-load").addEventListener("click", () => openSource());
   document.getElementById("folder-edit").addEventListener("click", () => openSource(true));
+  const workbenchPages = [
+    ["catalog-page", "catalog-nav"], ["note-preferences-page", "workflow"],
+    ["asr-dialog", "local-asr-settings"], ["settings-dialog", "settings"]
+  ];
+  function showWorkbenchPage(pageId) {
+    for (const [id, navId] of workbenchPages) {
+      document.getElementById(id).hidden = id !== pageId;
+      const nav = document.getElementById(navId);
+      nav.classList.toggle("active", id === pageId);
+      if (id === pageId) nav.setAttribute("aria-current", "page");
+      else nav.removeAttribute("aria-current");
+    }
+    document.getElementById("source-open").hidden = pageId !== "catalog-page";
+  }
+  window.WorkbenchPages = { show: showWorkbenchPage };
+  window.NotePreferences.show = visible => showWorkbenchPage(visible === false ? "catalog-page" : "note-preferences-page");
+  for (const feedback of document.querySelectorAll(".settings-feedback")) {
+    const message = feedback.querySelector('[role="status"]');
+    let feedbackTimer;
+    const dismiss = () => { clearTimeout(feedbackTimer); feedback.hidden = true; };
+    feedback.querySelector(".settings-feedback-close").addEventListener("click", dismiss);
+    new MutationObserver(() => {
+      clearTimeout(feedbackTimer);
+      const text = message.textContent.replace(/。/g, "");
+      if (message.textContent !== text) { message.textContent = text; return; }
+      feedback.hidden = !message.textContent.trim();
+      if (!feedback.hidden) feedbackTimer = setTimeout(dismiss, 4000);
+    }).observe(message, { childList: true, characterData: true, subtree: true });
+  }
+  const oldRefreshSettings = refreshSettings;
+  refreshSettings = async function () {
+    await oldRefreshSettings();
+    document.getElementById("connection-label").textContent = "连接配置";
+    const state = document.getElementById("connection-state");
+    state.textContent = savedSettings.hasApiKey ? "已配置" : "未配置";
+    state.classList.toggle("is-ready", savedSettings.hasApiKey);
+  };
+  const oldAsrSetup = openAsrSetup;
+  openAsrSetup = async function (result = null) {
+    const connection = await oldAsrSetup(result);
+    const state = document.getElementById("asr-state");
+    state.textContent = connection.connected ? "已连接" : "未连接";
+    state.classList.toggle("is-ready", connection.connected);
+    document.getElementById("asr-connect").hidden = !connection.needsPairing;
+    if (connection.needsPairing && !connection.error) document.getElementById("asr-settings-status").textContent = "";
+    return connection;
+  };
   document.getElementById("catalog-nav").addEventListener("click", () => window.NotePreferences.show(false));
   document.getElementById("local-asr-settings").addEventListener("click", () => openAsrSetup().catch(error => status(error.message, true)));
   // The original listener captures the existing function. Start the redesigned
@@ -299,6 +340,8 @@
   document.getElementById("load").removeEventListener("click", oldLoad);
   document.getElementById("load").addEventListener("click", () => loadCourse().catch(error => status(error.message, true)));
   const start = async () => {
+    if (!window.WorkbenchPreview) { await init(); return; }
+    syncControls();
     await refreshSettings();
     if (window.WorkbenchPreview.scenario === "empty") return;
     document.getElementById("url").value = window.WorkbenchPreview.source;

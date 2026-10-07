@@ -258,13 +258,18 @@ async function openAsrSetup(result = null) {
   $("asr-settings-status").textContent = result.error || (result.connected
     ? result.gpuNotice || (result.device === "cuda" ? "本地转写已连接，将使用 GPU。" : result.gpuEnabled ? "本地转写已连接，首次转写时检测 GPU。" : "本地转写已连接，将使用 CPU。")
     : result.needsPairing ? "首次使用，请填写连接码。" : "请先启动本地转写服务，再点击“重新检测”。");
-  if (!$("asr-dialog").open) $("asr-dialog").showModal();
+  if (window.WorkbenchPages) window.WorkbenchPages.show("asr-dialog");
+  else if (!$("asr-dialog").open) $("asr-dialog").showModal();
   return result;
 }
 async function continuePendingAsr() {
   const selected = pendingAsrPages;
   pendingAsrPages = [];
-  if ($("asr-dialog").open) $("asr-dialog").close();
+  if (window.WorkbenchPages) {
+    if (selected.length) window.WorkbenchPages.show("catalog-page");
+    else await openAsrSetup();
+  }
+  else if ($("asr-dialog").open) $("asr-dialog").close();
   if (selected.length) await runAsrQueue(selected);
 }
 async function runAsrQueue(selected) {
@@ -381,7 +386,8 @@ async function openSettings() {
     $("api-url").value = savedSettings.obsidianApiBaseUrl; $("api-key").value = "";
     $("api-key").placeholder = savedSettings.hasApiKey ? "已保存，留空保持原 Key" : "从 Local REST API 设置复制";
     $("default-folder").value = savedSettings.noteFolder; $("settings-status").textContent = "";
-    $("settings-dialog").showModal();
+    if (window.WorkbenchPages) window.WorkbenchPages.show("settings-dialog");
+    else $("settings-dialog").showModal();
   } catch (error) { status(error.message, true); }
 }
 async function updateSettings(testOnly) {
@@ -390,11 +396,11 @@ async function updateSettings(testOnly) {
   $("settings-status").textContent = testOnly ? "正在验证连接…" : "正在保存…";
   try {
     const result = await send({ type: testOnly ? "settings-test" : "settings-save", settings: { obsidianApiBaseUrl: $("api-url").value, obsidianApiKey: $("api-key").value, noteFolder: $("default-folder").value } });
-    if (testOnly) $("settings-status").textContent = "连接成功，身份验证已通过。尚未保存的设置请点击保存。";
+    if (testOnly) $("settings-status").textContent = window.WorkbenchPages ? "连接成功。" : "连接成功，身份验证已通过。尚未保存的设置请点击保存。";
     else {
       savedSettings = result.settings; $("api-key").value = "";
       $("api-key").placeholder = savedSettings.hasApiKey ? "已保存，留空保持原 Key" : "从 Local REST API 设置复制";
-      await refreshSettings(); $("settings-status").textContent = "设置已保存，可以关闭此面板继续导入。";
+      await refreshSettings(); $("settings-status").textContent = window.WorkbenchPages ? "配置已保存。" : "设置已保存，可以关闭此面板继续导入。";
     }
   } catch (error) { $("settings-status").textContent = error.message; }
   finally { ids.forEach(id => $(id).disabled = false); }
@@ -528,8 +534,8 @@ async function init() {
     }
     if (meta && new URLSearchParams(location.search).get("asr") === "1") {
       const page = pages.find(item => item.page === currentPage);
-      if (page) { await preview(page); if (activeAsrPage) await runAsrQueue([page]); }
+      if (page) { if (previewId !== page.cid) await preview(page); if (activeAsrPage) await runAsrQueue([page]); }
     }
   }
 }
-init().catch(error => status(error.message, true));
+// workbench.js starts initialization after installing the page controllers.

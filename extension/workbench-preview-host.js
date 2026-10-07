@@ -12,7 +12,7 @@ async function renderPreview() {
   const error = document.getElementById("host-error");
   error.hidden = true;
   try {
-    const response = await fetch("workbench-preview-ui.html", { cache: "no-store" });
+    const response = await fetch("course.html", { cache: "no-store" });
     if (!response.ok) throw new Error(`界面读取失败：HTTP ${response.status}`);
     const html = await response.text();
     if (run !== renderRun) return;
