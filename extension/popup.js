@@ -113,7 +113,7 @@ async function loadVideo() {
     $("save-scope").hidden = !series;
     $("scope-all").textContent = `整门课程 · ${meta.pages.length} ${unit}`;
     $("workspace").hidden = false;
-    $("workspace-label").textContent = series ? "选择章节" : "进入工作台";
+    $("workspace-label").textContent = series ? "选择分 P" : "进入工作台";
     $("folder").textContent = base; $("folder").title = CourseCore.courseFolder(meta, base);
     $("video").hidden = false;
     setSourceOpen(false);

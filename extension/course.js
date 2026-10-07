@@ -12,6 +12,13 @@ function status(text, error = false) {
   $("status").textContent = text;
   $("status").classList.toggle("error", error);
 }
+function reportImportResult(label, counts, remaining, error = null, detail = "") {
+  const summary = [["新导入", counts.saved], ["已存在", counts.exists], ["无字幕", counts.missing], ["失败", counts.failed], ["未处理", remaining]]
+    .filter(([, count]) => count > 0).map(([name, count]) => `${name} ${count}`);
+  const text = [[label, ...summary].join(" · "), error?.message, detail].filter(Boolean).join("\n");
+  status(text, Boolean(error));
+  return text;
+}
 function previewMessage(text, error = false) {
   const message = document.createElement("p");
   message.className = `preview-message${error ? " error" : ""}`;
@@ -54,7 +61,8 @@ function syncControls() {
   $("current").disabled = locked || !meta;
   $("asr-current").disabled = locked || previewLoading || !meta || !activeAsrPage;
   $("asr-selected").disabled = locked || previewLoading;
-  $("recognize-chapters").disabled = locked || !meta;
+  const recognizeChapters = $("recognize-chapters");
+  if (recognizeChapters) recognizeChapters.disabled = locked || !meta;
 }
 function visiblePages() {
   return pages.filter(p => chapterFilter === "all" || p.chapter === chapterFilter);
@@ -72,7 +80,8 @@ function render() {
   $("count").textContent = `已选择 ${selected} / ${pages.length}`;
   $("start").textContent = selected ? `导入 ${selected} 个视频` : "导入 Obsidian";
   $("import-summary").textContent = selected ? `已选 ${selected} 个视频，已有文件会自动跳过。` : "请先勾选要导入的视频。";
-  document.querySelector(".import-hint").textContent = meta.platform === "youtube"
+  const importHint = document.querySelector(".import-hint");
+  if (importHint) importHint.textContent = meta.platform === "youtube"
     ? "导入时会自动切到视频标签页并逐个读取，请保持视频页可见、工作台打开。需要停止或查看结果时回到工作台。"
     : "导入期间请保持此页打开。停止后可继续，已有文件会自动跳过。";
   const group = chapterFilter;
@@ -304,8 +313,8 @@ async function runAsrQueue(selected) {
         counts[page.status] = (counts[page.status] || 0) + 1; done++; $("progress").value = done;
         await persist(); render(); await updateIndex();
       }
-      status(`${stopping ? "已停止" : "本地转写完成"} · 新导入 ${counts.saved || 0} · 已存在 ${counts.exists || 0} · 失败 ${counts.failed || 0} · 未处理 ${selected.length - done}\n课程导入清单已更新。${runtimeNote ? `\n${runtimeNote}` : ""}`);
-    } catch (error) { status(`转写已中断：${error.message}`, true); }
+      reportImportResult(stopping ? "已停止" : "本地转写完成", counts, selected.length - done, null, runtimeNote);
+    } catch (error) { reportImportResult("转写已中断", counts, selected.length - done, error); }
     finally { running = false; activeAsrJob = ""; render(); }
   });
 }
@@ -333,8 +342,8 @@ async function runQueue(retryOnly) {
         if (fatalError) break;
         if (!stopping && done < selected.length) await new Promise(resolve => setTimeout(resolve, 1200));
       }
-      status(`${fatalError ? "已暂停" : stopping ? "已停止" : "本次导入完成"} · 新导入 ${counts.saved || 0} · 已存在 ${counts.exists || 0} · 无字幕 ${counts.missing || 0} · 失败 ${counts.failed || 0} · 未处理 ${selected.length - done}\n课程导入清单已更新。下一步点击“开始整理笔记”，使用自己的 AI 整理。${fatalError ? `\n${fatalError.message}` : ""}`, Boolean(fatalError));
-    } catch (error) { status(`已停止：${error.message}\n已写入的字幕会保留，重新导入时会跳过已有文件。`, true); }
+      reportImportResult(fatalError ? "已暂停" : stopping ? "已停止" : "导入完成", counts, selected.length - done, fatalError);
+    } catch (error) { reportImportResult("导入已中断", counts, selected.length - done, error); }
     finally { running = false; render(); }
   });
 }
@@ -343,7 +352,7 @@ async function refreshSettings() {
   $("connection-label").textContent = savedSettings.hasApiKey ? "连接已配置" : "配置 Obsidian";
   if (!meta) $("folder").value = savedSettings.noteFolder;
 }
-$("recognize-chapters").addEventListener("click", async () => {
+$("recognize-chapters")?.addEventListener("click", async () => {
   if (running || loading || !meta) return;
   for (const page of pages) page.chapter = CourseCore.chapterOf(page.part);
   renderFilters(); render();
@@ -453,9 +462,12 @@ $("stop").addEventListener("click", () => { stopping = true; syncControls(); sta
 $("workflow").addEventListener("click", async () => {
   $("workflow-status").textContent = "";
   try {
+    if (window.NotePreferences) await window.NotePreferences.load();
     await Promise.all(workflowTabs.map(tab => readWorkflowDocument(tab.dataset.workflowFile)));
     if (meta) applyRawSources((await request("raw-paths", { pages })).sources);
-    await showWorkflow(); $("workflow-dialog").showModal();
+    if ($("workflow-content")) await showWorkflow();
+    if (window.NotePreferences) window.NotePreferences.show();
+    else $("workflow-dialog").showModal();
   } catch (error) { status(error.message, true); }
 });
 const workflowTabs = [...document.querySelectorAll("[data-workflow-file]")];
@@ -469,16 +481,17 @@ for (const [index, tab] of workflowTabs.entries()) {
 }
 $("copy-workflow").addEventListener("click", async () => {
   if (meta && !pages.some(page => page.selected)) {
-    $("workflow-status").textContent = "请先关闭此窗口，在课程列表勾选要整理的分 P，再复制任务指令。";
+    $("workflow-status").textContent = window.NotePreferences ? "请先点击“课程素材”，勾选要整理的课时，再回来复制任务指令。" : "请先关闭此窗口，在课程列表勾选要整理的分 P，再复制任务指令。";
     return;
   }
   try {
-    const prompt = CourseCore.buildStudyPrompt(meta, pages, $("folder").value);
+    const preferences = window.NotePreferences ? await window.NotePreferences.save() : null;
+    const prompt = CourseCore.buildStudyPrompt(meta, pages, $("folder").value, preferences);
     await navigator.clipboard.writeText(prompt);
-    $("workflow-status").textContent = "任务指令已复制。本地 AI 可按路径读取；网页 AI 还需上传学习规则、笔记模板、课程清单和对应字幕。";
-  } catch (error) { $("workflow-status").textContent = `复制失败：${error.message}。可展开“查看学习文档”，参考“指令示例”手动填写。`; }
+    $("workflow-status").textContent = preferences ? "偏好已保存，任务指令已复制。网页 AI 还需提供课程清单和所选字幕。" : "任务指令已复制。本地 AI 可按路径读取；网页 AI 还需上传学习规则、笔记模板、课程清单和对应字幕。";
+  } catch (error) { $("workflow-status").textContent = `复制失败：${error.message}${window.NotePreferences ? "" : "。可展开“查看学习文档”，参考“指令示例”手动填写。"}`; }
 });
-$("install-workflow").addEventListener("click", async () => {
+$("install-workflow")?.addEventListener("click", async () => {
   $("install-workflow").disabled = true;
   try {
     const { results } = await request("workflow");

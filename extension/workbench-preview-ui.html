@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Course Cove · 课程工作台</title>
+    <link rel="stylesheet" href="workbench-preview.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="工作台导航">
+        <div class="brand"><img src="icons/icon128.png" alt=""><strong>Course Cove</strong></div>
+        <button id="catalog-nav" class="nav-button active" type="button"><span class="icon icon-chapters" aria-hidden="true"></span>课程素材</button>
+        <button id="workflow" class="nav-button" type="button"><span class="icon icon-captions" aria-hidden="true"></span>整理笔记</button>
+        <button id="local-asr-settings" class="nav-button" type="button"><span class="icon icon-captions" aria-hidden="true"></span>本地转写</button>
+        <button id="settings" class="nav-button" type="button"><span class="icon icon-settings" aria-hidden="true"></span><span id="connection-label">连接设置</span></button>
+      </aside>
+
+      <main class="main-content">
+        <p id="import-toast" class="import-toast" role="status" aria-live="polite" aria-atomic="true" hidden></p>
+        <div id="catalog-page">
+        <section id="empty" class="empty-state">
+          <span class="icon icon-chapters empty-icon" aria-hidden="true"></span>
+          <p class="eyebrow">从一段想学的视频开始</p>
+          <h1>把课程收进你的学习空间。</h1>
+          <p>读取目录、核对字幕，再保存到 Obsidian。</p>
+          <button id="empty-load" type="button">粘贴视频或课程链接</button>
+        </section>
+
+        <section id="course" hidden>
+          <div class="course-heading">
+            <div class="course-title-row"><h1 id="title"></h1><button id="source-open" class="text-button" type="button"><span class="icon icon-link" aria-hidden="true"></span>更换课程</button></div>
+            <p id="course-meta" class="course-meta"></p>
+          </div>
+          <div class="workspace">
+            <section class="catalog" aria-label="课程目录">
+              <span id="count" class="sr-only" aria-live="polite"></span>
+              <span id="number-label" hidden></span>
+              <div class="toolbar">
+                <div class="chapter-filter">
+                  <button id="filter" class="text-button" type="button" aria-label="按章节筛选：全部章节" aria-haspopup="listbox" aria-expanded="false" aria-controls="filter-options"><span id="filter-label">全部章节</span><span class="icon icon-chevron" aria-hidden="true"></span></button>
+                  <div id="filter-options" class="chapter-options" role="listbox" aria-label="按章节筛选" hidden></div>
+                </div>
+                <div class="selection-actions" role="group" aria-label="选择导入范围"><button id="select" class="text-button" type="button">全选视频</button><button id="current" class="text-button" type="button">仅选当前</button><button id="clear" class="text-button" type="button">取消全选</button></div>
+              </div>
+              <div class="table-wrap">
+                <table aria-label="课程课时列表">
+                  <colgroup><col class="selection-column"><col class="number-column"><col><col class="chapter-column"><col class="status-column"></colgroup>
+                  <thead class="sr-only"><tr><th scope="col"><span class="sr-only">选择</span></th><th scope="col"><span class="sr-only">序号</span></th><th scope="col">课时名称</th><th scope="col">章节</th><th scope="col">状态</th></tr></thead>
+                  <tbody id="parts"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <aside id="preview-panel" class="preview" aria-label="字幕核对" hidden>
+              <div class="preview-header">
+                <div class="preview-tools-row"><button id="preview-close" class="text-button" type="button" aria-label="关闭字幕面板，返回目录">×</button></div>
+                <h2 id="preview-title">选择一节课程</h2>
+                <!-- 保留 course.js 使用的状态节点，预览界面不展示。 -->
+                <div hidden><p id="preview-caption"></p><a id="source-link" target="_blank" rel="noopener" hidden></a></div>
+              </div>
+              <div id="preview-body" class="transcript"><p class="preview-message">点击课程标题查看字幕。</p></div>
+              <div id="asr-panel" class="asr-panel" hidden><p id="asr-panel-text" hidden></p><button id="asr-current" type="button">本地转写并导入</button></div>
+            </aside>
+          </div>
+
+          <section class="import-bar" aria-label="导入操作">
+            <div class="import-heading"><div class="import-details"><p id="import-summary">请先勾选要导入的视频。</p><div class="destination"><span>保存到</span><p id="destination"></p><button id="folder-edit" class="text-button" type="button">修改</button></div></div><div class="import-actions"><button id="retry" class="text-button" type="button" hidden>重试失败项</button><button id="asr-selected" class="secondary" type="button" hidden>本地转写无字幕视频</button><button id="stop" class="secondary" type="button" disabled>停止</button><button id="start" type="button"><span class="icon icon-save" aria-hidden="true"></span>导入 Obsidian</button></div></div>
+            <progress id="progress" value="0" max="1" aria-label="导入进度" hidden></progress>
+          </section>
+        </section>
+        </div>
+        <section id="note-preferences-page" class="preferences-page" aria-labelledby="workflow-title" hidden>
+          <header class="preferences-heading"><p class="eyebrow">整理笔记</p><h1 id="workflow-title">笔记偏好</h1><p class="muted">选择课时后，按你的偏好生成任务指令，交给你使用的 AI 整理。</p></header>
+          <form id="note-preferences-form" class="note-preferences">
+            <div class="preference-grid">
+              <div><label for="note-goal">学习目标</label><input id="note-goal" placeholder="例如：准备考试、理解原理或完成项目"></div>
+              <div><label for="note-language">笔记语言</label><input id="note-language" required placeholder="简体中文"></div>
+              <div><label for="note-output-folder">笔记根目录</label><input id="note-output-folder" required spellcheck="false"><p class="muted">在此目录内按课程建文件夹。</p></div>
+              <div><label for="note-granularity">整理粒度</label><select id="note-granularity"><option value="group">按确认分组，每组一篇</option><option value="video">每个视频单独一篇</option></select></div>
+            </div>
+            <details class="preference-section" open>
+              <summary>笔记属性</summary>
+              <div class="preference-grid">
+                <div><label for="note-author">笔记作者</label><input id="note-author" placeholder="你的署名；留空则省略"></div>
+                <div><label for="note-tags">标签</label><input id="note-tags" placeholder="课程笔记, 计算机网络"><p class="muted">逗号分隔，多词标签的空格会转成连字符。</p></div>
+              </div>
+              <p class="muted">课程、来源和日期按素材自动填写。下面添加你自己的属性。</p>
+              <div id="note-properties" class="note-properties"></div>
+              <button id="add-note-property" class="text-button" type="button">添加属性</button>
+            </details>
+            <details class="preference-section">
+              <summary>内容与写作偏好</summary>
+              <label for="note-naming">文件命名</label><input id="note-naming" placeholder="课程缩写-章节编号-主题.md">
+              <label for="note-sections">笔记栏目</label><textarea id="note-sections" rows="7" required aria-describedby="note-sections-help"></textarea><p id="note-sections-help" class="muted">每行一个栏目，按填写顺序整理；可以删除、改名或添加。</p>
+              <label class="preference-check"><input id="note-external-sources" type="checkbox">允许补充外部资料，并注明来源</label>
+              <label for="note-instructions">其他偏好</label><textarea id="note-instructions" rows="3" placeholder="例如：例题保留完整推导，正文使用连贯段落。"></textarea>
+            </details>
+            <div class="dialog-actions"><button id="save-note-preferences" class="secondary" type="submit">保存偏好</button><button id="copy-workflow" type="button">复制任务指令</button></div>
+          </form>
+          <p id="workflow-status" role="status" aria-live="polite"></p>
+          <a class="download-kit" href="learning-kit.zip" download="course-learning-kit.zip">下载 course-notes 技能包</a>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="source-dialog" aria-labelledby="source-title">
+      <div class="dialog-heading"><div><p class="eyebrow">课程来源</p><h2 id="source-title">读取一门课程</h2></div><button class="close-button" type="button" data-close="source-dialog" aria-label="关闭课程来源">×</button></div>
+      <label for="url">B站或 YouTube 链接</label><div class="inline"><input id="url" type="text" placeholder="粘贴视频或播放列表链接" spellcheck="false"><button id="load" type="button">读取目录</button></div>
+      <label for="folder">素材根目录</label><input id="folder" value="Clippings/Bilibili" spellcheck="false">
+      <p class="muted">预览会根据链接类型载入示例课程，不请求视频平台。</p>
+      <p id="source-status" role="status" aria-live="polite"></p>
+    </dialog>
+
+    <dialog id="settings-dialog" aria-labelledby="settings-title">
+      <div class="dialog-heading"><div><p class="eyebrow">OBSIDIAN</p><h2 id="settings-title">连接你的笔记库</h2></div><button class="close-button" type="button" data-close="settings-dialog" aria-label="关闭连接设置">×</button></div>
+      <p class="muted">在 Local REST API 设置中复制地址和 Key。</p>
+      <label for="api-url">服务地址</label><input id="api-url" type="url" placeholder="http://127.0.0.1:27123" spellcheck="false">
+      <label for="api-key">API Key</label><input id="api-key" type="password" autocomplete="off">
+      <label for="default-folder">默认素材根目录</label><input id="default-folder" spellcheck="false">
+      <p class="muted">修改默认目录不会移动已导入文件。示例 Key 只保存在本次预览内存中。</p>
+      <div class="dialog-actions"><button id="test-settings" class="secondary" type="button">测试连接</button><button id="save-settings" type="button">保存设置</button></div><p id="settings-status" role="status" aria-live="polite"></p>
+    </dialog>
+
+    <dialog id="asr-dialog" aria-labelledby="asr-title">
+      <div class="dialog-heading"><div><p class="eyebrow">无字幕时使用</p><h2 id="asr-title">本地转写</h2></div><button class="close-button" type="button" data-close="asr-dialog" aria-label="关闭本地转写设置">×</button></div>
+      <ol class="setup-steps"><li><a href="asr-installer.zip" download="course-cove-asr-installer.zip">下载本地转写安装向导</a>，选择安装目录与 CPU / GPU 环境。</li><li>运行“启动本地转写.cmd”，保持服务窗口打开。</li><li>首次粘贴连接码，后续可重新检测连接。</li></ol>
+      <div id="asr-pair-fields"><label for="asr-token">本地组件连接码</label><input id="asr-token" type="password" autocomplete="off" placeholder="预览可输入任意示例连接码"><div class="dialog-actions"><button id="asr-connect" type="button">连接本地转写</button></div></div>
+      <div class="dialog-actions"><button id="asr-refresh" class="secondary" type="button">重新检测</button></div><p id="asr-settings-status" role="status" aria-live="polite"></p>
+      <p class="muted">此预览只模拟连接和转写进度，不调用本地服务。</p>
+    </dialog>
+
+    <script src="course-core.js"></script>
+    <script src="course.js"></script>
+    <script src="note-preferences.js"></script>
+    <script src="workbench-preview.js"></script>
+  </body>
+</html>

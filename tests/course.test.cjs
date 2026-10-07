@@ -53,6 +53,29 @@ test('chapter grouping keeps two numeric levels and recognizes lecture and Chine
   ]) assert.equal(core.chapterOf(title), expected, title);
 });
 
+test('CS61C recordings group by lecture instead of each dotted segment', () => {
+  const lecturePages = [
+    '[CS61C FA20] Lecture 02.1 - Number Representation: Intro, Bits can be anything',
+    '[CS61C FA20] Lecture 02.2 - Number Representation: Conversions',
+    "[CS61C FA20] Lecture 02.3 - Number Representation: Overflow, Sign and Magnitude, One's Complement",
+    "[CS61C FA20] Lecture 02.4 - Number Representation: Two's Complement",
+  ].map((part, index) => ({ ...page, part, page: index + 2, cid: String(index + 2), chapter: core.chapterOf(part), selected: true }));
+  assert.deepEqual(lecturePages.map(p => p.chapter), ['2', '2', '2', '2']);
+  for (const title of ['lec02.2 Conversions', 'p77 CS 285: Lecture 02, Part 4', '[CS61C FA20] Weekly Lecture 02.LIVE']) {
+    assert.equal(core.chapterOf(title), '2', title);
+  }
+  assert.equal(core.chapterOf('[CS61C FA20] Lecture 03.1 - C Intro'), '3');
+  assert.equal(core.chapterOf('1.2 Lecture 02.4'), '2');
+  assert.equal(core.chapterOf('Lecture 2024 Introduction'), '0');
+  const index = core.buildIndex(meta, lecturePages, 'Clippings/YouTube');
+  assert.equal((index.match(/^## /gm) || []).length, 1);
+  assert.match(index, /^## 第02章$/m);
+  for (const part of lecturePages) assert.ok(index.includes(part.part));
+  const prompt = core.buildStudyPrompt(meta, lecturePages, 'Clippings/YouTube');
+  assert.equal((prompt.match(/章节分组：第02章/g) || []).length, 4);
+  assert.match(prompt, /英文课程以 Lecture 为基本单元/);
+});
+
 test('section identifiers stay strings and sort as hierarchy rather than decimal fractions', () => {
   assert.equal(core.normalizeChapter('02.010'), '2.10');
   for (const input of ['2.3.4', '-2', '2e3', '1000', '2.', 'abc']) assert.equal(core.normalizeChapter(input), null);
@@ -64,6 +87,50 @@ test('section identifiers stay strings and sort as hierarchy rather than decimal
   assert.ok(index.indexOf('## 第2.3节') < index.indexOf('## 第2.10节'));
   const prompt = core.buildStudyPrompt(meta, [{ ...page, chapter: '2.10', selected: true }], 'Clippings/Bilibili');
   assert.match(prompt, /章节分组：第2\.10节/);
+});
+
+test('configured study instructions carry typed attributes and preferences without workflow documents', () => {
+  const preferences = core.normalizeStudyPreferences({
+    author: '学习者', outputFolder: 'Note/自学', language: 'English', granularity: 'video',
+    tags: ['machine learning', '复习', '复习'], sections: ['概念', '例题'], externalSources: false,
+    properties: [
+      { name: 'difficulty', type: 'number', value: '2.5' },
+      { name: 'reviewed', type: 'boolean', value: 'false' },
+      { name: 'topics', type: 'list', value: 'CPU, 缓存' },
+      { name: 'review-date', type: 'date', value: '2026-10-02' },
+      { name: '说明', type: 'text', value: '第一行\n第二行: "内容"' }
+    ]
+  });
+  assert.deepEqual(preferences.tags, ['machine-learning', '复习']);
+  assert.equal(preferences.properties[0].value, 2.5);
+  assert.equal(preferences.properties[1].value, false);
+  assert.deepEqual(preferences.properties[2].value, ['CPU', '缓存']);
+  const prompt = core.buildStudyPrompt(meta, [{ ...page, selected: true }], 'Clippings/Bilibili', preferences);
+  assert.match(prompt, /course-notes/);
+  assert.doesNotMatch(prompt, /WORKFLOW\.md|NOTE_TEMPLATE\.md|PROMPTS\.md/);
+  assert.match(prompt, /Note\/自学\/计算机组成原理\//);
+  assert.match(prompt, /每个选中视频单独一篇/);
+  assert.doesNotMatch(prompt, /同一 Lecture 的多个 Part 合成一篇/);
+  assert.match(prompt, /仅使用本次课程素材/);
+  assert.match(prompt, /概念 → 例题/);
+  assert.match(prompt, /自定义属性 "reviewed"（boolean）：false/);
+  assert.ok(prompt.includes(JSON.stringify('第一行\n第二行: "内容"')));
+  assert.match(prompt, /用户署名，不是视频讲师/);
+});
+
+test('study preferences reject conflicting names and invalid values before generating a task', () => {
+  for (const properties of [
+    [{ name: 'source', value: 'fake' }],
+    [{ name: 'author', value: 'fake' }],
+    [{ name: 'level' }, { name: 'level' }],
+    [{ name: 'level', type: 'number', value: '' }],
+    [{ name: 'reviewed', type: 'boolean', value: 'maybe' }],
+    [{ name: 'date', type: 'date', value: '2026-02-30' }]
+  ]) assert.throws(() => core.normalizeStudyPreferences({ properties }));
+  assert.throws(() => core.normalizeStudyPreferences({ outputFolder: '../notes' }));
+  assert.throws(() => core.normalizeStudyPreferences({ sections: [] }));
+  assert.throws(() => core.normalizeStudyPreferences({ language: '' }));
+  assert.equal(core.normalizeStudyPreferences().outputFolder, 'Note/课程笔记');
 });
 test('readable filenames remain unique for matching part titles', () => {
   assert.notEqual(core.rawPath(meta, page, 'Clippings/Bilibili'), core.rawPath(meta, { ...page, page: 20, part: 'renamed', chapter: '3' }, 'Clippings/Bilibili'));

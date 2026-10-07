@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Course Cove · 新工作台开发预览</title>
+    <!-- 预览工具条复用工作台的字体和颜色变量，避免另写一套配色。 -->
+    <link rel="stylesheet" href="workbench-preview.css">
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; height: 100vh; display: flex; flex-direction: column; font: 12px/1.5 var(--font-ui); color: var(--muted); }
+      .preview-tools { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--line); background-color: var(--soft); background-image: var(--paper-texture); background-repeat: repeat; background-blend-mode: multiply; }
+      .preview-tools strong { color: var(--ink); font-weight: 600; }
+      label { display: flex; align-items: center; gap: 6px; }
+      select, button { font: inherit; font-weight: 400; min-height: 0; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; }
+      button:hover:not(:disabled) { background: var(--hover); border-color: var(--line); }
+      button { cursor: pointer; }
+      .preview-note { margin-left: auto; }
+      iframe { flex: 1; width: 100%; min-height: 0; border: 0; background: var(--paper); }
+      #host-error { padding: 24px; color: var(--error); }
+      [hidden] { display: none !important; }
+      @media (max-width: 720px) { .preview-note { width: 100%; margin-left: 0; } }
+    </style>
+  </head>
+  <body>
+    <header class="preview-tools">
+      <strong>新工作台 · 开发预览</strong>
+      <label for="scenario">场景
+        <select id="scenario">
+          <option value="series">B站 · 系列课程</option>
+          <option value="single">B站 · 单 P</option>
+          <option value="youtube">YouTube · 播放列表</option>
+          <option value="empty">未读取课程</option>
+          <option value="unconfigured">未配置 Obsidian</option>
+          <option value="missing">当前视频无字幕</option>
+          <option value="failed">当前字幕读取失败</option>
+          <option value="loading">正在读取目录</option>
+          <option value="saved">全部已导入</option>
+        </select>
+      </label>
+      <button id="reload" type="button">刷新预览</button>
+      <span class="preview-note">示例数据 · 不写入 Obsidian · 刷新会重置操作</span>
+    </header>
+    <p id="host-error" role="alert" hidden></p>
+    <iframe id="workbench-preview" title="新工作台界面" sandbox="allow-scripts allow-same-origin allow-popups allow-downloads allow-forms"></iframe>
+    <script src="workbench-preview-host.js"></script>
+  </body>
+</html>

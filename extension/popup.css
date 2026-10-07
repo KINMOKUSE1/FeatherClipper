@@ -19,6 +19,7 @@ header { display: flex; justify-content: space-between; align-items: center; gap
 .popup-brand-icon { width: 34px; height: 34px; flex: none; }
 header strong { font-size: 20px; font-weight: 600; letter-spacing: -.35px; white-space: nowrap; }
 main, #connection { padding: 0 24px 24px; }
+main { padding-bottom: 12px; }
 #connection {padding-top: 12px; }
 button, input { font: inherit; }
 button { min-height: 36px; padding: 8px 12px; border: 1px solid var(--accent); border-radius: 4px; color: var(--paper); background: var(--accent); font-weight: 500; cursor: pointer; }
@@ -43,7 +44,7 @@ h2 { font-size: 12px; font-weight: 400; margin: 0; color: var(--muted); }
 .save-scope { display: flex; gap: 4px; margin-top: 16px; padding: 4px; background: var(--soft); border-radius: 7px; }
 .save-scope button { flex: 1; min-width: 0; border: 0; border-radius: 2px; padding: 8px 4px; background: transparent; color: var(--muted); font-size: 13px; }
 .save-scope button[aria-pressed=true] { background: var(--paper); color: var(--ink); box-shadow: 0 1px 4px #00000040; }
-.preview-panel { margin-top: 16px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.preview-panel { margin-top: 14px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 summary { cursor: pointer; }
 summary::-webkit-details-marker { display: none; }
 .preview-panel > summary { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 14px 0; font-size: 12px; color: var(--muted); list-style: none; }
@@ -62,8 +63,8 @@ summary::-webkit-details-marker { display: none; }
 #read {font-size: 12px; }
 .destination { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; margin: 24px 0 12px; font-size: 12px; color: var(--muted); }
 #folder { overflow-wrap: anywhere; min-width: 0; }
-.save-button { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; min-height: 44px; margin-top: 16px; }
-.popup-footer { display: flex; justify-content: space-between; align-items: start; gap: 12px; margin-top: 14px; }
+.save-button { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; min-height: 44px; margin-top: 14px; }
+.popup-footer { display: flex; justify-content: space-between; align-items: start; gap: 12px; margin-top: 8px; }
 #source-form { margin-top: 6px; }
 .source-row, .actions { display: flex; gap: 8px; }
 .source-row input { flex: 1; font-size: 12px; }
