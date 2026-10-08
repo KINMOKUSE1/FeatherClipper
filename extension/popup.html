@@ -39,10 +39,17 @@
           <div id="subtitles" tabindex="0" aria-label="字幕内容"></div>
         </details>
         <button id="asr-open" class="secondary" hidden>本地转写并导入</button>
-        <button id="import" class="save-button" disabled>
-          <span class="icon icon-save" aria-hidden="true"></span>
-          <span id="import-label">保存字幕</span>
-        </button>
+        <div id="save-actions" class="save-actions">
+          <button id="import" class="save-button" disabled>
+            <span class="icon icon-save" aria-hidden="true"></span>
+            <span id="import-label">保存字幕</span>
+          </button>
+          <button id="save-menu-toggle" class="save-menu-toggle" type="button" aria-label="更多保存方式" aria-haspopup="menu" aria-expanded="false" aria-controls="save-menu" disabled><span class="icon icon-chevron" aria-hidden="true"></span></button>
+          <div id="save-menu" class="save-menu" role="menu" aria-label="导出当前字幕" hidden>
+            <button id="copy-subtitle" type="button" role="menuitem"><span class="icon icon-copy" aria-hidden="true"></span>复制到剪贴板</button>
+            <button id="download-subtitle" type="button" role="menuitem"><span class="icon icon-save" aria-hidden="true"></span>保存文件…</button>
+          </div>
+        </div>
       </section>
       <p id="status" role="status" aria-live="polite"></p>
         <!-- 第一块：两个入口 -->

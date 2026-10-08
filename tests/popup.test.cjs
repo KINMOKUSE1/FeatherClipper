@@ -10,7 +10,7 @@ test('popup displays automatic preview without requesting language options', asy
     addEventListener() {}, setAttribute() {}, append(...items) { this.children.push(...items); } });
   const get = id => { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); };
   const context = vm.createContext({ URL, console, CourseCore: core, window: { close() {} },
-    document: { getElementById: get, createElement: element, createTextNode: text => text },
+    document: { getElementById: get, createElement: element, createTextNode: text => text, addEventListener() {} },
     chrome: {
       tabs: { query: async () => [{ url: 'https://www.youtube.com/watch?v=GWwL_pLuX-U' }] },
       storage: { local: { get: async () => ({}) }, onChanged: { addListener() {} } },
@@ -47,7 +47,7 @@ test('popup keeps single-video saves separate from explicit whole-course handoff
   const get = id => { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); };
   let count = 1, previewError = false, missing = false;
   const context = vm.createContext({ URL, console, CourseCore: core, window: { close() {} },
-    document: { getElementById: get, createElement: element, createTextNode: text => text },
+    document: { getElementById: get, createElement: element, createTextNode: text => text, addEventListener() {} },
     chrome: {
       tabs: { query: async () => [{ url: 'https://www.bilibili.com/video/BV1ps4y1d73V/' }], create: async tab => opened.push(tab) },
       storage: { local: { get: async () => ({}) }, onChanged: { addListener() {} } },
@@ -102,4 +102,84 @@ test('popup keeps single-video saves separate from explicit whole-course handoff
   assert.equal(get('preview-panel').open, true);
   assert.match(get('subtitles').textContent, /Please log in/);
   assert.equal(get('import').disabled, true);
+});
+
+async function exportHarness() {
+  const elements = new Map(), messages = [], copied = [], downloads = [];
+  const element = () => ({ textContent: '', value: '', children: [], attributes: {}, listeners: {}, classList: { toggle() {} },
+    focus() {}, contains() { return false; },
+    setAttribute(name, value) { this.attributes[name] = value; },
+    addEventListener(name, handler) { this.listeners[name] = handler; },
+    append(...items) { this.children.push(...items); } });
+  const get = id => { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); };
+  const context = vm.createContext({ URL, console, CourseCore: core, window: { close() {} },
+    document: { getElementById: get, createElement: element, createTextNode: text => text, addEventListener() {} },
+    navigator: { clipboard: { writeText: async text => {
+      if (context.clipboardFail) throw new Error('Clipboard denied');
+      copied.push(text);
+    } } },
+    chrome: {
+      downloads: { download: async options => { downloads.push(options); return 1; } },
+      tabs: { query: async () => [{ url: 'https://www.bilibili.com/video/BV1ps4y1d73V/' }] },
+      storage: { local: { get: async () => ({}) }, onChanged: { addListener() {} } },
+      runtime: { sendMessage: async message => {
+        messages.push(message);
+        if (message.type === 'settings-get') return { ok: true, settings: { hasApiKey: false } };
+        if (message.type === 'quick-status') return { ok: true, key: 'job' };
+        if (message.action === 'meta') return { ok: true, folder: 'Study', meta: {
+          bvid: message.bvid, title: 'Export course', author: 'Teacher',
+          pages: [{ cid: '1', page: 1, part: '1. Export: Lesson' }, { cid: '2', page: 2, part: '2. Other' }]
+        } };
+        if (message.action === 'preview') return { ok: true, track: { lan: 'en', lanDoc: 'English' },
+          missing: context.missing, body: context.missing ? [] : Array.from({ length: 20 }, (_, i) => ({ from: i * 40, to: i * 40 + 1, content: `Line ${i + 1}.` })) };
+        throw new Error('Unexpected request');
+      } }
+    }
+  });
+  vm.runInContext(fs.readFileSync(require.resolve('../extension/popup.js'), 'utf8'), context);
+  await new Promise(setImmediate);
+  return { get, context, messages, copied, downloads };
+}
+
+test('popup exports full Markdown without Obsidian, including subtitles beyond the preview', async () => {
+  const h = await exportHarness();
+  assert.equal(h.get('import').disabled, true);
+  assert.equal(h.get('save-menu-toggle').disabled, false);
+  assert.equal(h.get('subtitles').children.length, 12);
+  h.get('save-menu-toggle').listeners.click();
+  assert.equal(h.get('save-menu').hidden, false);
+  assert.equal(h.get('save-menu-toggle').attributes['aria-expanded'], 'true');
+  const requests = h.messages.length;
+  await h.get('copy-subtitle').listeners.click();
+  assert.equal(h.get('save-menu').hidden, true);
+  assert.match(h.copied[0], /^---\ntitle:/);
+  assert.match(h.copied[0], /subtitle_lang: "English"/);
+  assert.match(h.copied[0], /chapter: "1"/);
+  assert.match(h.copied[0], /Line 20\./);
+  assert.match(h.copied[0], /bilibili\.com\/video\/BV1ps4y1d73V/);
+  await h.get('download-subtitle').listeners.click();
+  assert.equal(h.downloads.length, 1);
+  assert.equal(h.downloads[0].saveAs, true);
+  assert.match(h.downloads[0].filename, /\[CID-1\]\.md$/);
+  assert.equal(/[\\/:]/.test(h.downloads[0].filename), false);
+  assert.match(decodeURIComponent(h.downloads[0].url.split(',').slice(1).join(',')), /Line 20\./);
+  assert.equal(h.messages.length, requests, 'exports never contact Obsidian or import');
+  assert.ok(JSON.parse(fs.readFileSync(require.resolve('../extension/manifest.json'), 'utf8')).permissions.includes('downloads'));
+});
+
+test('popup reports copy failures and prevents stale or whole-course exports', async () => {
+  const h = await exportHarness();
+  h.context.clipboardFail = true;
+  await h.get('copy-subtitle').listeners.click();
+  assert.match(h.get('status').textContent, /复制失败：Clipboard denied/);
+  assert.equal(h.get('copy-subtitle').disabled, false);
+  h.get('scope-all').listeners.click();
+  assert.equal(h.get('save-menu-toggle').hidden, true);
+  await h.get('download-subtitle').listeners.click();
+  assert.equal(h.downloads.length, 0);
+  h.context.missing = true;
+  await h.context.loadVideo();
+  assert.equal(h.get('save-menu-toggle').disabled, true);
+  await h.get('copy-subtitle').listeners.click();
+  assert.equal(h.copied.length, 0);
 });

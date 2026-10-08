@@ -4,6 +4,7 @@ let busy = false, reading = false, previewing = false, hasSubtitle = false;
 let videoRun = 0;
 let saveScope = "current";
 let subtitleMissing = false;
+let subtitle = null, exporting = false;
 function status(text, error = false) {
   $("status").textContent = text; $("status").classList.toggle("error", error);
 }
@@ -24,26 +25,80 @@ $("source-label").addEventListener("click", () => {
   if (open) $("url").focus();
 });
 function controls() {
-  $("read").disabled = $("url").disabled = busy || reading || previewing;
+  const locked = busy || reading || previewing || exporting;
+  $("read").disabled = $("url").disabled = locked;
   const all = saveScope === "all" && meta?.pages.length > 1;
   const showAsr =
     subtitleMissing &&
     !all &&
     !busy &&
     !reading &&
-    !previewing;
+    !previewing &&
+    !exporting;
 
   $("asr-open").hidden = !showAsr;
-  $("import").hidden = showAsr;
-  $("import").disabled = busy || reading || previewing || !page || (!all && !hasSubtitle) || !settings?.hasApiKey;
+  $("save-actions").hidden = showAsr;
+  $("import").disabled = locked || !page || (!all && !hasSubtitle) || !settings?.hasApiKey;
+  $("save-menu-toggle").hidden = all;
+  $("save-menu-toggle").disabled = $("copy-subtitle").disabled = $("download-subtitle").disabled = locked || !page || !hasSubtitle || all;
+  if ($("save-menu-toggle").disabled) closeSaveMenu();
   $("import-label").textContent = busy ? "正在保存…" : all ? `前往保存整门课程 · ${meta.pages.length} ${meta.platform === "youtube" ? "个视频" : "P"}` : meta?.pages.length > 1 ? "保存当前字幕" : "保存字幕";
-  $("scope-current").disabled = $("scope-all").disabled = busy || reading || previewing;
+  $("scope-current").disabled = $("scope-all").disabled = locked;
   $("scope-current").setAttribute("aria-pressed", String(!all));
   $("scope-all").setAttribute("aria-pressed", String(all));
-  $("settings").disabled = busy || reading || previewing || !settings;
-  $("workspace").disabled = busy || reading;
-  $("asr-open").disabled = busy || reading || previewing || !settings?.hasApiKey;
+  $("settings").disabled = locked || !settings;
+  $("workspace").disabled = busy || reading || exporting;
+  $("asr-open").disabled = locked || !settings?.hasApiKey;
 }
+function closeSaveMenu(restoreFocus = false) {
+  $("save-menu").hidden = true;
+  $("save-menu-toggle").setAttribute("aria-expanded", "false");
+  if (restoreFocus) $("save-menu-toggle").focus();
+}
+function openSaveMenu(last = false) {
+  if ($("save-menu-toggle").disabled) return;
+  $("save-menu").hidden = false;
+  $("save-menu-toggle").setAttribute("aria-expanded", "true");
+  $(last ? "download-subtitle" : "copy-subtitle").focus();
+}
+$("save-menu-toggle").addEventListener("click", () => {
+  if ($("save-menu").hidden) openSaveMenu(); else closeSaveMenu();
+});
+$("save-menu-toggle").addEventListener("keydown", event => {
+  if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
+  event.preventDefault(); openSaveMenu(event.key === "ArrowUp");
+});
+$("save-actions").addEventListener("keydown", event => {
+  if (event.key === "Escape") { event.preventDefault(); closeSaveMenu(true); }
+  else if (!$("save-menu").hidden && ["ArrowDown", "ArrowUp"].includes(event.key) && event.target !== $("save-menu-toggle")) {
+    event.preventDefault();
+    $(event.target === $("copy-subtitle") ? "download-subtitle" : "copy-subtitle").focus();
+  }
+});
+$("save-actions").addEventListener("focusout", event => {
+  if (!event.currentTarget.contains(event.relatedTarget)) closeSaveMenu();
+});
+document.addEventListener("click", event => {
+  if (!$("save-actions").contains(event.target)) closeSaveMenu();
+});
+async function exportSubtitle(download = false) {
+  if ($(download ? "download-subtitle" : "copy-subtitle").disabled) return;
+  closeSaveMenu(true);
+  exporting = true; controls();
+  try {
+    const markdown = CourseCore.buildRaw(meta, { ...page, chapter: CourseCore.chapterOf(page.part) }, subtitle.track || {}, subtitle.body);
+    if (download) {
+      await chrome.downloads.download({ url: `data:text/markdown;charset=utf-8,${encodeURIComponent(markdown)}`, filename: CourseCore.rawPath(meta, page, base).split("/").pop(), saveAs: true });
+      status("已提交文件保存请求");
+    } else {
+      await navigator.clipboard.writeText(markdown);
+      status("完整字幕已复制到剪贴板");
+    }
+  } catch (error) { status(`${download ? "保存" : "复制"}失败：${error.message}`, true); }
+  finally { exporting = false; controls(); }
+}
+$("copy-subtitle").addEventListener("click", () => exportSubtitle());
+$("download-subtitle").addEventListener("click", () => exportSubtitle(true));
 function showJob(state) {
   busy = state?.status === "running";
   const text = { running: "正在导入，收起窗口后会继续。", saved: "已导入 Obsidian，课程清单已更新。", exists: "字幕已存在，已跳过；课程清单已更新。", missing: "这个视频没有可用字幕。" }[state?.status];
@@ -58,6 +113,7 @@ async function refreshSettings() {
 async function preview() {
   previewing = true;
   hasSubtitle = false;
+  subtitle = null;
   subtitleMissing = false;
   controls();
   $("asr-open").hidden = true;
@@ -68,6 +124,7 @@ async function preview() {
     const result = await send({ type: "course-request", action: "preview", meta, page });
     $("subtitle-track").textContent = result.track?.lanDoc || result.track?.lan || "";
     hasSubtitle = Boolean(result.body?.length);
+    if (hasSubtitle) subtitle = result;
     $("preview-label").textContent = hasSubtitle ? "字幕预览" : "暂无可用字幕";
     subtitleMissing = result.missing === true && !hasSubtitle;
     $("subtitles").textContent = hasSubtitle ? "" : "没有可用字幕，可在课程工作台尝试本地转写。";
@@ -85,7 +142,7 @@ async function preview() {
   finally { previewing = false; controls(); }
 }
 async function loadVideo() {
-  if (busy || reading || previewing) return;
+  if (busy || reading || previewing || exporting) return;
   const source = $("url").value.trim();
   const parsed = CourseCore.parseSource(source);
   if (!parsed) { status("请粘贴 B站或 YouTube 视频链接。", true); return; }

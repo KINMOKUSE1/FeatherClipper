@@ -52,6 +52,14 @@
   }
   // All extension operations below remain inside this preview's memory.
   window.chrome = {
+    downloads: {
+      download: async ({ url, filename }) => {
+        const link = document.createElement("a");
+        link.href = url; link.download = filename;
+        document.body.append(link); link.click(); link.remove();
+        return 1;
+      }
+    },
     runtime: { sendMessage, getURL: name => new URL(name, document.baseURI).href },
     storage: {
       local: {

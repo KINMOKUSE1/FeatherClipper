@@ -168,7 +168,7 @@ test('extension messages from an unrelated page are rejected', async () => {
 });
 test('manifest opens the popup and grants YouTube page reading', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(extension, 'manifest.json')));
-  assert.deepEqual(manifest.permissions, ['storage', 'activeTab', 'scripting']);
+  assert.deepEqual(manifest.permissions, ['storage', 'activeTab', 'scripting', 'downloads']);
   assert.equal(manifest.action.default_popup, 'popup.html'); assert.equal(manifest.side_panel, undefined); assert.equal(manifest.content_scripts, undefined);
   assert.ok(manifest.host_permissions.includes('https://www.youtube.com/*')); assert.ok(!manifest.host_permissions.includes('https://*/*')); assert.equal(manifest.options_page, 'course.html');
 });

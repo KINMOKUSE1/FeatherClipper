@@ -60,7 +60,13 @@ summary::-webkit-details-marker { display: none; }
 #subtitles a:hover { color: var(--ink); text-decoration: underline; }
 #asr-open { width: 100%; margin-top: 14px; }
 #read {font-size: 12px; }
-.save-button { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; min-height: 44px; margin-top: 14px; }
+.save-actions { position: relative; display: flex; margin-top: 14px; }
+.save-button { display: flex; align-items: center; justify-content: center; gap: 9px; flex: 1; min-width: 0; min-height: 44px; border-radius: 4px 0 0 4px; color: #fff; }
+.save-menu-toggle { display: flex; align-items: center; justify-content: center; flex: none; width: 38px; padding: 0; border-left-color: #ffffff35; border-radius: 0 4px 4px 0; color: #fff; }
+.save-actions:has(.save-menu-toggle[hidden]) .save-button { border-radius: 4px; }
+.save-menu { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 5; min-width: 186px; padding: 5px; border: 1px solid var(--line); border-radius: 7px; background: #fff; box-shadow: 0 4px 16px #303a4a18; }
+.save-menu button { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 36px; padding: 7px 10px; border: 0; border-radius: 4px; background: transparent; color: var(--ink); font-size: 13px; font-weight: 400; text-align: left; }
+.save-menu button:hover:not(:disabled), .save-menu button:focus-visible { background: var(--soft); filter: none; }
 .popup-footer { display: flex; justify-content: space-between; align-items: start; gap: 12px; margin-top: 8px; }
 #source-form { margin-top: 6px; }
 .source-row, .actions { display: flex; gap: 8px; }
@@ -82,6 +88,7 @@ summary::-webkit-details-marker { display: none; }
 .icon-captions { --icon: url("icons/lucide/captions.svg"); }
 .icon-chapters { --icon: url("icons/lucide/list-tree.svg"); }
 .icon-link { --icon: url("icons/lucide/link.svg"); }
+.icon-copy { --icon: url("icons/lucide/copy.svg"); }
 
 /* 空状态显示时，隐藏链接区域的折叠标题 */
 #clipper:has(#empty:not([hidden])) #source-label {
