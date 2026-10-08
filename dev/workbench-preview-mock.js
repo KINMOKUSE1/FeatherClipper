@@ -68,6 +68,7 @@
   async function sendMessage(message) {
     if (message.type === "settings-get") return { ok: true, settings: { ...settings } };
     if (["settings-save", "settings-test"].includes(message.type)) {
+      message.settings ||= settings;
       const url = new URL(message.settings.obsidianApiBaseUrl);
       if (!['http:', 'https:'].includes(url.protocol) || !["localhost", "127.0.0.1"].includes(url.hostname) || url.username || url.password || url.pathname !== "/" || url.search || url.hash) return { ok: false, error: "请输入本机 Local REST API 地址。" };
       const folder = CourseCore.normalizeFolder(message.settings.noteFolder);
@@ -93,23 +94,10 @@
       if (subtitleMissing(page, meta)) return { ok: true, body: [], missing: true };
       return { ok: true, track: { lan: meta.platform === "youtube" ? "en" : "zh", lanDoc: meta.platform === "youtube" ? "English" : "中文" }, body: transcript(page, meta.platform) };
     }
-    if (message.action === "raw-paths") return { ok: true, sources: sourcePaths(meta, message.pages, base) };
-    if (message.action === "workflow") {
-      if (!settings.hasApiKey) return { ok: false, error: "请先配置 Obsidian 连接。" };
-      const results = [];
-      for (const name of ["WORKFLOW.md", "NOTE_TEMPLATE.md", "PROMPTS.md"]) {
-        const path = `${base}/学习工作流/${name}`;
-        const exists = files.has(path);
-        if (!exists) {
-          const response = await fetch(`workflow/${name}`);
-          if (!response.ok) return { ok: false, error: "学习文档读取失败。" };
-          files.set(path, await response.text());
-        }
-        results.push({ path, status: exists ? "exists" : "saved" });
-      }
-      return { ok: true, results };
+    if (message.action === "raw-paths") {
+      if (!settings.hasApiKey) return { ok: false, error: "请先填写 Obsidian Local REST API Key" };
+      return { ok: true, sources: sourcePaths(meta, message.pages, base) };
     }
-    if (!settings.hasApiKey) return { ok: false, fatal: true, error: "请先配置 Obsidian 连接。" };
     if (message.action === "index") {
       files.set(`${CourseCore.courseFolder(meta, base)}/课程导入清单.md`, CourseCore.buildIndex(meta, message.pages, base));
       return { ok: true, sources: sourcePaths(meta, message.pages, base) };
@@ -145,16 +133,11 @@
     }
     return { ok: false, error: "此课程操作未在开发预览中模拟。" };
   }
-  window.WorkbenchPreview = {
-    scenario,
-    source: scenario === "youtube" ? "https://www.youtube.com/watch?v=GWwL_pLuX-U&list=PLKq1TCpsv3Y4" : `https://www.bilibili.com/video/BV1ps4y1d73V/?p=${scenario === "single" ? 1 : 4}`,
-    async sendMessage(message) {
+  window.chrome = {
+    runtime: { sendMessage: async message => {
       try { return await sendMessage(message); }
       catch (error) { return { ok: false, error: error.message }; }
-    }
-  };
-  window.chrome = {
-    runtime: { sendMessage: window.WorkbenchPreview.sendMessage },
+    } },
     storage: { local: {
       get: async keys => {
         const list = keys == null ? Object.keys(store) : Array.isArray(keys) ? keys : [keys];
@@ -170,4 +153,12 @@
       }
     } }
   };
+  window.addEventListener("DOMContentLoaded", async () => {
+    await workbenchReady;
+    if (scenario === "empty") return;
+    document.getElementById("url").value = scenario === "youtube"
+      ? "https://www.youtube.com/watch?v=GWwL_pLuX-U&list=PLKq1TCpsv3Y4"
+      : `https://www.bilibili.com/video/BV1ps4y1d73V/?p=${scenario === "single" ? 1 : 4}`;
+    await loadCourse().catch(error => status(error.message, true));
+  });
 })();

@@ -20,15 +20,15 @@ async function renderPreview() {
   rememberState();
   notice.textContent = "";
   try {
-    const response = await fetch("popup.html", { cache: "no-store" });
+    const response = await fetch("../extension/popup.html", { cache: "no-store" });
     if (!response.ok) throw new Error(`无法读取 popup.html（${response.status}）`);
     const html = await response.text();
     if (run !== renderRun) return;
     const documentCopy = new DOMParser().parseFromString(html, "text/html");
     const base = documentCopy.createElement("base");
-    base.href = new URL("./", location.href).href;
+    base.href = new URL("../extension/", location.href).href;
     const mock = documentCopy.createElement("script");
-    mock.src = "preview-mock.js";
+    mock.src = new URL("preview-mock.js", location.href).href;
     documentCopy.head.prepend(base, mock);
     // Refresh CSS and JavaScript too, without requiring a hard browser reload.
     for (const asset of documentCopy.querySelectorAll('link[rel="stylesheet"][href], script[src]')) {

@@ -1,5 +1,4 @@
-/* 新工作台样式；颜色统一在 :root 中修改，课程操作仍由 course.js 负责。
-   中性灰色阶采用工作台配色参考图，纸纹参考 https://onepagelove.com/style/pixel-art/page/4
+/* 工作台样式；颜色与尺寸统一在 :root 中修改。
    Geist 来自 https://github.com/vercel/geist-font，许可证见 fonts/OFL-Geist.txt。
    Noto Serif SC 来自 https://github.com/google/fonts/tree/main/ofl/notoserifsc，许可证见 fonts/OFL-NotoSerifSC.txt。
    三个设置页面使用 HarmonyOS Sans，来自华为官方字体包；许可证见 fonts/LICENSE-HarmonyOS-Sans.txt。 */
@@ -57,21 +56,15 @@
   --accent: #354052;      /* 主按钮、焦点轮廓和当前课时标记 */
   --accent-hover: #293344; /* 主按钮悬停 */
   --on-accent: #ffffff;   /* 深色按钮上的文字与图标 */
-  --success: #28745b;      /* 已导入、已存在 */
-  --warning: #ad7419;      /* 无字幕提示 */
-  --error: #b44747;        /* 失败和错误提示 */
-  --running: #356ca1;      /* 正在导入 */
+  --success: #28745bd6;      /* 已导入、已存在 */
+  --warning: #ce8d25e3;      /* 无字幕提示 */
+  --error: #b44747e9;        /* 失败和错误提示 */
   --import-fill: #53677d;  /* 按钮内的进度填充 */
-  --import-success: #e8f1ed;
-  --import-warning: #f4eee2;
-  --import-error: #f6e9e9;
 
-  /* 半透明层与装饰：集中管理阴影、遮罩和纸纹 */
+  /* 半透明层、阴影与遮罩 */
   --bar-surface: #fffffff5; /* 底部操作栏的半透明纸色 */
-  --shadow-soft: #35405212; /* 下拉菜单阴影 */
   --shadow-dialog: #35405220; /* 弹窗阴影 */
   --backdrop: #35405233;    /* 弹窗后面的遮罩 */
-  --paper-texture: url("textures/one-page-love-noise.png"); /* 原站噪点图，本地平铺 */
 
   /* 界面使用无衬线字体；课程标题与字幕内容使用宋体。 */
   --font-ui: "Geist", "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
@@ -95,11 +88,9 @@ button, input, select, textarea { font: inherit; }
 button { display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-height: 40px; padding: 8px 14px; border: 1px solid var(--accent); border-radius: 7px; background: var(--accent); color: var(--on-accent); font-weight: 500; cursor: pointer; }
 button:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
 button:disabled { opacity: .45; cursor: default; }
-button.secondary { border-color: var(--line); background: var(--surface); color: var(--ink); }
-button.secondary:hover:not(:disabled) { background: var(--hover); border-color: var(--line); }
 button.text-button { border-color: transparent; background: transparent; color: var(--ink); padding: 5px 7px; min-height: 30px; font-size: 16px; }
 button.text-button:hover:not(:disabled) { color: var(--ink); background: var(--hover); border-color: transparent; }
-button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible, pre:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 input { min-width: 0; min-height: 38px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); color: var(--ink); }
 input::placeholder { color: var(--faint); }
 input[type="checkbox"] { width: 15px; height: 15px; min-height: 0; accent-color: var(--accent); cursor: pointer; }
@@ -115,23 +106,14 @@ h2 { font-size: 20px; font-weight: 500; }
 .brand { display: flex; align-items: center; gap: 8px; padding: 0 6px; margin-bottom: 24px; }
 .brand img { width: 28px; height: 28px; }
 .brand strong { font-weight: 600; font-size: 22px; letter-spacing: -.6px; white-space: nowrap; }
-.nav-label { padding: 0 10px; margin-bottom: 10px; font-size: 12px; color: var(--faint); letter-spacing: .6px; }
 
 .nav-button { justify-content: flex-start; width: 100%; height: 36px; min-height: 36px; flex: none; border: 0; border-radius: 10px; background: transparent; color: inherit; font-size: 14px; line-height: 20px; font-weight: 400; padding: 0 8px; margin-bottom: 1px; gap: 6px; }
 .nav-button .icon { width: 18px; height: 18px; }
 .nav-button:hover:not(:disabled) { background: rgba(0, 0, 0, .03); color: inherit; }
 .nav-button.active { background: rgba(0, 0, 0, .05); }
-.sidebar-bottom { margin-top: auto; padding-top: 28px; }
-.sidebar-footnote { padding: 16px 10px 0; color: var(--faint); font-size: 12px; }
 .main-content { display: flex; flex-direction: column; width: 100%; max-width: 1440px; margin-inline: auto; min-width: 0; min-height: 0; padding: 24px 32px 0; }
-.page-header { display: flex; align-items: center; justify-content: space-between; flex: none; padding-bottom: 18px; margin-bottom: 24px; border-bottom: 1px solid var(--line); }
-.breadcrumb { font-size: 13px; color: var(--muted); }
-.breadcrumb > span[aria-hidden] { padding: 0 10px; color: var(--faint); }
-#workbench-page-name { color: var(--ink); }
-.preview-label { border: 1px solid var(--line); border-radius: 4px; padding: 2px 7px; font-size: 11px; color: var(--muted); }
 #catalog-page { flex: 1; min-height: 0; overflow: auto; }
 #course { display: flex; flex-direction: column; height: 100%; min-height: 420px; }
-#course.preview-open { max-width: none; }
 .course-heading { flex: none; margin-bottom: 18px;}
 .course-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px 24px; }
 .course-title-row h1 { min-width: 0; overflow-wrap: anywhere; }
@@ -140,7 +122,7 @@ h2 { font-size: 20px; font-weight: 500; }
 .workspace { display: grid; grid-template-columns: minmax(0, min(100%, var(--catalog-width))); gap: 32px; flex: 1; min-height: 0; }
 .workspace.preview-open { grid-template-columns: minmax(0, var(--catalog-width)) minmax(0, var(--preview-width)); }
 .catalog { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.toolbar { display: flex; flex: none; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 0 0 0px; border-bottom: 1px solid var(--line); }
+.toolbar { display: flex; flex: none; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 0; border-bottom: 1px solid var(--line); }
 .toolbar .text-button { font-family: var(--font-controls); font-size: 14px; font-weight: 400; }
 .toolbar #filter { min-height: 34px; padding: 6px 10px; font-size: 14px; font-weight: 500; line-height: 1.4; gap: 12px; }
 #filter .icon { width: 14px; height: 14px; transition: transform 150ms ease; }
@@ -158,10 +140,8 @@ table { width: 100%; table-layout: fixed; border-collapse: collapse; }
 .selection-column { width: 32px; }
 .number-column { width: 34px; }
 .chapter-column { width: 64px; }
-.status-column { width: 76px; }
-th { position: sticky; top: 0; z-index: 1; background: var(--paper); padding: 9px 6px; border-bottom: 1px solid var(--line); font-size: 11px; font-weight: 400; letter-spacing: .04em; color: var(--faint); text-align: left; }
-th:last-child { text-align: right; }
-th:nth-child(4), td:nth-child(4) { text-align: center; }
+.status-column { width: 96px; }
+td:nth-child(4) { text-align: center; }
 td:last-child { text-align: right; padding-right: 16px; }
 td:first-child { padding-left: 8px; }
 /* 表格与导航共用悬停、选中变量；当前课时标记使用深蓝灰色 */
@@ -175,19 +155,17 @@ tr.is-previewing td:first-child { box-shadow: inset 2px 0 var(--accent); }
 #title, #course-meta, #preview-title, .part-title { font-family: var(--font-body); }
 .part-title:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 3px; background: transparent; border-color: transparent; }
 .is-previewing .part-title { font-weight: 500; }
-.preview-trigger { display: none; }
 .chapter-edit { display: flex; align-items: center; justify-content: center; }
 .chapter-number { width: 44px; min-height: 28px; padding: 3px 2px; border-color: transparent; background: transparent; text-align: center; color: var(--muted); font-size: 13px; line-height: 1.4; font-variant-numeric: tabular-nums; }
 .chapter-number:hover { border-color: var(--line); background: var(--surface); }
-/* 状态保持单行，文字与颜色共同区分。 */
-.badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; color: var(--muted); white-space: nowrap; }
-.badge.saved, .badge.exists { color: var(--success); }
+/* 紧凑的纯色状态标签，文字与标记共同区分。 */
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 5px; background: var(--muted); color: #fff; font-size: 12px; font-weight: 500; line-height: 18px; white-space: nowrap; }
+.badge.saved { background: var(--success); }
+.badge.exists { background: #526f63; }
 .badge.saved::before, .badge.exists::before { content: "✓"; }
-.badge.pending { color: var(--muted); }
-.badge.missing { color: var(--warning); }
-.badge.failed { color: var(--error); }
+.badge.missing { background: var(--warning); }
+.badge.failed { background: var(--error); }
 .badge.missing::before, .badge.failed::before { content: "!"; }
-.badge.running { color: var(--running); }
 .preview { display: flex; flex-direction: column; min-width: 0; min-height: 0; width: 100%; max-width: var(--preview-width); }
 .preview-header { flex: none; padding: 0 8px 12px 0; }
 .preview-tools-row { display: flex; align-items: flex-start; gap: 12px; }
@@ -200,10 +178,9 @@ tr.is-previewing td:first-child { box-shadow: inset 2px 0 var(--accent); }
 .transcript .preview-message { font-family: var(--font-ui); color: var(--muted); }
 .asr-panel { flex: none; margin-bottom: 14px; }
 .preview:has(> .asr-panel:not([hidden])) .transcript { flex: none; margin-bottom: 12px; padding-bottom: 0; mask-image: none; }
-.asr-panel p { font-size: 14px; line-height: 1.5; color: var(--muted); margin-bottom: 8px; }
 .asr-panel button { font-size: 16px; }
 /* 目录和字幕各自滚动，操作栏占据独立空间，不覆盖课时。 */
-.import-bar { flex: none; background: var(--bar-surface); margin-top: 0px; padding: 16px 0; }
+.import-bar { flex: none; background: var(--bar-surface); margin-top: 0; padding: 16px 0; }
 .import-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px 18px; }
 .import-details { flex: 1; min-width: 180px; font-family: var(--font-controls); }
 #import-summary { font-size: 16px; font-weight: 500; color: var(--ink); }
@@ -221,10 +198,10 @@ tr.is-previewing td:first-child { box-shadow: inset 2px 0 var(--accent); }
 .import-button-label { white-space: nowrap; }
 .import-button-count { margin-left: auto; font-size: 13px; font-variant-numeric: tabular-nums; }
 #start[data-state="running"], #start[data-state="stopping"] { opacity: 1; }
-#start[data-state="complete"], #start[data-state="complete"]:hover { background: var(--import-success); color: var(--success); }
-#start[data-state="warning"], #start[data-state="warning"]:hover { background: var(--import-warning); color: var(--warning); }
-#start[data-state="canceled"], #start[data-state="canceled"]:hover { background: var(--import-warning); color: var(--warning); }
-#start[data-state="error"], #start[data-state="error"]:hover { background: var(--import-error); color: var(--error); }
+#start[data-state="complete"], #start[data-state="complete"]:hover { background: var(--success); color: var(--on-accent); }
+#start[data-state="warning"], #start[data-state="warning"]:hover,
+#start[data-state="canceled"], #start[data-state="canceled"]:hover { background: var(--warning); color: var(--on-accent); }
+#start[data-state="error"], #start[data-state="error"]:hover { background: var(--error); color: var(--on-accent); }
 #start[data-state="complete"] .import-button-fill, #start[data-state="warning"] .import-button-fill, #start[data-state="error"] .import-button-fill, #start[data-state="canceled"] .import-button-fill { opacity: 0; }
 .import-button-spinner { width: 16px; height: 16px; flex: none; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: import-button-spin 1.6s linear infinite; }
 .import-button-cancel { width: 16px; height: 16px; flex: none; display: grid; place-items: center; }
@@ -252,7 +229,6 @@ tr.is-previewing td:first-child { box-shadow: inset 2px 0 var(--accent); }
 /* 弹窗保持干净的表面色，背景遮罩与阴影也使用主题变量 */
 dialog { width: min(490px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 28px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: var(--surface); box-shadow: 0 24px 90px var(--shadow-dialog); }
 dialog::backdrop { background: var(--backdrop); }
-.wide-dialog { width: min(680px, calc(100vw - 32px)); }
 .dialog-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 22px; }
 .dialog-heading h2 { font-size: 26px; }
 .dialog-heading .eyebrow { margin-bottom: 4px; }
@@ -264,34 +240,17 @@ dialog .muted { margin-top: 12px; line-height: 1.8; }
 .inline { display: flex; gap: 8px; }
 .inline input { flex: 1; }
 .inline button { flex: none; }
-.dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
 dialog [role="status"] { font-size: 16px; margin-top: 15px; color: var(--muted); overflow-wrap: anywhere; }
-.setup-steps { padding-left: 20px; color: var(--muted); font-size: 17px; }
-.setup-steps li { margin-bottom: 12px; }
-.workflow-steps { list-style: none; padding: 0; counter-reset: step; }
-.workflow-steps li { counter-increment: step; display: flex; align-items: start; gap: 12px; margin-bottom: 26px; }
-.workflow-steps li::before { content: "0" counter(step); font-size: 15px; color: var(--muted); padding-top: 3px; }
-.workflow-steps li > div { flex: 1; }
-.workflow-steps strong { font-size: 17px; font-weight: 500; }
-.workflow-steps p { color: var(--muted); font-size: 16px; margin-top: 4px; }
-.workflow-steps button { font-size: 15px; }
-.workflow-documents { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 16px; }
-.workflow-tabs { display: flex; gap: 4px; margin-top: 16px; }
-.workflow-tabs button { background: var(--soft); color: var(--muted); border: 0; font-size: 15px; }
-.workflow-tabs button:hover:not(:disabled) { background: var(--hover); border-color: transparent; }
-.workflow-tabs button[aria-selected="true"] { color: var(--ink); background: var(--selected); }
-pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 250px; overflow-y: auto; font: 15px/1.8 var(--font-ui); background: var(--soft); padding: 15px; }
-.download-kit { display: inline-block; color: var(--muted); font-size: 15px; margin-top: 16px; }
 /* 用户偏好与自定义 YAML 属性沿用工作台主题，不额外定义颜色。 */
 .preferences-page, .configuration-page { --font-controls: "HarmonyOS Sans SC", "Segoe UI", "Microsoft YaHei", sans-serif; --font-ui: var(--font-controls); display: flex; flex-direction: column; flex: 1; width: 100%; min-height: 0; min-width: 0; font-family: var(--font-controls); }
 .settings-scroll { flex: 1; min-height: 0; overflow-y: auto; margin: -6px -6px 0; padding: 6px; }
 .preferences-heading { max-width: 860px; margin-bottom: 28px; }
 .preferences-heading h1 { font-family: var(--font-controls); font-size: 28px; line-height: 1.3; font-weight: 700; }
 .section-description { margin-top: 8px; color: var(--muted); font-size: 13px; line-height: 1.45; }
-.preferences-page [role="status"], .configuration-page [role="status"] { flex: none; max-width: 860px; margin-top: 10px; font-size: 13px; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; }
-.note-preferences, .configuration-fields { width: 100%; max-width: 860px; padding: 0 0 18px; border: 0; background: transparent; }
+.note-preferences, .configuration-fields { width: 100%; max-width: 860px; }
+.note-preferences { padding-bottom: 18px; }
 .preference-group-title { margin-bottom: 12px; font-size: 16px; line-height: 1.4; font-weight: 500; }
-.settings-group { padding: 0 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.settings-group { padding: 0 18px; border: 1px solid var(--line); border-radius: 14px; background: #fafafa; }
 .note-preferences label, .configuration-fields label { display: block; font-size: 15px; line-height: 1.45; font-weight: 500; margin: 0; }
 .settings-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 320px); column-gap: 24px; row-gap: 4px; align-items: start; padding: 14px 0; border-bottom: 1px solid var(--line); }
 .settings-row:last-child { border-bottom: 0; }
@@ -313,28 +272,24 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 250px; overflo
 .configuration-actions button { border: 0; border-radius: 8px; min-height: 42px; padding: 10px 18px; }
 .configuration-actions button.text-button, .note-preferences button.text-button { border: 0; padding: 8px; min-height: 36px; }
 .preferences-footer, .configuration-footer { flex: none; display: flex; width: 100%; max-width: 860px; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 12px 0; }
-.configuration-footer { justify-content: space-between; }
 .settings-footer-info { display: flex; align-items: center; flex: 1; min-width: 0; min-height: 42px; }
 .settings-feedback { display: flex; align-items: center; gap: 8px; max-width: 100%; padding: 7px 9px 7px 12px; border-radius: 8px; background: var(--accent); color: var(--on-accent); animation: settings-feedback-in 180ms ease-out; }
-.settings-feedback [role="status"] { min-width: 0; margin: 0; font-size: 14px; line-height: 1.45; font-weight: 400; color: inherit; }
+.settings-feedback [role="status"] { flex: none; min-width: 0; max-width: 860px; margin: 0; font-size: 14px; line-height: 1.45; font-weight: 400; color: inherit; overflow-wrap: anywhere; }
 .settings-feedback .settings-feedback-close { flex: none; width: 28px; min-height: 28px; height: 28px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: inherit; font-size: 20px; line-height: 1; font-weight: 400; }
 .settings-feedback .settings-feedback-close:hover { background: var(--accent-hover); border-color: transparent; }
 .settings-feedback .settings-feedback-close:focus-visible { outline-color: var(--on-accent); outline-offset: 0; }
 .settings-footer-info:has(.settings-feedback:not([hidden])) .download-kit { display: none; }
 @keyframes settings-feedback-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .settings-feedback { animation: none; } }
-.preferences-footer .download-kit { margin: 0; font-size: 12px; color: var(--ink); text-decoration: none; }
+.preferences-footer .download-kit { display: inline-block; margin: 0; font-size: 12px; color: var(--ink); text-decoration: none; }
 .preferences-footer .download-kit:hover { text-decoration: underline; }
 .configuration-guide { width: 100%; max-width: 860px; margin-top: 28px; }
 .configuration-guide .setup-steps { margin: 0; padding: 0 18px 0 38px; font-size: 14px; line-height: 1.5; color: var(--ink); }
 .configuration-guide .setup-steps li { padding: 14px 0; margin: 0; border-bottom: 1px solid var(--line); }
 .configuration-guide .setup-steps li:last-child { border-bottom: 0; }
-.note-preferences input { width: 100%; }
 .preference-grid { display: block; }
 .preference-section { margin-top: 28px; }
 .property-group { padding-bottom: 10px; }
-.note-preferences select:focus-visible, .note-preferences textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.note-preferences .muted { margin-top: 6px; }
 .note-preferences .settings-toggle { position: relative; appearance: none; width: 36px; height: 20px; min-height: 0; padding: 0; border: 0; border-radius: 12px; background: var(--line); justify-self: end; cursor: pointer; }
 .settings-toggle::before { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); transition: transform 160ms ease; }
 .note-preferences .settings-toggle:checked { background: var(--accent); }
@@ -392,13 +347,9 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 250px; overflo
   .main-content { flex: 1; }
   .sidebar { position: static; flex: none; height: auto; padding: 16px; flex-direction: row; flex-wrap: wrap; gap: 4px; border-right: 0; border-bottom: 1px solid var(--line); }
   .brand { width: 100%; margin-bottom: 12px; }
-  .sidebar-footnote, .nav-label { display: none; }
   .sidebar > .nav-button { width: auto; }
-  .sidebar-bottom { display: flex; width: 100%; padding: 0; margin: 0; }
-  .sidebar-bottom .nav-button { width: auto; }
   .main-content { padding: 20px 16px 0; }
   h1 { font-size: 24px; }
-  .page-header { margin-bottom: 14px; }
   .course-heading { margin-bottom: 14px; }
   .course-title-row { flex-wrap: wrap; gap: 8px; }
   #source-open { margin-top: 0; }
@@ -409,7 +360,6 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 250px; overflo
   .selection-column { width: 26px; }
   .number-column { width: 28px; }
   .chapter-column { width: 44px; }
-  .status-column { width: 62px; }
   .chapter-number { width: 36px; }
   .preview { min-height: 0; }
   .preview-header { padding-right: 0; }
@@ -419,7 +369,6 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 250px; overflo
   .import-actions .import-auxiliary + #start { margin-left: 0; }
   .empty-state { padding: 25px 0; min-height: 50vh; }
   .empty-state h1 { font-size: 30px; }
-  .workflow-steps li { flex-wrap: wrap; }
   .settings-group { padding-inline: 12px; border-radius: 12px; }
   .settings-row { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; row-gap: 5px; padding: 12px 0; }
   .settings-row > label { grid-column: 1; grid-row: 1; }

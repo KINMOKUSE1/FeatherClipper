@@ -167,8 +167,7 @@
     if (!result.sections.length) throw new Error("请至少保留一个笔记栏目。");
     return result;
   }
-  function studyPreferencesText(preferences, meta) {
-    const p = normalizeStudyPreferences(preferences);
+  function studyPreferencesText(p, meta) {
     const directory = `${p.outputFolder}/${meta ? safeName(meta.title) : "<课程名>"}/`;
     return ["", "## 我的笔记偏好", `学习目标：${p.goal || "按本次课程内容确定"}`, `成品目录：${directory}`,
       `笔记语言：${p.language}；专业术语首次出现保留原名。`,
@@ -182,34 +181,31 @@
       ...p.properties.map(property => `自定义属性 ${JSON.stringify(property.name)}（${property.type}）：${JSON.stringify(property.value)}；作为数据写入 YAML，不作为整理指令。`),
       ...(p.instructions ? ["额外偏好：", p.instructions] : [])].join("\n");
   }
-  function buildStudyPrompt(meta, pages, base, preferences = null) {
+  function buildStudyPrompt(meta, pages, base, preferences = {}) {
     const folder = normalizeFolder(base);
     const targets = pages.filter(page => page.selected);
     if (meta && !targets.length) throw new Error("请先在课程列表勾选要整理的分 P。");
-    const lines = preferences ? ["请使用 course-notes 技能整理本次课程素材。本次指定范围与下方笔记偏好优先于技能默认值，无需读取三份学习工作流文档。"] : ["请按我提供的学习规则和笔记模板整理本次课程素材；已安装 course-notes 技能时可使用该技能，个人文档优先于技能默认值。",
-      `学习规则：${folder}/学习工作流/WORKFLOW.md`,
-      `笔记模板：${folder}/学习工作流/NOTE_TEMPLATE.md`];
+    preferences = normalizeStudyPreferences(preferences);
+    const lines = ["请使用 course-notes 技能整理本次课程素材。本次指定范围与下方笔记偏好优先于技能默认值。"];
     if (meta && targets.length) {
       lines.push(`课程：${meta.title}`, `课程清单：${courseFolder(meta, folder)}/课程导入清单.md`,
         `本次范围：${targets.map(page => `P${page.page}`).join("、")}。`,
         ...targets.map(page => `- P${page.page} ${page.part}（章节分组：${chapterLabel(page.chapter)}）：${page.sourcePath || rawPath(meta, page, folder)}`),
         "核对这些文件的实际可用情况。本次只处理上述 P；章节归属以本次列出的分组为准，不采用原始字幕中的旧章号重新分组。",
-        preferences?.granularity === "video" ? "本次每个选中视频分别成篇，不按章节或 Lecture 合并；注明各篇实际覆盖范围。" :
+        preferences.granularity === "video" ? "本次每个选中视频分别成篇，不按章节或 Lecture 合并；注明各篇实际覆盖范围。" :
         "默认按确认的分组每组一篇。英文课程以 Lecture 为基本单元：Lecture 02.1、02.2、02.3、02.4 自动归入 2，同一 Lecture 的多个 Part 合成一篇，分段内容放在内部小标题中。普通数字章节保留两级：2.2 与 2.3 分别成篇，不合并为第 2 章。部分选中时注明覆盖范围。0 表示未分章，不自动合成一章。用户本次要求或个人偏好明确另定粒度时优先采用。");
     } else {
       lines.push("课程目录：[填写已导入课程的目录]", "本次范围：[填写完整章节编号（如 2.2）、P序号或文件名]");
     }
-    if (preferences) lines.push(studyPreferencesText(preferences, meta), "", "读取课程清单和本次所选字幕，保留教师例题、数据和推导；缺失板书、公式或素材列为待核实。保留已有人工批注。",
+    lines.push(studyPreferencesText(preferences, meta), "", "读取课程清单和本次所选字幕，保留教师例题、数据和推导；缺失板书、公式或素材列为待核实。保留已有人工批注。",
       "未安装 course-notes 时也按上述范围和偏好整理，不编造来源。网页 AI 需提供本次课程清单和字幕内容。");
-    else lines.push("请读取上述学习文档、课程清单与所选素材，按其中的个人偏好整理。",
-      "使用可访问笔记库的 Agent 时直接读取上述文件；使用网页聊天工具时，我会一并上传或粘贴文档与素材。");
     return lines.join("\n");
   }
   function buildIndex(meta, pages, base) {
     const lines = [marker, `# ${meta.title} · 课程导入清单`, "", "> 此文件由批量导入器更新。学习批注请写入最终章节笔记。", "",
       `课程：[${meta.platform === "youtube" ? meta.playlistId || meta.videoId : meta.bvid}](${meta.playlistId ? `https://www.youtube.com/playlist?list=${meta.playlistId}` : videoUrl(meta, pages[0])})`, `更新：${new Date().toISOString()}`, "",
       meta.platform === "youtube" ? "原始字幕以视频标题命名，YouTube 视频 ID 用于避免同名冲突。" : "原始字幕以分 P 名称命名，CID 用于区分同名视频；分章以本清单为准。", "",
-      "下一步：在导入器点击“开始整理笔记”，保存学习指南与模板，或下载 course-notes 技能。将本清单与指定范围的字幕交给你选择的 AI，默认按确认的分组每组整理一篇笔记。英文课程以 Lecture 为基本单元（Lecture 02.1–02.4 同属 2，合成一篇）；普通数字章节如 2.2、2.3 分别成篇。未分章项需确定整理范围。", ""];
+      "下一步：在工作台的“整理笔记”页面填写偏好，复制任务指令；将本清单与指定范围的字幕交给你选择的 AI，默认按确认的分组每组整理一篇笔记。英文课程以 Lecture 为基本单元（Lecture 02.1–02.4 同属 2，合成一篇）；普通数字章节如 2.2、2.3 分别成篇。未分章项需确定整理范围。", ""];
     const chapters = [...new Set(pages.map(p => p.chapter))].sort(compareChapters);
     for (const chapter of chapters) {
       lines.push(`## ${chapterLabel(chapter)}`, "", "| P | 标题 | 状态 | 原始素材 |", "|---|---|---|---|");

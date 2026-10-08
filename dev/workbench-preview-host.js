@@ -12,15 +12,15 @@ async function renderPreview() {
   const error = document.getElementById("host-error");
   error.hidden = true;
   try {
-    const response = await fetch("course.html", { cache: "no-store" });
+    const response = await fetch("../extension/course.html", { cache: "no-store" });
     if (!response.ok) throw new Error(`界面读取失败：HTTP ${response.status}`);
     const html = await response.text();
     if (run !== renderRun) return;
     const doc = new DOMParser().parseFromString(html, "text/html");
     const base = doc.createElement("base");
-    base.href = new URL("./", location.href).href;
+    base.href = new URL("../extension/", location.href).href;
     const mock = doc.createElement("script");
-    mock.src = "workbench-preview-mock.js";
+    mock.src = new URL("workbench-preview-mock.js", location.href).href;
     doc.head.prepend(base, mock);
     for (const asset of doc.querySelectorAll('link[rel="stylesheet"][href], script[src]')) {
       const attribute = asset.tagName === "LINK" ? "href" : "src";

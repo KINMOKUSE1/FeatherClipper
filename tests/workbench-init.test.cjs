@@ -67,3 +67,75 @@ test('ASR handoff uses the loaded preview without toggling it closed', async () 
   await unavailable.context.init();
   assert.equal(unavailable.calls.some(call => Array.isArray(call) && call[0] === 'asr'), false);
 });
+
+function notesHarness() {
+  const handlers = {}, calls = [], copied = [], feedback = [];
+  const elements = Object.fromEntries(['notes-nav', 'copy-study-prompt', 'folder'].map(id => [id, {
+    value: 'Clippings/Bilibili', disabled: false,
+    addEventListener: (event, handler) => { handlers[id] = handler; }
+  }]));
+  const context = vm.createContext({
+    meta: { bvid: 'BV1ps4y1d73V', title: '课程' },
+    pages: [{ cid: '456', page: 1, part: '课时', selected: true, chapter: '1' }],
+    $: id => elements[id],
+    window: { NotePreferences: {
+      load: async () => calls.push('load-preferences'),
+      save: async () => { calls.push('save-preferences'); return {}; }
+    } },
+    CourseCore: require('../extension/course-core.js'),
+    navigator: { clipboard: { writeText: async text => copied.push(text) } },
+    showSettingsFeedback: (id, text) => feedback.push(text),
+    showWorkbenchPage: id => calls.push(id),
+    status: text => feedback.push(text),
+    request: async action => {
+      calls.push(action);
+      if (context.offline) throw new Error('无法连接 Obsidian');
+      return { sources: { 456: context.path } };
+    },
+    send: async message => {
+      calls.push(message.type);
+      if (context.offline) throw new Error('无法连接 Obsidian');
+      return { connected: true };
+    },
+    offline: true, path: '原始字幕/最新文件.md'
+  });
+  vm.runInContext(source.slice(source.indexOf('$("notes-nav").addEventListener'), source.indexOf('for (const button of document.querySelectorAll')), context);
+  return { context, handlers, calls, copied, feedback, elements };
+}
+
+test('notes opens offline but copying fails without changing the clipboard', async () => {
+  const h = notesHarness();
+  await h.handlers['notes-nav']();
+  assert.deepEqual(h.calls, ['load-preferences', 'note-preferences-page']);
+  await h.handlers['copy-study-prompt']();
+  assert.deepEqual(h.copied, []);
+  assert.match(h.feedback.at(-1), /复制失败：无法连接 Obsidian/);
+  assert.equal(h.elements['copy-study-prompt'].disabled, false);
+});
+
+test('each task copy reads current paths without caching them on course pages', async () => {
+  const h = notesHarness();
+  h.context.offline = false;
+  await h.handlers['copy-study-prompt']();
+  assert.ok(h.copied[0].includes('原始字幕/最新文件.md'));
+  h.context.path = '原始字幕/改名后的文件.md';
+  await h.handlers['copy-study-prompt']();
+  assert.ok(h.copied[1].includes('原始字幕/改名后的文件.md'));
+  assert.equal(h.calls.filter(call => call === 'raw-paths').length, 2);
+  assert.equal('sourcePath' in h.context.pages[0], false);
+  h.context.offline = true;
+  await h.handlers['copy-study-prompt']();
+  assert.equal(h.copied.length, 2);
+});
+
+test('task copy without a loaded course also checks the saved connection', async () => {
+  const h = notesHarness();
+  h.context.meta = null;
+  h.context.pages = [];
+  await h.handlers['copy-study-prompt']();
+  assert.deepEqual(h.calls, ['settings-test']);
+  assert.equal(h.copied.length, 0);
+  h.context.offline = false;
+  await h.handlers['copy-study-prompt']();
+  assert.equal(h.copied.length, 1);
+});

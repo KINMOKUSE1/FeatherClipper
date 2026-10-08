@@ -5,11 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Course Cove · 新工作台开发预览</title>
     <!-- 预览工具条复用工作台的字体和颜色变量，避免另写一套配色。 -->
-    <link rel="stylesheet" href="course.css">
+    <link rel="stylesheet" href="../extension/course.css">
     <style>
       * { box-sizing: border-box; }
       body { margin: 0; height: 100vh; display: flex; flex-direction: column; font: 12px/1.5 var(--font-ui); color: var(--muted); }
-      .preview-tools { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--line); background-color: var(--soft); background-image: var(--paper-texture); background-repeat: repeat; background-blend-mode: multiply; }
+      /* 开发工具条的纸纹来自 https://onepagelove.com/style/pixel-art/page/4 */
+      .preview-tools { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--line); background-color: var(--soft); background-image: url("textures/one-page-love-noise.png"); background-repeat: repeat; background-blend-mode: multiply; }
       .preview-tools strong { color: var(--ink); font-weight: 600; }
       label { display: flex; align-items: center; gap: 6px; }
       select, button { font: inherit; font-weight: 400; min-height: 0; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; }
@@ -43,6 +44,6 @@
     </header>
     <p id="host-error" role="alert" hidden></p>
     <iframe id="workbench-preview" title="新工作台界面" sandbox="allow-scripts allow-same-origin allow-popups allow-downloads allow-forms"></iframe>
-    <script src="workbench-preview-host.js?v=2"></script>
+    <script src="workbench-preview-host.js?v=3"></script>
   </body>
 </html>

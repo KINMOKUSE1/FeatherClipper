@@ -114,7 +114,6 @@ async function loadVideo() {
     $("scope-all").textContent = `整门课程 · ${meta.pages.length} ${unit}`;
     $("workspace").hidden = false;
     $("workspace-label").textContent = series ? "选择分 P" : "进入工作台";
-    $("folder").textContent = base; $("folder").title = CourseCore.courseFolder(meta, base);
     $("video").hidden = false;
     setSourceOpen(false);
     status(settings.hasApiKey ? "" : "先配置 Obsidian 连接，即可导入。");

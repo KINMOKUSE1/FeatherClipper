@@ -34,7 +34,6 @@ function boot({ authenticated = true, existing = null, beforeSubtitle, missing =
     importScripts: (...files) => files.forEach(file => vm.runInContext(fs.readFileSync(path.join(extension, file), 'utf8'), context)),
     fetch: async (url, options = {}) => {
       fetched.push(url);
-      if (url.startsWith('chrome-extension://test/workflow/')) return { ok: true, text: async () => '# workflow' };
       if (url === 'http://127.0.0.1:27123/') return { ok: true, json: async () => ({ authenticated }) };
       if (url.startsWith('http://127.0.0.1:27123/vault/')) {
         if (options.method === 'PUT') { writes.push({ url, content: options.body }); vault.set(url, options.body); return { ok: true }; }
@@ -87,7 +86,7 @@ test('connection test requires authenticated response', async () => {
 
 test('imports reject a legacy non-local saved endpoint before sending credentials', async () => {
   const h = boot(); h.local.obsidianApiBaseUrl = 'https://api.bilibili.com';
-  const result = await h.message({ type: 'course-request', action: 'workflow', base: 'Study' });
+  const result = await h.message({ type: 'course-request', action: 'index', meta: quickMeta, pages: quickMeta.pages, base: 'Study' });
   assert.equal(result.ok, false); assert.equal(result.fatal, true); assert.equal(h.fetched.length, 0);
 });
 test('full worker reads metadata and previews preferred Chinese AI subtitles without writing', async () => {
@@ -154,14 +153,12 @@ test('an empty subtitle body falls through to the second endpoint', async () => 
   assert.equal(result.track.lan, 'en');
   assert.equal(result.body[0].content, 'Welcome to the operating systems course');
 });
-test('workflow install skips customized documents instead of replacing them', async () => {
-  const h = boot({ existing: '# user rules' });
-  const result = await h.message({ type: 'course-request', action: 'workflow', base: 'Clippings/Bilibili' });
-  assert.equal(result.results.length, 3); assert.ok(result.results.every(r => r.status === 'exists')); assert.equal(h.writes.length, 0);
-});
-test('workflow install writes three bundled markdown documents', async () => {
-  const h = boot(); await h.message({ type: 'course-request', action: 'workflow', base: 'Study' });
-  assert.equal(h.writes.length, 3); assert.ok(h.writes.every(w => w.content === '# workflow'));
+test('removed workflow install action cannot fetch or write documents', async () => {
+  const h = boot();
+  const result = await h.message({ type: 'course-request', action: 'workflow', meta: quickMeta, base: 'Study' });
+  assert.equal(result.ok, false);
+  assert.equal(h.fetched.length, 0);
+  assert.equal(h.writes.length, 0);
 });
 test('extension messages from an unrelated page are rejected', async () => {
   const h = boot(); const sender = { id: 'test', url: 'chrome-extension://test/course.html-other' };

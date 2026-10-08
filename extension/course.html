@@ -11,9 +11,9 @@
       <aside class="sidebar" aria-label="工作台导航">
         <div class="brand"><img src="icons/icon128.png" alt=""><strong>Course Cove</strong></div>
         <button id="catalog-nav" class="nav-button active" type="button"><span class="icon icon-chapters" aria-hidden="true"></span>课程素材</button>
-        <button id="workflow" class="nav-button" type="button"><span class="icon icon-captions" aria-hidden="true"></span>整理笔记</button>
+        <button id="notes-nav" class="nav-button" type="button"><span class="icon icon-captions" aria-hidden="true"></span>整理笔记</button>
         <button id="local-asr-settings" class="nav-button" type="button"><span class="icon icon-captions" aria-hidden="true"></span>本地转写</button>
-        <button id="settings" class="nav-button" type="button"><span class="icon icon-settings" aria-hidden="true"></span><span id="connection-label">连接设置</span></button>
+        <button id="settings" class="nav-button" type="button"><span class="icon icon-settings" aria-hidden="true"></span><span>连接配置</span></button>
       </aside>
 
       <main class="main-content">
@@ -35,7 +35,6 @@
           <div class="workspace">
             <section class="catalog" aria-label="课程目录">
               <span id="count" class="sr-only" aria-live="polite"></span>
-              <span id="number-label" hidden></span>
               <div class="toolbar">
                 <div class="chapter-filter">
                   <button id="filter" class="text-button" type="button" aria-label="按章节筛选：全部章节" aria-haspopup="listbox" aria-expanded="false" aria-controls="filter-options"><span id="filter-label">全部章节</span><span class="icon icon-chevron" aria-hidden="true"></span></button>
@@ -46,7 +45,6 @@
               <div class="table-wrap">
                 <table aria-label="课程课时列表">
                   <colgroup><col class="selection-column"><col class="number-column"><col><col class="chapter-column"><col class="status-column"></colgroup>
-                  <thead class="sr-only"><tr><th scope="col"><span class="sr-only">选择</span></th><th scope="col"><span class="sr-only">序号</span></th><th scope="col">课时名称</th><th scope="col">章节</th><th scope="col">状态</th></tr></thead>
                   <tbody id="parts"></tbody>
                 </table>
               </div>
@@ -55,11 +53,9 @@
             <aside id="preview-panel" class="preview" aria-label="字幕核对" hidden>
               <div class="preview-header">
                 <div class="preview-tools-row"><h2 id="preview-title">选择一节课程</h2><button id="preview-close" class="text-button" type="button" aria-label="关闭字幕面板，返回目录">×</button></div>
-                <!-- 保留 course.js 使用的状态节点，界面不展示。 -->
-                <div hidden><p id="preview-caption"></p><a id="source-link" target="_blank" rel="noopener" hidden></a></div>
               </div>
               <div id="preview-body" class="transcript"><p class="preview-message">点击课程标题查看字幕。</p></div>
-              <div id="asr-panel" class="asr-panel" hidden><p id="asr-panel-text" hidden></p><button id="asr-current" type="button">本地转写并导入</button></div>
+              <div id="asr-panel" class="asr-panel" hidden><button id="asr-current" type="button">本地转写并导入</button></div>
             </aside>
           </div>
 
@@ -68,9 +64,9 @@
           </section>
         </section>
         </div>
-        <section id="note-preferences-page" class="preferences-page" aria-labelledby="workflow-title" hidden>
+        <section id="note-preferences-page" class="preferences-page" aria-labelledby="notes-title" hidden>
           <div class="settings-scroll">
-          <header class="preferences-heading"><h1 id="workflow-title">整理笔记</h1><p class="section-description">为所选课时生成整理指令，交给你使用的 AI。</p></header>
+          <header class="preferences-heading"><h1 id="notes-title">整理笔记</h1><p class="section-description">为所选课时生成整理指令，交给你使用的 AI。</p></header>
           <form id="note-preferences-form" class="note-preferences">
             <h2 class="preference-group-title">整理方式</h2>
             <div class="preference-grid settings-group">
@@ -102,9 +98,9 @@
             </section>
           </form>
           </div>
-          <footer class="preferences-footer"><div class="settings-footer-info"><div class="settings-feedback" hidden><p id="workflow-status" role="status" aria-live="polite"></p><button class="settings-feedback-close" type="button" aria-label="关闭提示">×</button></div><a class="download-kit" href="learning-kit.zip" download="course-learning-kit.zip">获取 course-notes 技能包</a></div><div class="configuration-actions"><button id="save-note-preferences" class="text-button" type="submit" form="note-preferences-form"><span class="icon icon-save" aria-hidden="true"></span>保存偏好</button><button id="copy-workflow" type="button">复制任务指令</button></div></footer>
+          <footer class="preferences-footer"><div class="settings-footer-info"><div class="settings-feedback" hidden><p id="note-status" role="status" aria-live="polite"></p><button class="settings-feedback-close" type="button" aria-label="关闭提示">×</button></div><a class="download-kit" href="learning-kit.zip" download="course-learning-kit.zip">获取 course-notes 技能包</a></div><div class="configuration-actions"><button id="save-note-preferences" class="text-button" type="submit" form="note-preferences-form"><span class="icon icon-save" aria-hidden="true"></span>保存偏好</button><button id="copy-study-prompt" type="button">复制任务指令</button></div></footer>
         </section>
-        <section id="settings-dialog" class="configuration-page" aria-labelledby="settings-title" hidden>
+        <section id="connection-page" class="configuration-page" aria-labelledby="settings-title" hidden>
           <div class="settings-scroll">
           <header class="preferences-heading"><h1 id="settings-title">连接配置</h1><p class="section-description">连接 Obsidian，将课程素材保存到你的笔记库。</p></header>
           <div class="configuration-fields settings-group">
@@ -117,7 +113,7 @@
           <footer class="configuration-footer"><div class="settings-footer-info"><div class="settings-feedback" hidden><p id="settings-status" role="status" aria-live="polite"></p><button class="settings-feedback-close" type="button" aria-label="关闭提示">×</button></div></div><div class="configuration-actions"><button id="test-settings" class="text-button" type="button"><span class="icon icon-link" aria-hidden="true"></span>测试连接</button><button id="save-settings" type="button">保存配置</button></div></footer>
         </section>
 
-        <section id="asr-dialog" class="configuration-page" aria-labelledby="asr-title" hidden>
+        <section id="asr-page" class="configuration-page" aria-labelledby="asr-title" hidden>
           <div class="settings-scroll">
           <header class="preferences-heading"><h1 id="asr-title">本地转写</h1><p class="section-description">连接本地组件，为没有字幕的课程转写音频。</p></header>
           <div class="configuration-fields settings-group">

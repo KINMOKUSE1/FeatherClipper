@@ -123,20 +123,6 @@ async function handleCourseMessage(message) {
     const folder = String(settings.noteFolder || "Clippings/Bilibili").replace(/\{\{created\}\}/g, formatLocalDate()).replace(/\{\{upload_date\}\}/g, formatLocalDate(data.pubdate * 1000)).replace(/\{\{author\}\}/g, CourseCore.safeName(data.owner?.name)).replace(/\{\{bvid\}\}/g, bvid);
     return { meta: { bvid: data.bvid, aid: String(data.aid), title: data.title, author: data.owner?.name || "", pages: (data.pages || []).map(p => ({ cid: String(p.cid), page: p.page, part: p.part, duration: p.duration })) }, folder };
   }
-  if (action === "workflow") {
-    const results = [];
-    for (const name of ["WORKFLOW.md", "NOTE_TEMPLATE.md", "PROMPTS.md"]) {
-      const path = `${CourseCore.normalizeFolder(base)}/学习工作流/${name}`;
-      if (await courseLocalRequest(path) !== null) { results.push({ name, status: "exists" }); continue; }
-      const response = await fetch(chrome.runtime.getURL(`workflow/${name}`));
-      if (!response.ok) throw new Error(`工作流文档读取失败：${name}`);
-      const content = await response.text();
-      if (await courseLocalRequest(path) !== null) { results.push({ name, status: "exists" }); continue; }
-      await courseLocalRequest(path, "PUT", content);
-      results.push({ name, status: "saved" });
-    }
-    return { results };
-  }
   if (!meta || !(meta.platform === "youtube" ? /^[\w-]{11}$/.test(meta.videoId || "") && (meta.playlistId ? /^[\w-]{8,60}$/.test(meta.playlistId) && meta.bvid === `YTPL_${meta.playlistId}` : meta.bvid === `YT_${meta.videoId}`) : /^BV[0-9A-Za-z]+$/.test(meta.bvid || ""))) throw new Error("课程信息无效，请重新读取目录。");
   if (action === "raw-paths") return { sources: await courseRawSources(meta, message.pages || meta.pages, base) };
   if (["asr-start", "asr-poll", "asr-finish", "asr-cancel"].includes(action)) {

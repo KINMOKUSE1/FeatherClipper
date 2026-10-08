@@ -1,7 +1,6 @@
 /* User-editable note preferences. The fixed writing method stays in course-notes. */
 (() => {
   const form = document.getElementById("note-preferences-form");
-  if (!form) return;
   const storageKey = "boc-note-preferences:v1";
   const field = name => document.getElementById(`note-${name}`);
   const properties = field("properties");
@@ -90,31 +89,16 @@
     return preferences;
   }
 
-  function show(visible = true) {
-    document.getElementById("note-preferences-page").hidden = !visible;
-    document.getElementById("catalog-page").hidden = visible;
-    document.getElementById("source-open").hidden = visible;
-    const pageName = document.getElementById("workbench-page-name");
-    if (pageName) pageName.textContent = visible ? "整理笔记" : "课程素材";
-    for (const [id, active] of [["workflow", visible], ["catalog-nav", !visible]]) {
-      const button = document.getElementById(id);
-      button.classList.toggle("active", active);
-      if (active) button.setAttribute("aria-current", "page");
-      else button.removeAttribute("aria-current");
-    }
-    document.querySelector(".main-content").scrollIntoView({ block: "start" });
-  }
-
   form.addEventListener("submit", async event => {
     event.preventDefault();
     const button = document.getElementById("save-note-preferences");
     button.disabled = true;
     try {
       await save();
-      document.getElementById("workflow-status").textContent = "偏好已保存，之后的任务指令会使用这些设置。";
-    } catch (error) { document.getElementById("workflow-status").textContent = error.message; }
+      showSettingsFeedback("note-status", "偏好已保存，之后的任务指令会使用这些设置");
+    } catch (error) { showSettingsFeedback("note-status", error.message); }
     finally { button.disabled = false; }
   });
   document.getElementById("add-note-property").addEventListener("click", () => addProperty().focus());
-  window.NotePreferences = { load, save, show };
+  window.NotePreferences = { load, save };
 })();

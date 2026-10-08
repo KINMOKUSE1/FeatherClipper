@@ -62,7 +62,7 @@ test('popup keeps single-video saves separate from explicit whole-course handoff
         } };
         if (message.action === 'preview') {
           if (previewError) return { ok: false, error: 'Please log in' };
-          return { ok: true, body: missing ? [] : [{ from: 0, content: 'Transcript' }] };
+          return { ok: true, missing, body: missing ? [] : [{ from: 0, content: 'Transcript' }] };
         }
         throw new Error('Unexpected request');
       } }
@@ -72,7 +72,7 @@ test('popup keeps single-video saves separate from explicit whole-course handoff
   await new Promise(setImmediate);
   assert.equal(get('current-part').hidden, true);
   assert.equal(get('save-scope').hidden, true);
-  assert.equal(get('source-panel').open, false);
+  assert.equal(get('source-panel').hidden, true);
   assert.equal(get('preview-panel').open, false);
   await get('import').listeners.click();
   assert.equal(messages.filter(m => m.type === 'quick-import').length, 1);

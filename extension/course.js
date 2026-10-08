@@ -2,36 +2,18 @@ const $ = id => document.getElementById(id);
 const statusLabels = { pending: "待导入", running: "处理中", saved: "已导入", exists: "已存在", missing: "无字幕", failed: "失败" };
 let meta = null, pages = [], running = false, loading = false, stopping = false;
 let previewId = "", previewRun = 0, previewLoading = false, savedSettings = null;
-let workflowFile = "WORKFLOW.md", workflowRun = 0;
 let chapterFilter = "all";
 let asrConnected = false, activeAsrJob = "", activeAsrPage = null, pendingAsrPages = [];
-const workflowDocuments = new Map();
 let currentPage = Number(new URLSearchParams(location.search).get("p")) || 1;
 
-function status(text, error = false) {
-  $("status").textContent = text;
-  $("status").classList.toggle("error", error);
-}
-function reportImportResult(label, counts, remaining, error = null, detail = "") {
-  const summary = [["新导入", counts.saved], ["已存在", counts.exists], ["无字幕", counts.missing], ["失败", counts.failed], ["未处理", remaining]]
-    .filter(([, count]) => count > 0).map(([name, count]) => `${name} ${count}`);
-  const text = [[label, ...summary].join(" · "), error?.message, detail].filter(Boolean).join("\n");
-  status(text, Boolean(error));
-  return text;
-}
-function setImportProgress(done, total) {
-  $("progress").max = total;
-  $("progress").value = done;
-  $("progress").hidden = false;
-}
-function renderImportAction(selected) {
-  $("start").textContent = selected ? `导入 ${selected} 个视频` : "导入 Obsidian";
+function partTitle(page) {
+  const match = page.part.match(/^(\d+(?:\.\d+)*)\.\s+(.+)$/);
+  return match && match[1] === String(page.chapter) ? match[2] : page.part;
 }
 function stopImport() {
   if (!running || stopping) return;
   stopping = true;
   syncControls();
-  status(activeAsrJob ? "正在停止本地转写…" : "正在停止，等待当前 P 保存完毕…");
 }
 function previewMessage(text, error = false) {
   const message = document.createElement("p");
@@ -51,12 +33,8 @@ async function send(message) {
 function request(action, extra = {}) {
   return send({ type: "course-request", action, meta, base: $("folder").value, ...extra });
 }
-function applyRawSources(sources) {
-  for (const page of pages) page.sourcePath = sources?.[page.cid] || "";
-}
 async function updateIndex() {
-  const result = await request("index", { pages });
-  applyRawSources(result.sources);
+  await request("index", { pages });
   await persist();
 }
 function snapshotKey() {
@@ -68,16 +46,16 @@ async function persist() {
 function syncControls() {
   const locked = running || loading;
   if (locked) closeFilter();
-  for (const id of ["load", "url", "folder", "settings", "workflow", "filter", "select", "clear", "current"]) $(id).disabled = locked;
+  for (const id of ["load", "url", "folder", "settings", "notes-nav", "filter", "select", "clear", "current"]) $(id).disabled = locked;
   $("start").disabled = locked || previewLoading || !meta || !pages.some(p => p.selected);
   $("retry").disabled = locked || previewLoading || !pages.some(p => p.selected && ["failed", "missing"].includes(p.status));
-  const stop = $("stop");
-  if (stop) stop.disabled = !running || stopping;
   $("current").disabled = locked || !meta;
   $("asr-current").disabled = locked || previewLoading || !meta || !activeAsrPage;
   $("asr-selected").disabled = locked || previewLoading;
-  const recognizeChapters = $("recognize-chapters");
-  if (recognizeChapters) recognizeChapters.disabled = locked || !meta;
+  if (running) $("start").disabled = stopping;
+  for (const id of ["source-open", "empty-load", "folder-edit", "local-asr-settings"]) $(id).disabled = locked;
+  $("retry").hidden = !pages.some(page => page.selected && ["failed", "missing"].includes(page.status));
+  renderImportAction();
 }
 function visiblePages() {
   return pages.filter(p => chapterFilter === "all" || p.chapter === chapterFilter);
@@ -87,46 +65,42 @@ function render() {
   if (!meta) return;
   $("title").textContent = meta.title;
   $("course-meta").textContent = meta.platform === "youtube" ? `${meta.author || "视频作者"} · ${pages.length} 个视频` : `${meta.author || "课程作者"} · ${pages.length} 个分 P`;
-  $("number-label").textContent = meta.platform === "youtube" ? "视频" : "P";
   const selected = pages.filter(p => p.selected).length;
   const missingSelected = pages.filter(p => p.selected && p.status === "missing").length;
   $("asr-selected").hidden = missingSelected === 0;
-  $("asr-selected").textContent = `本地转写并导入 ${missingSelected} 个无字幕视频`;
+  $("asr-selected-label").textContent = `本地转写 · ${missingSelected}`;
+  $("asr-selected").setAttribute("aria-label", `本地转写并导入 ${missingSelected} 个无字幕视频`);
   $("count").textContent = `已选择 ${selected} / ${pages.length}`;
-  renderImportAction(selected);
-  $("import-summary").textContent = selected ? `已选 ${selected} 个视频，已有文件会自动跳过。` : "请先勾选要导入的视频。";
-  const importHint = document.querySelector(".import-hint");
-  if (importHint) importHint.textContent = meta.platform === "youtube"
-    ? "导入时会自动切到视频标签页并逐个读取，请保持视频页可见、工作台打开。需要停止或查看结果时回到工作台。"
-    : "导入期间请保持此页打开。停止后可继续，已有文件会自动跳过。";
+  $("import-summary").textContent = selected ? `已选择 ${selected} 个课时` : "请先勾选要导入的课时";
   const group = chapterFilter;
-  $("current").textContent = meta.platform === "youtube" ? "仅选当前视频" : `仅选当前 P${currentPage}`;
+  $("current").textContent = "仅选当前";
   $("current").title = `只勾选课程链接指向的第 ${currentPage} 个视频，取消其他视频的勾选`;
-  $("select").textContent = group === "all" ? "全选视频" : group === "0" ? "全选未分章" : "全选本章";
-  $("clear").textContent = group === "all" ? "取消全选" : group === "0" ? "取消该组选择" : "取消本章选择";
+  $("select").textContent = group === "all" ? "全选" : group === "0" ? "全选未分章" : "全选本章";
+  $("clear").textContent = group === "all" ? "清空" : group === "0" ? "取消该组选择" : "取消本章选择";
   $("select").title = group === "all" ? "勾选课程中的所有视频" : "仅勾选当前分组，其他分组将取消选择";
   try { $("destination").textContent = CourseCore.courseFolder(meta, $("folder").value); }
   catch (error) { $("destination").textContent = error.message; }
+  $("destination").title = $("destination").textContent;
   $("parts").replaceChildren();
   for (const page of visiblePages()) {
     const row = document.createElement("tr");
-    row.classList.toggle("is-previewing", page.cid === previewId);
+    const isPreviewing = previewOpen && page.cid === previewId;
+    row.classList.toggle("is-previewing", isPreviewing);
+    row.classList.toggle("is-selected", page.selected);
     const cells = Array.from({ length: 5 }, () => row.appendChild(document.createElement("td")));
     const check = document.createElement("input");
     check.type = "checkbox"; check.checked = page.selected; check.disabled = running || loading;
     check.setAttribute("aria-label", meta.platform === "youtube" ? "选择 YouTube 视频" : `选择 P${page.page}`);
     check.addEventListener("change", () => { page.selected = check.checked; render(); }); cells[0].append(check);
     cells[1].textContent = String(page.page).padStart(2, "0"); cells[1].className = "part-number";
+    cells[1].setAttribute("aria-label", `序号 ${page.page}`);
     const button = document.createElement("button");
-    button.className = "part-title"; button.textContent = page.part; button.disabled = running || loading;
+    button.className = "part-title"; button.textContent = partTitle(page); button.disabled = running || loading;
     button.setAttribute("aria-label", `预览 P${page.page} ${page.part}`);
+    button.title = isPreviewing ? "点击收起字幕" : "点击核对字幕";
+    button.setAttribute("aria-controls", "preview-panel");
+    button.setAttribute("aria-expanded", String(isPreviewing));
     button.addEventListener("click", () => preview(page)); cells[2].append(button);
-    const previewButton = document.createElement("button");
-    previewButton.className = "secondary preview-trigger";
-    previewButton.textContent = "预览字幕";
-    previewButton.disabled = running || loading;
-    previewButton.setAttribute("aria-label", `预览 P${page.page} 字幕`);
-    previewButton.addEventListener("click", () => preview(page)); cells[2].append(previewButton);
     const chapter = document.createElement("input");
     chapter.type = "text"; chapter.className = "chapter-number"; chapter.inputMode = "decimal"; chapter.value = page.chapter;
     chapter.title = "可填写 2 或 2.3；0 表示未分章";
@@ -137,10 +111,12 @@ function render() {
       page.chapter = value;
       renderFilters(); render();
       try { await persist(); } catch (error) { status(error.message, true); }
-    }); cells[3].append(chapter);
+    });
+    const chapterLabel = document.createElement("label");
+    chapterLabel.className = "chapter-edit"; chapterLabel.append(chapter); cells[3].append(chapterLabel);
     const badge = document.createElement("span"); badge.className = `badge ${page.status}`;
     badge.textContent = statusLabels[page.status] || "待导入"; cells[4].append(badge);
-    if (page.error) { const reason = document.createElement("small"); reason.textContent = page.error; cells[4].append(reason); }
+    if (page.error) badge.title = page.error;
     $("parts").append(row);
   }
 }
@@ -179,14 +155,13 @@ function renderFilters() {
 }
 async function loadCourse() {
   if (running || loading) return;
+  resetImportButton(); setPreviewOpen(false);
   const source = $("url").value.trim();
   const parsed = CourseCore.parseSource(source);
   if (!parsed) { status("请输入 B站或 YouTube 视频链接。", true); return; }
   currentPage = parsed.page;
   loading = true; previewLoading = false; previewRun++; previewId = "";
   activeAsrPage = null; $("asr-panel").hidden = true;
-  previewMessage("点击左侧的“预览字幕”查看内容。"); $("preview-caption").textContent = "预览前 100 段，导入时保存全文与段落起始时间。";
-  $("preview-title").textContent = "字幕预览"; $("source-link").hidden = true;
   render(); syncControls(); status("正在读取课程目录…");
   try {
     const result = await request("meta", parsed.platform === "youtube" ? { youtubeId: parsed.id, playlistId: parsed.playlistId } : { bvid: parsed.id }); meta = result.meta;
@@ -198,29 +173,35 @@ async function loadCourse() {
     pages = meta.pages.map(page => {
       const old = cached?.pages?.find(p => p.cid === page.cid);
       const emptySubtitle = old?.status === "failed" && old?.error === "字幕文件为空。";
-      return { ...page, chapter: old?.chapter ?? CourseCore.chapterOf(page.part), selected: false, status: emptySubtitle ? "missing" : old?.status === "running" ? "pending" : old?.status || "pending", error: emptySubtitle ? "" : old?.error || "", sourcePath: old?.sourcePath || "" };
+      return { ...page, chapter: old?.chapter ?? CourseCore.chapterOf(page.part), selected: page.page === currentPage, status: emptySubtitle ? "missing" : old?.status === "running" ? "pending" : old?.status || "pending", error: emptySubtitle ? "" : old?.error || "" };
     });
     renderFilters(); $("course").hidden = false; $("empty").hidden = true;
     status("");
   } catch (error) {
     meta = null; pages = []; $("course").hidden = true; $("empty").hidden = false; status(error.message, true);
-  } finally { loading = false; render(); syncControls(); }
+  } finally { loading = false; render(); }
+  if (meta) {
+    if ($("source-dialog").open) $("source-dialog").close();
+    const page = pages.find(item => item.page === currentPage);
+    if (page) await preview(page);
+  }
 }
 async function preview(page) {
+  if (previewOpen && page.cid === previewId) { closePreview(); return; }
+  setPreviewOpen(true);
+  if (window.matchMedia("(max-width: 1100px)").matches) $("preview-close").focus();
   const run = ++previewRun;
   previewId = page.cid; previewLoading = true; render();
   activeAsrPage = null; $("asr-panel").hidden = true;
-  $("preview-title").textContent = meta.platform === "youtube" ? page.part : `P${page.page} · ${page.part}`;
-  $("preview-caption").textContent = "正在读取这一节的字幕。"; previewMessage("正在获取字幕，请稍候…");
-  $("source-link").href = CourseCore.videoUrl(meta, page); $("source-link").hidden = false;
+  $("preview-title").textContent = partTitle(page);
+  previewMessage("正在获取字幕，请稍候…");
   try {
     const result = await request("preview", { page });
     if (run !== previewRun) return;
     if (result.missing) {
       if (!["saved", "exists"].includes(page.status)) page.status = "missing";
       activeAsrPage = page;
-      $("preview-caption").textContent = "未找到字幕";
-      previewMessage("没有可用字幕。可以尝试用本地组件转写音频。");
+      previewMessage("没有可用字幕。可以尝试用本地组件转写音频。本地转写是可选扩展，需单独安装并连接。");
       $("asr-panel").hidden = false;
       try { await refreshAsrStatus(); } catch { /* Setup button remains available. */ }
       render(); return;
@@ -233,44 +214,38 @@ async function preview(page) {
     }
     $("preview-body").replaceChildren();
     const groups = CourseCore.groupSubtitles(result.body, meta.platform);
-    $("preview-caption").textContent = `${result.track.lanDoc || result.track.lan} · ${groups.length} 段字幕 · 预览前 100 段`;
     for (const item of groups.slice(0, 100)) {
       const paragraph = document.createElement("p"), time = document.createElement("a");
       time.textContent = new Date(Math.floor(item.from) * 1000).toISOString().slice(11, 19);
       time.href = CourseCore.timestampUrl(meta, page, item.from); time.target = "_blank"; time.rel = "noopener";
       paragraph.append(time, document.createTextNode(item.content)); $("preview-body").append(paragraph);
     }
-  } catch (error) { if (run === previewRun) { $("preview-caption").textContent = "字幕预览失败"; previewMessage(error.message, true); } }
+  } catch (error) { if (run === previewRun) previewMessage(error.message, true); }
   finally { if (run === previewRun) { previewLoading = false; syncControls(); } }
 }
 async function refreshAsrStatus() {
   const result = await send({ type: "asr-status" });
   asrConnected = result.connected;
   $("asr-current").textContent = asrConnected ? "本地转写并导入此 P" : result.paired ? "检查本地转写连接" : "安装／连接本地转写";
-  $("asr-panel-text").textContent = asrConnected
-    ? "没有可用字幕，点击后由本机转写这段视频。"
-    : result.paired ? "连接码已保存；检查本地组件状态即可继续。" : "本地转写是可选扩展，需单独安装并连接。";
   return result;
 }
 async function openAsrSetup(result = null) {
   result ||= await refreshAsrStatus();
   $("asr-pair-fields").hidden = !result.needsPairing;
-  $("asr-settings-status").textContent = result.error || (result.connected
-    ? result.gpuNotice || (result.device === "cuda" ? "本地转写已连接，将使用 GPU。" : result.gpuEnabled ? "本地转写已连接，首次转写时检测 GPU。" : "本地转写已连接，将使用 CPU。")
-    : result.needsPairing ? "首次使用，请填写连接码。" : "请先启动本地转写服务，再点击“重新检测”。");
-  if (window.WorkbenchPages) window.WorkbenchPages.show("asr-dialog");
-  else if (!$("asr-dialog").open) $("asr-dialog").showModal();
+  $("asr-connect").hidden = !result.needsPairing;
+  $("asr-state").textContent = result.connected ? "已连接" : "未连接";
+  $("asr-state").classList.toggle("is-ready", result.connected);
+  showSettingsFeedback("asr-settings-status", result.error || (result.connected
+    ? result.gpuNotice || (result.device === "cuda" ? "本地转写已连接，将使用 GPU" : result.gpuEnabled ? "本地转写已连接，首次转写时检测 GPU" : "本地转写已连接，将使用 CPU")
+    : result.needsPairing ? "" : "请先启动本地转写服务，再点击“重新检测”"));
+  showWorkbenchPage("asr-page");
   return result;
 }
 async function continuePendingAsr() {
   const selected = pendingAsrPages;
   pendingAsrPages = [];
-  if (window.WorkbenchPages) {
-    if (selected.length) window.WorkbenchPages.show("catalog-page");
-    else await openAsrSetup();
-  }
-  else if ($("asr-dialog").open) $("asr-dialog").close();
-  if (selected.length) await runAsrQueue(selected);
+  if (selected.length) { showWorkbenchPage("catalog-page"); await runAsrQueue(selected); }
+  else await openAsrSetup();
 }
 async function runAsrQueue(selected) {
   if (running || loading || previewLoading || !meta || !selected.length) return;
@@ -298,13 +273,12 @@ async function runAsrQueue(selected) {
       for (const page of selected) {
         if (stopping) break;
         page.status = "running"; page.error = ""; render();
-        status(`正在准备本地转写 ${done + 1}/${selected.length}：P${page.page} ${page.part}`);
         try {
           const started = await request("asr-start", { page });
-          if (started.status === "exists") { page.status = "exists"; page.sourcePath = started.path; }
+          if (started.status === "exists") { page.status = "exists"; }
           else if (started.status === "subtitle-available") {
             const result = await request("import", { page });
-            page.status = result.status; page.sourcePath = result.path || "";
+            page.status = result.status;
           }
           else {
             activeAsrJob = started.id;
@@ -314,10 +288,9 @@ async function runAsrQueue(selected) {
               if (job.status === "done") {
                 runtimeNote = job.gpu_notice || (job.device === "cuda" ? "本次使用 GPU 转写。" : "本次使用 CPU 转写。");
                 const result = await request("asr-finish", { page, jobId: activeAsrJob });
-                page.status = result.status; page.sourcePath = result.path || ""; break;
+                page.status = result.status; break;
               }
               if (job.status === "failed" || job.status === "canceled") throw new Error(job.detail || "转写已停止。");
-              status(`本地转写 ${done + 1}/${selected.length}：P${page.page} · ${job.detail || "处理中"}${job.gpu_notice ? `\n${job.gpu_notice}` : ""}`);
               await new Promise(resolve => setTimeout(resolve, 2000));
             }
             if (stopping) { await request("asr-cancel", { page, jobId: activeAsrJob }).catch(() => {}); page.status = "missing"; }
@@ -355,8 +328,7 @@ async function runQueue(retryOnly) {
       for (const page of selected) {
         if (stopping) break;
         page.status = "running"; page.error = ""; render();
-        status(`正在处理 ${done + 1}/${selected.length}：P${page.page} ${page.part}`);
-        try { const result = await request("import", { page, activateVideo: meta.platform === "youtube" }); page.status = result.status; page.sourcePath = result.path || ""; }
+        try { const result = await request("import", { page, activateVideo: meta.platform === "youtube" }); page.status = result.status; }
         catch (error) { page.status = "failed"; page.error = error.message; if (error.fatal) fatalError = error; }
         counts[page.status] = (counts[page.status] || 0) + 1; done++; setImportProgress(done, selected.length);
         await persist(); render(); await updateIndex();
@@ -370,64 +342,35 @@ async function runQueue(retryOnly) {
 }
 async function refreshSettings() {
   savedSettings = (await send({ type: "settings-get" })).settings;
-  $("connection-label").textContent = savedSettings.hasApiKey ? "连接已配置" : "配置 Obsidian";
+  $("connection-state").textContent = savedSettings.hasApiKey ? "已配置" : "未配置";
+  $("connection-state").classList.toggle("is-ready", savedSettings.hasApiKey);
   if (!meta) $("folder").value = savedSettings.noteFolder;
 }
-$("recognize-chapters")?.addEventListener("click", async () => {
-  if (running || loading || !meta) return;
-  for (const page of pages) page.chapter = CourseCore.chapterOf(page.part);
-  renderFilters(); render();
-  try { await persist(); status("已按标题重新识别章节。导入时更新课程清单，已有字幕文件保持不变。"); }
-  catch (error) { status(error.message, true); }
-});
 async function openSettings() {
   try {
     await refreshSettings();
     $("api-url").value = savedSettings.obsidianApiBaseUrl; $("api-key").value = "";
     $("api-key").placeholder = savedSettings.hasApiKey ? "已保存，留空保持原 Key" : "从 Local REST API 设置复制";
-    $("default-folder").value = savedSettings.noteFolder; $("settings-status").textContent = "";
-    if (window.WorkbenchPages) window.WorkbenchPages.show("settings-dialog");
-    else $("settings-dialog").showModal();
+    $("default-folder").value = savedSettings.noteFolder; showSettingsFeedback("settings-status", "");
+    showWorkbenchPage("connection-page");
   } catch (error) { status(error.message, true); }
 }
 async function updateSettings(testOnly) {
   const ids = ["save-settings", "test-settings", "api-url", "api-key", "default-folder"];
   ids.forEach(id => $(id).disabled = true);
-  $("settings-status").textContent = testOnly ? "正在验证连接…" : "正在保存…";
+  showSettingsFeedback("settings-status", testOnly ? "正在验证连接…" : "正在保存…");
   try {
     const result = await send({ type: testOnly ? "settings-test" : "settings-save", settings: { obsidianApiBaseUrl: $("api-url").value, obsidianApiKey: $("api-key").value, noteFolder: $("default-folder").value } });
-    if (testOnly) $("settings-status").textContent = window.WorkbenchPages ? "连接成功。" : "连接成功，身份验证已通过。尚未保存的设置请点击保存。";
+    if (testOnly) showSettingsFeedback("settings-status", "连接成功");
     else {
       savedSettings = result.settings; $("api-key").value = "";
       $("api-key").placeholder = savedSettings.hasApiKey ? "已保存，留空保持原 Key" : "从 Local REST API 设置复制";
-      await refreshSettings(); $("settings-status").textContent = window.WorkbenchPages ? "配置已保存。" : "设置已保存，可以关闭此面板继续导入。";
+      await refreshSettings(); showSettingsFeedback("settings-status", "配置已保存");
     }
-  } catch (error) { $("settings-status").textContent = error.message; }
+  } catch (error) { showSettingsFeedback("settings-status", error.message); }
   finally { ids.forEach(id => $(id).disabled = false); }
 }
-async function readWorkflowDocument(file) {
-  if (workflowDocuments.has(file)) return workflowDocuments.get(file);
-  const response = await fetch(`workflow/${file}`);
-  if (!response.ok) throw new Error("文档读取失败，请重新打开页面。");
-  const text = await response.text();
-  workflowDocuments.set(file, text);
-  return text;
-}
-async function showWorkflow(file = workflowFile) {
-  const run = ++workflowRun;
-  workflowFile = file;
-  for (const tab of document.querySelectorAll("[data-workflow-file]")) {
-    const active = tab.dataset.workflowFile === file;
-    tab.setAttribute("aria-selected", String(active)); tab.tabIndex = active ? 0 : -1;
-    if (active) $("workflow-content").setAttribute("aria-labelledby", tab.id);
-  }
-  try {
-    const text = workflowDocuments.get(file) ?? await readWorkflowDocument(file);
-    if (run !== workflowRun) return;
-    $("workflow-content").textContent = text; $("workflow-content").scrollTop = 0;
-  } catch (error) { if (run === workflowRun) $("workflow-content").textContent = error.message; }
-}
-$("load").addEventListener("click", loadCourse);
+$("load").addEventListener("click", () => loadCourse().catch(error => status(error.message, true)));
 $("url").addEventListener("keydown", event => { if (event.key === "Enter") loadCourse(); });
 $("settings").addEventListener("click", openSettings);
 $("save-settings").addEventListener("click", () => updateSettings(false));
@@ -453,11 +396,10 @@ document.addEventListener("pointerdown", event => {
 document.querySelector(".chapter-filter").addEventListener("focusout", event => {
   if (!event.currentTarget.contains(event.relatedTarget)) closeFilter();
 });
-$("folder").addEventListener("change", () => { pages.forEach(p => { p.status = "pending"; p.error = ""; p.sourcePath = ""; }); render(); });
+$("folder").addEventListener("change", () => { pages.forEach(p => { p.status = "pending"; p.error = ""; }); render(); });
 $("select").addEventListener("click", () => { const visible = new Set(visiblePages()); pages.forEach(p => p.selected = visible.has(p)); render(); });
 $("clear").addEventListener("click", () => { visiblePages().forEach(p => p.selected = false); render(); });
 $("current").addEventListener("click", () => { pages.forEach(p => p.selected = p.page === currentPage); render(); });
-$("start").addEventListener("click", () => runQueue(false).catch(error => status(error.message, true)));
 $("asr-current").addEventListener("click", () => {
   if (activeAsrPage) runAsrQueue([activeAsrPage]).catch(error => status(error.message, true));
 });
@@ -469,57 +411,44 @@ $("asr-connect").addEventListener("click", async () => {
     $("asr-token").value = "";
     if ((await refreshAsrStatus()).connected) await continuePendingAsr();
     else await openAsrSetup();
-  } catch (error) { $("asr-settings-status").textContent = error.message; }
+  } catch (error) { showSettingsFeedback("asr-settings-status", error.message); }
   finally { $("asr-connect").disabled = false; }
 });
 $("asr-refresh").addEventListener("click", async () => {
   $("asr-refresh").disabled = true;
   try {
     if ((await openAsrSetup()).connected) await continuePendingAsr();
-  } catch (error) { $("asr-settings-status").textContent = error.message; }
+  } catch (error) { showSettingsFeedback("asr-settings-status", error.message); }
   finally { $("asr-refresh").disabled = false; }
 });
 $("retry").addEventListener("click", () => runQueue(true).catch(error => status(error.message, true)));
-$("stop")?.addEventListener("click", stopImport);
-$("workflow").addEventListener("click", async () => {
-  $("workflow-status").textContent = "";
+$("notes-nav").addEventListener("click", async () => {
+  showSettingsFeedback("note-status", "");
   try {
-    if (window.NotePreferences) await window.NotePreferences.load();
-    await Promise.all(workflowTabs.map(tab => readWorkflowDocument(tab.dataset.workflowFile)));
-    if (meta) applyRawSources((await request("raw-paths", { pages })).sources);
-    if ($("workflow-content")) await showWorkflow();
-    if (window.NotePreferences) window.NotePreferences.show();
-    else $("workflow-dialog").showModal();
+    await window.NotePreferences.load();
+    showWorkbenchPage("note-preferences-page");
   } catch (error) { status(error.message, true); }
 });
-const workflowTabs = [...document.querySelectorAll("[data-workflow-file]")];
-for (const [index, tab] of workflowTabs.entries()) {
-  tab.addEventListener("click", () => showWorkflow(tab.dataset.workflowFile));
-  tab.addEventListener("keydown", event => {
-    const target = { ArrowRight: (index + 1) % workflowTabs.length, ArrowLeft: (index + workflowTabs.length - 1) % workflowTabs.length, Home: 0, End: workflowTabs.length - 1 }[event.key];
-    if (target === undefined) return;
-    event.preventDefault(); workflowTabs[target].focus(); showWorkflow(workflowTabs[target].dataset.workflowFile);
-  });
-}
-$("copy-workflow").addEventListener("click", async () => {
+$("copy-study-prompt").addEventListener("click", async () => {
   if (meta && !pages.some(page => page.selected)) {
-    $("workflow-status").textContent = window.NotePreferences ? "请先点击“课程素材”，勾选要整理的课时，再回来复制任务指令。" : "请先关闭此窗口，在课程列表勾选要整理的分 P，再复制任务指令。";
+    showSettingsFeedback("note-status", "请先点击“课程素材”，勾选要整理的课时，再回来复制任务指令");
     return;
   }
+  $("copy-study-prompt").disabled = true;
   try {
-    const preferences = window.NotePreferences ? await window.NotePreferences.save() : null;
-    const prompt = CourseCore.buildStudyPrompt(meta, pages, $("folder").value, preferences);
+    let promptPages = pages;
+    if (meta) {
+      const { sources } = await request("raw-paths", { pages });
+      promptPages = pages.map(page => ({ ...page, sourcePath: sources[page.cid] || "" }));
+    } else {
+      await send({ type: "settings-test" });
+    }
+    const preferences = await window.NotePreferences.save();
+    const prompt = CourseCore.buildStudyPrompt(meta, promptPages, $("folder").value, preferences);
     await navigator.clipboard.writeText(prompt);
-    $("workflow-status").textContent = preferences ? "偏好已保存，任务指令已复制。网页 AI 还需提供课程清单和所选字幕。" : "任务指令已复制。本地 AI 可按路径读取；网页 AI 还需上传学习规则、笔记模板、课程清单和对应字幕。";
-  } catch (error) { $("workflow-status").textContent = `复制失败：${error.message}${window.NotePreferences ? "" : "。可展开“查看学习文档”，参考“指令示例”手动填写。"}`; }
-});
-$("install-workflow")?.addEventListener("click", async () => {
-  $("install-workflow").disabled = true;
-  try {
-    const { results } = await request("workflow");
-    $("workflow-status").textContent = `已写入 ${results.filter(r => r.status === "saved").length} 份，已存在跳过 ${results.filter(r => r.status === "exists").length} 份。位置：${$("folder").value}/学习工作流/`;
-  } catch (error) { $("workflow-status").textContent = error.message; }
-  finally { $("install-workflow").disabled = false; }
+    showSettingsFeedback("note-status", "偏好已保存，任务指令已复制。网页 AI 还需提供课程清单和所选字幕");
+  } catch (error) { showSettingsFeedback("note-status", `复制失败：${error.message}`); }
+  finally { $("copy-study-prompt").disabled = false; }
 });
 for (const button of document.querySelectorAll("[data-close]")) button.addEventListener("click", () => $(button.dataset.close).close());
 window.addEventListener("beforeunload", event => { if (running) { event.preventDefault(); event.returnValue = ""; } });
@@ -538,4 +467,4 @@ async function init() {
     }
   }
 }
-// workbench.js starts initialization after installing the page controllers.
+// workbench.js starts initialization after binding navigation and animations.

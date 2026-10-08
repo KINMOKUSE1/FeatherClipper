@@ -8,8 +8,6 @@ ROOT = Path(__file__).resolve().parents[1]
 def build():
     files = [(p, p.relative_to(ROOT)) for p in sorted((ROOT / "learning-kit").rglob("*"))
              if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"]
-    files += [(p, Path("learning-kit/documents") / p.name)
-              for p in sorted((ROOT / "extension/workflow").glob("*.md"))]
     files.append((ROOT / "LICENSE", Path("learning-kit/LICENSE")))
     target = ROOT / "extension/learning-kit.zip"
     with ZipFile(target, "w", compression=ZIP_DEFLATED) as bundle:
