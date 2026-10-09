@@ -117,11 +117,36 @@ test('automatic Bilibili retrieval imports the only available language', async (
   assert.match(h.writes.find(write => decodeURIComponent(write.url).endsWith('1.1 Intro [CID-2].md')).content, /subtitle_lang: "日本語"/);
 });
 
-test('removed track-list action is not exposed to the popup', async () => {
+test('popup lists Bilibili tracks without fetching bodies or exposing subtitle URLs', async () => {
   const h = boot();
   const result = await h.message({ type: 'course-request', action: 'tracks', meta: quickMeta, page: quickMeta.pages[0] }, popupSender);
+  assert.equal(result.ok, true);
+  assert.equal(result.tracks.length, 2);
+  assert.equal(result.tracks[0].id, '2');
+  assert.ok(result.tracks.every(track => !('subtitleUrl' in track)));
+  assert.ok(h.fetched.every(url => url.includes('/x/player/')));
+  assert.equal(h.writes.length, 0);
+});
+
+test('explicit Bilibili selection overrides Chinese priority for preview and quick import', async () => {
+  const h = boot({ beforeSubtitle: url => [{ from: 1, to: 3, content: url.endsWith('/en') ? 'Selected English' : '默认中文' }] });
+  const preview = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0], trackId: '1' }, popupSender);
+  assert.equal(preview.track.lan, 'en');
+  assert.equal(preview.body[0].content, 'Selected English');
+  assert.equal(h.fetched.some(url => url.endsWith('/zh')), false);
+  const imported = await h.message({ ...quickMessage, trackId: '1' }, popupSender);
+  assert.equal(imported.status, 'saved');
+  const raw = h.writes.find(write => decodeURIComponent(write.url).endsWith('1.1 Intro [CID-2].md')).content;
+  assert.match(raw, /subtitle_lang: "English"/);
+  assert.match(raw, /Selected English/);
+});
+
+test('an unavailable selected Bilibili track cannot silently fall back to another language', async () => {
+  const h = boot();
+  const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0], trackId: 'not-present' }, popupSender);
   assert.equal(result.ok, false);
-  assert.equal(h.fetched.length, 0);
+  assert.match(result.error, /所选字幕暂不可用/);
+  assert.ok(h.fetched.every(url => url.includes('/x/player/')));
 });
 test('an empty first subtitle list falls through to the second endpoint', async () => {
   const h = boot({ subtitleLists: { wbi: [], v2: [{ id: 1, lan: 'en', lan_doc: 'English', subtitle_url: '//aisubtitle.hdslb.com/en' }] } });

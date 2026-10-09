@@ -56,6 +56,7 @@ test('popup keeps single-video saves separate from explicit whole-course handoff
         if (message.type === 'settings-get') return { ok: true, settings: { hasApiKey: true } };
         if (message.type === 'quick-status') return { ok: true, key: 'job' };
         if (message.type === 'quick-import') return { ok: true, status: 'saved' };
+        if (message.action === 'tracks') return { ok: true, tracks: [] };
         if (message.action === 'meta') return { ok: true, folder: 'Study', meta: {
           bvid: message.bvid, title: 'A long course title',
           pages: Array.from({ length: count }, (_, i) => ({ cid: String(i + 1), page: i + 1, part: `Lesson ${i + 1}` }))
@@ -104,16 +105,19 @@ test('popup keeps single-video saves separate from explicit whole-course handoff
   assert.equal(get('import').disabled, true);
 });
 
-async function exportHarness() {
+async function exportHarness({ languages = false } = {}) {
   const elements = new Map(), messages = [], copied = [], downloads = [];
-  const element = () => ({ textContent: '', value: '', children: [], attributes: {}, listeners: {}, classList: { toggle() {} },
+  const element = () => ({ set textContent(value) { this.text = value; this.children = []; }, get textContent() { return this.text || ''; }, value: '', children: [], attributes: {}, listeners: {}, style: {}, offsetWidth: 150, offsetHeight: 112, classList: { toggle() {} },
     focus() {}, contains() { return false; },
+    getBoundingClientRect() { return { left: 120, top: 220, bottom: 240 }; },
+    showPopover() { this.open = true; }, hidePopover() { this.open = false; },
+    getAttribute(name) { return this.attributes[name]; },
     setAttribute(name, value) { this.attributes[name] = value; },
     addEventListener(name, handler) { this.listeners[name] = handler; },
     append(...items) { this.children.push(...items); } });
   const get = id => { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); };
   const context = vm.createContext({ URL, console, CourseCore: core, window: { close() {} },
-    document: { getElementById: get, createElement: element, createTextNode: text => text, addEventListener() {} },
+    document: { documentElement: { clientWidth: 400, clientHeight: 600 }, getElementById: get, createElement: element, createTextNode: text => text, addEventListener() {} },
     navigator: { clipboard: { writeText: async text => {
       if (context.clipboardFail) throw new Error('Clipboard denied');
       copied.push(text);
@@ -124,13 +128,16 @@ async function exportHarness() {
       storage: { local: { get: async () => ({}) }, onChanged: { addListener() {} } },
       runtime: { sendMessage: async message => {
         messages.push(message);
-        if (message.type === 'settings-get') return { ok: true, settings: { hasApiKey: false } };
+        if (message.type === 'settings-get') return { ok: true, settings: { hasApiKey: languages } };
         if (message.type === 'quick-status') return { ok: true, key: 'job' };
+        if (message.type === 'quick-import') return { ok: true, status: 'saved' };
+        if (message.action === 'tracks') return { ok: true, tracks: languages ? [{ id: 'zh', lan: 'zh', lanDoc: '中文' }, { id: 'en', lan: 'en', lanDoc: 'English' }] : [] };
         if (message.action === 'meta') return { ok: true, folder: 'Study', meta: {
           bvid: message.bvid, title: 'Export course', author: 'Teacher',
           pages: [{ cid: '1', page: 1, part: '1. Export: Lesson' }, { cid: '2', page: 2, part: '2. Other' }]
         } };
-        if (message.action === 'preview') return { ok: true, track: { lan: 'en', lanDoc: 'English' },
+        if (message.action === 'preview' && context.trackFail) return { ok: false, error: 'Selected subtitle unavailable' };
+        if (message.action === 'preview') return { ok: true, track: languages && message.trackId !== 'en' ? { id: 'zh', lan: 'zh', lanDoc: '中文' } : { id: 'en', lan: 'en', lanDoc: 'English' },
           missing: context.missing, body: context.missing ? [] : Array.from({ length: 20 }, (_, i) => ({ from: i * 40, to: i * 40 + 1, content: `Line ${i + 1}.` })) };
         throw new Error('Unexpected request');
       } }
@@ -182,4 +189,35 @@ test('popup reports copy failures and prevents stale or whole-course exports', a
   assert.equal(h.get('save-menu-toggle').disabled, true);
   await h.get('copy-subtitle').listeners.click();
   assert.equal(h.copied.length, 0);
+});
+
+test('Bilibili language selection drives preview, export and import and blocks stale exports on failure', async () => {
+  const h = await exportHarness({ languages: true });
+  const trigger = h.get('subtitle-language'), menu = h.get('subtitle-language-menu');
+  assert.equal(h.get('subtitle-language-switch').hidden, false);
+  assert.equal(h.get('subtitle-track').hidden, true);
+  assert.equal(h.get('subtitle-language-label').textContent, '中文');
+  assert.equal(menu.children.length, 3);
+  let stopped = false;
+  trigger.listeners.click({ stopPropagation() { stopped = true; } });
+  assert.equal(stopped, true);
+  assert.equal(menu.open, true);
+  assert.equal(trigger.attributes['aria-expanded'], 'true');
+  await menu.children.find(option => option.textContent === 'English').listeners.click();
+  assert.equal(menu.open, false);
+  assert.equal(h.messages.filter(m => m.action === 'preview').at(-1).trackId, 'en');
+  assert.equal(h.get('subtitle-track').textContent, 'English');
+  assert.equal(h.get('subtitle-language-label').textContent, 'English');
+  assert.equal(menu.children.find(option => option.textContent === 'English').attributes['aria-checked'], 'true');
+  await h.get('copy-subtitle').listeners.click();
+  assert.match(h.copied[0], /subtitle_lang: "English"/);
+  await h.get('download-subtitle').listeners.click();
+  assert.match(decodeURIComponent(h.downloads[0].url), /subtitle_lang: "English"/);
+  await h.get('import').listeners.click();
+  assert.equal(h.messages.find(m => m.type === 'quick-import').trackId, 'en');
+  h.context.trackFail = true;
+  await menu.children.find(option => option.textContent === '中文').listeners.click();
+  assert.equal(h.get('copy-subtitle').disabled, true);
+  assert.equal(h.get('import').disabled, true);
+  assert.match(h.get('subtitles').textContent, /Selected subtitle unavailable/);
 });

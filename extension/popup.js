@@ -5,6 +5,7 @@ let videoRun = 0;
 let saveScope = "current";
 let subtitleMissing = false;
 let subtitle = null, exporting = false;
+let subtitleTracks = [], selectedTrackId = "", languageMenuOpen = false;
 function status(text, error = false) {
   $("status").textContent = text; $("status").classList.toggle("error", error);
 }
@@ -44,6 +45,8 @@ function controls() {
   if ($("save-menu-toggle").disabled) closeSaveMenu();
   $("import-label").textContent = busy ? "正在保存…" : all ? `前往保存整门课程 · ${meta.pages.length} ${meta.platform === "youtube" ? "个视频" : "P"}` : meta?.pages.length > 1 ? "保存当前字幕" : "保存字幕";
   $("scope-current").disabled = $("scope-all").disabled = locked;
+  $("subtitle-language").disabled = locked;
+  if (locked) closeLanguageMenu();
   $("scope-current").setAttribute("aria-pressed", String(!all));
   $("scope-all").setAttribute("aria-pressed", String(all));
   $("settings").disabled = locked || !settings;
@@ -110,7 +113,63 @@ async function refreshSettings() {
   $("settings-label").hidden = settings.hasApiKey;
   controls();
 }
-async function preview() {
+function closeLanguageMenu(restoreFocus = false) {
+  if (!languageMenuOpen) return;
+  $("subtitle-language-menu").hidePopover();
+  languageMenuOpen = false;
+  $("subtitle-language").setAttribute("aria-expanded", "false");
+  if (restoreFocus) $("subtitle-language").focus();
+}
+function openLanguageMenu(last = false) {
+  if ($("subtitle-language").disabled) return;
+  const menu = $("subtitle-language-menu"), rect = $("subtitle-language").getBoundingClientRect();
+  menu.showPopover(); languageMenuOpen = true;
+  menu.style.left = `${Math.max(8, Math.min(rect.left, document.documentElement.clientWidth - menu.offsetWidth - 8))}px`;
+  menu.style.top = `${Math.max(8, rect.bottom + 6 + menu.offsetHeight > document.documentElement.clientHeight ? rect.top - menu.offsetHeight - 6 : rect.bottom + 6)}px`;
+  $("subtitle-language").setAttribute("aria-expanded", "true");
+  const options = [...menu.children];
+  (last ? options.at(-1) : options.find(option => option.getAttribute("aria-checked") === "true") || options[0])?.focus({ preventScroll: true });
+}
+function renderLanguageMenu() {
+  const menu = $("subtitle-language-menu"); menu.textContent = "";
+  for (const track of [{ id: "", lanDoc: "自动选择" }, ...subtitleTracks]) {
+    const option = document.createElement("button");
+    option.type = "button"; option.textContent = track.lanDoc || track.lan;
+    option.setAttribute("role", "menuitemradio");
+    option.setAttribute("aria-label", option.textContent);
+    option.setAttribute("aria-checked", String(track.id === selectedTrackId));
+    option.addEventListener("click", async () => {
+      selectedTrackId = track.id;
+      $("subtitle-language-label").textContent = track.lanDoc || track.lan;
+      closeLanguageMenu(true); status("");
+      await preview();
+    });
+    menu.append(option);
+  }
+}
+$("subtitle-language").addEventListener("click", event => {
+  event.stopPropagation();
+  if (languageMenuOpen) closeLanguageMenu(); else openLanguageMenu();
+});
+$("subtitle-language").addEventListener("keydown", event => {
+  event.stopPropagation();
+  if (["ArrowDown", "ArrowUp"].includes(event.key)) { event.preventDefault(); openLanguageMenu(event.key === "ArrowUp"); }
+});
+$("subtitle-language-menu").addEventListener("toggle", event => {
+  languageMenuOpen = event.newState === "open";
+  $("subtitle-language").setAttribute("aria-expanded", String(languageMenuOpen));
+});
+$("subtitle-language-menu").addEventListener("keydown", event => {
+  const options = [...event.currentTarget.children], index = options.indexOf(event.target);
+  if (event.key === "Escape") { event.preventDefault(); closeLanguageMenu(true); }
+  else if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+    event.preventDefault();
+    const next = event.key === "Home" ? 0 : event.key === "End" ? options.length - 1 : (index + (event.key === "ArrowDown" ? 1 : -1) + options.length) % options.length;
+    options[next]?.focus();
+  }
+});
+document.addEventListener("scroll", event => { if (event.target !== $("subtitle-language-menu")) closeLanguageMenu(); }, true);
+async function preview(loadTracks = false) {
   previewing = true;
   hasSubtitle = false;
   subtitle = null;
@@ -121,7 +180,18 @@ async function preview() {
   $("subtitle-track").textContent = "";
   $("preview-label").textContent = "正在读取字幕…";
   try {
-    const result = await send({ type: "course-request", action: "preview", meta, page });
+    if (loadTracks && meta.platform !== "youtube") {
+      const { tracks = [] } = await send({ type: "course-request", action: "tracks", meta, page });
+      subtitleTracks = tracks;
+      $("subtitle-language-switch").hidden = tracks.length < 2;
+    }
+    const result = await send({ type: "course-request", action: "preview", meta, page, ...(meta.platform !== "youtube" ? { trackId: selectedTrackId } : {}) });
+    if (meta.platform !== "youtube") {
+      if (result.track?.id) selectedTrackId = result.track.id;
+      $("subtitle-language-label").textContent = result.track?.lanDoc || result.track?.lan || "自动选择";
+      renderLanguageMenu();
+    }
+    $("subtitle-track").hidden = !$("subtitle-language-switch").hidden;
     $("subtitle-track").textContent = result.track?.lanDoc || result.track?.lan || "";
     hasSubtitle = Boolean(result.body?.length);
     if (hasSubtitle) subtitle = result;
@@ -135,6 +205,7 @@ async function preview() {
       line.append(time, document.createTextNode(item.content)); $("subtitles").append(line);
     }
   } catch (error) {
+    if (meta.platform !== "youtube") renderLanguageMenu();
     $("subtitles").textContent = `字幕读取失败：${error.message}`;
     $("preview-label").textContent = "字幕读取失败";
     $("preview-panel").open = true;
@@ -151,6 +222,8 @@ async function loadVideo() {
   reading = true; page = null; meta = null; jobKey = ""; hasSubtitle = false; saveScope = "current"; controls();
   $("video").hidden = true; $("empty").hidden = true; $("workspace").hidden = true;
   $("preview-panel").open = false; status("正在识别视频…");
+  closeLanguageMenu(); subtitleTracks = []; selectedTrackId = "";
+  $("subtitle-language-switch").hidden = true; $("subtitle-track").hidden = false; $("subtitle-language-label").textContent = "自动选择";
   try {
     const data = await send({ type: "course-request", action: "meta", ...(parsed.platform === "youtube" ? { youtubeId: parsed.id, playlistId: parsed.playlistId } : { bvid: parsed.id }) });
     if (run !== videoRun) return;
@@ -178,7 +251,7 @@ async function loadVideo() {
     if (run !== videoRun) return;
     jobKey = job.key; showJob(job.state);
     reading = false;
-    await preview();
+    await preview(true);
     if (run !== videoRun) return;
   } catch (error) {
     if (run === videoRun) {
@@ -208,7 +281,7 @@ $("import").addEventListener("click", async () => {
     return;
   }
   showJob({ status: "running" });
-  try { showJob(await send({ type: "quick-import", bvid: meta.bvid, cid: page.cid, meta, base })); }
+  try { showJob(await send({ type: "quick-import", bvid: meta.bvid, cid: page.cid, meta, base, ...(meta.platform !== "youtube" ? { trackId: subtitle?.track?.id || selectedTrackId } : {}) })); }
   catch (error) { showJob({ status: "failed", error: error.message }); }
 });
 chrome.storage.onChanged.addListener((changes, area) => {

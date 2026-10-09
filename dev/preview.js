@@ -1,17 +1,20 @@
-/* Development-only host. The iframe uses the real popup files with mock APIs. */
+/* Preview host: development and current popup files use the same mock APIs. */
 const frame = document.getElementById("popup-preview");
 const scenario = document.getElementById("scenario");
 const expanded = document.getElementById("expanded");
 const notice = document.getElementById("notice");
+const version = document.getElementById("version");
 const params = new URLSearchParams(location.search);
 if ([...scenario.options].some(option => option.value === params.get("state"))) scenario.value = params.get("state");
 expanded.checked = params.get("expanded") === "1";
+if (params.get("version") === "current") version.value = "current";
 let renderRun = 0, resizeObserver;
 
 function rememberState() {
   const url = new URL(location.href);
   url.searchParams.set("state", scenario.value);
   url.searchParams.set("expanded", expanded.checked ? "1" : "0");
+  url.searchParams.set("version", version.value);
   history.replaceState(null, "", url);
 }
 
@@ -20,13 +23,14 @@ async function renderPreview() {
   rememberState();
   notice.textContent = "";
   try {
-    const response = await fetch("../extension/popup.html", { cache: "no-store" });
+    const source = version.value === "current" ? "../extension/" : "./";
+    const response = await fetch(`${source}popup.html`, { cache: "no-store" });
     if (!response.ok) throw new Error(`无法读取 popup.html（${response.status}）`);
     const html = await response.text();
     if (run !== renderRun) return;
     const documentCopy = new DOMParser().parseFromString(html, "text/html");
     const base = documentCopy.createElement("base");
-    base.href = new URL("../extension/", location.href).href;
+    base.href = new URL(source, location.href).href;
     const mock = documentCopy.createElement("script");
     mock.src = new URL("preview-mock.js", location.href).href;
     documentCopy.head.prepend(base, mock);
@@ -65,6 +69,7 @@ window.addEventListener("message", event => {
   }
 });
 scenario.addEventListener("change", renderPreview);
+version.addEventListener("change", renderPreview);
 document.getElementById("reload").addEventListener("click", renderPreview);
 expanded.addEventListener("change", () => {
   const panel = frame.contentDocument?.getElementById("preview-panel");

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Course Cove</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <header>
+      <div class="popup-brand">
+        <img class="popup-brand-icon" src="../extension/icons/icon128.png" alt="" aria-hidden="true">
+        <strong>Course Cove</strong>
+      </div>
+      <button id="settings" class="quiet settings-button" aria-label="连接设置" title="连接设置">
+        <span class="icon icon-settings" aria-hidden="true"></span>
+        <span id="settings-label">连接 Obsidian</span>
+      </button>
+    </header>
+
+    <main id="clipper">
+      <div id="empty">
+        <h1>0.o 咕？</h1> 
+        <p class="muted">打开视频，或粘贴链接。</p>
+      </div>  
+      <section id="video" hidden>
+        <p id="video-meta" class="video-meta"></p>
+        <h1 id="course-name"></h1>
+        <p id="current-part" class="current-part"><span id="part-number"></span><span id="part-name"></span></p>
+        <div id="save-scope" class="save-scope" role="group" aria-label="保存范围" hidden>
+          <button id="scope-current" type="button" aria-pressed="true">当前一节</button>
+          <button id="scope-all" type="button" aria-pressed="false">整门课程</button>
+        </div>
+        <details id="preview-panel" class="preview-panel">
+          <summary>
+            <span class="preview-summary"><span class="icon icon-captions" aria-hidden="true"></span><span id="preview-label">字幕预览</span><span id="subtitle-track"></span><span id="subtitle-language-switch" class="subtitle-language-switch" hidden><button id="subtitle-language" type="button" aria-label="切换字幕语言" aria-haspopup="menu" aria-expanded="false" aria-controls="subtitle-language-menu"><span id="subtitle-language-label"></span><span class="icon icon-chevron" aria-hidden="true"></span></button></span></span>
+            <span class="icon icon-chevron" aria-hidden="true"></span>
+          </summary>
+          <div id="subtitles" tabindex="0" aria-label="字幕内容"></div>
+        </details>
+        <div id="subtitle-language-menu" class="subtitle-language-menu" popover="auto" role="menu" aria-label="字幕语言"></div>
+        <button id="asr-open" class="secondary" hidden>本地转写并导入</button>
+        <div id="save-actions" class="save-actions">
+          <button id="import" class="save-button" disabled>
+            <span class="icon icon-save" aria-hidden="true"></span>
+            <span id="import-label">保存字幕</span>
+          </button>
+          <button id="save-menu-toggle" class="save-menu-toggle" type="button" aria-label="更多保存方式" aria-haspopup="menu" aria-expanded="false" aria-controls="save-menu" disabled><span class="icon icon-chevron" aria-hidden="true"></span></button>
+          <div id="save-menu" class="save-menu" role="menu" aria-label="导出当前字幕" hidden>
+            <button id="copy-subtitle" type="button" role="menuitem"><span class="icon icon-copy" aria-hidden="true"></span>复制到剪贴板</button>
+            <button id="download-subtitle" type="button" role="menuitem"><span class="icon icon-save" aria-hidden="true"></span>保存文件…</button>
+          </div>
+        </div>
+      </section>
+      <p id="status" role="status" aria-live="polite"></p>
+        <!-- 第一块：两个入口 -->
+        <div class="popup-footer">
+          <button
+            id="source-label"
+            class="quiet"
+            type="button"
+            aria-expanded="true"
+            aria-controls="source-panel"
+            aria-label="更换链接"
+            title="更换链接"
+          ><span class="icon icon-link" aria-hidden="true"></span></button>
+
+          <button id="workspace" class="quiet" type="button" hidden>
+            <span id="workspace-label">进入工作台</span>
+            <span class="icon icon-chapters" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <!-- 第二块：下方的链接输入区 -->
+        <div id="source-panel">
+          <form id="source-form">
+            <label class="sr-only" for="url">视频链接</label>
+            <div class="source-row">
+              <input
+                id="url"
+                placeholder="Bilibili 或 YouTube 视频链接"
+                spellcheck="false"
+                autocomplete="off"
+              >
+              <button id="read" class="secondary" type="submit">读取</button>
+            </div>
+          </form>
+        </div>
+    </main>
+
+    <section id="connection" hidden aria-labelledby="settings-title">
+      <div class="settings-heading">
+        <h1 id="settings-title">连接 Obsidian</h1>
+        <button id="back" class="quiet">返回</button>
+      </div>
+      <p class="muted">打开 Obsidian，在 Local REST API 插件设置中复制地址和 Key。</p>
+
+      <label for="api-url">服务地址</label>
+      <input id="api-url" type="url" spellcheck="false">
+
+      <label for="api-key">API Key</label>
+      <input
+        id="api-key"
+        type="password"
+        autocomplete="off"
+        placeholder="粘贴 Local REST API Key"
+      >
+
+      <label for="note-folder">素材根目录</label>
+      <input id="note-folder" spellcheck="false">
+      <p class="muted">目录相对于笔记库，例如 Clippings/Bilibili。</p>
+
+      <div class="actions">
+        <button id="test" class="secondary">测试连接</button>
+        <button id="save">保存设置</button>
+      </div>
+      <p id="settings-status" role="status" aria-live="polite"></p>
+    </section>
+
+    <script src="../extension/course-core.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -429,27 +429,6 @@ $("notes-nav").addEventListener("click", async () => {
     showWorkbenchPage("note-preferences-page");
   } catch (error) { status(error.message, true); }
 });
-$("copy-study-prompt").addEventListener("click", async () => {
-  if (meta && !pages.some(page => page.selected)) {
-    showSettingsFeedback("note-status", "请先点击“课程素材”，勾选要整理的课时，再回来复制任务指令");
-    return;
-  }
-  $("copy-study-prompt").disabled = true;
-  try {
-    let promptPages = pages;
-    if (meta) {
-      const { sources } = await request("raw-paths", { pages });
-      promptPages = pages.map(page => ({ ...page, sourcePath: sources[page.cid] || "" }));
-    } else {
-      await send({ type: "settings-test" });
-    }
-    const preferences = await window.NotePreferences.save();
-    const prompt = CourseCore.buildStudyPrompt(meta, promptPages, $("folder").value, preferences);
-    await navigator.clipboard.writeText(prompt);
-    showSettingsFeedback("note-status", "偏好已保存，任务指令已复制。网页 AI 还需提供课程清单和所选字幕");
-  } catch (error) { showSettingsFeedback("note-status", `复制失败：${error.message}`); }
-  finally { $("copy-study-prompt").disabled = false; }
-});
 for (const button of document.querySelectorAll("[data-close]")) button.addEventListener("click", () => $(button.dataset.close).close());
 window.addEventListener("beforeunload", event => { if (running) { event.preventDefault(); event.returnValue = ""; } });
 async function init() {

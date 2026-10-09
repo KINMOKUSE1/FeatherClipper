@@ -155,10 +155,14 @@
   };
   window.addEventListener("DOMContentLoaded", async () => {
     await workbenchReady;
-    if (scenario === "empty") return;
+    if (scenario === "empty") {
+      if (window.frameElement.dataset.page === "notes") document.getElementById("notes-nav").click();
+      return;
+    }
     document.getElementById("url").value = scenario === "youtube"
       ? "https://www.youtube.com/watch?v=GWwL_pLuX-U&list=PLKq1TCpsv3Y4"
       : `https://www.bilibili.com/video/BV1ps4y1d73V/?p=${scenario === "single" ? 1 : 4}`;
     await loadCourse().catch(error => status(error.message, true));
+    if (window.frameElement.dataset.page === "notes") document.getElementById("notes-nav").click();
   });
 })();

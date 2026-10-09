@@ -2,6 +2,8 @@
    Geist 来自 https://github.com/vercel/geist-font，许可证见 fonts/OFL-Geist.txt。
    Noto Serif SC 来自 https://github.com/google/fonts/tree/main/ofl/notoserifsc，许可证见 fonts/OFL-NotoSerifSC.txt。
    三个设置页面使用 HarmonyOS Sans，来自华为官方字体包；许可证见 fonts/LICENSE-HarmonyOS-Sans.txt。 */
+@import url("fonts.css");
+
 @font-face {
   font-family: "Geist";
   src: url("fonts/Geist-Variable.woff2") format("woff2");
@@ -66,10 +68,8 @@
   --shadow-dialog: #35405220; /* 弹窗阴影 */
   --backdrop: #35405233;    /* 弹窗后面的遮罩 */
 
-  /* 界面使用无衬线字体；课程标题与字幕内容使用宋体。 */
-  --font-ui: "Geist", "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
-  --font-controls: "Segoe UI", "Microsoft YaHei", sans-serif;
-  --font-body: "Noto Serif SC", "SimSun", serif;
+  /* 课程内容的英文和数字使用 Geist，中文使用 Noto Serif SC。 */
+  --font-body: "Geist", "Noto Serif SC", serif;
   --sidebar-width: clamp(184px, 16vw, 240px); /* 随窗口线性变化，限制在 184–240px */
   --catalog-width: 770px; /* 目录展开、收起字幕时保持相同宽度 */
   --preview-width: 420px; /* 字幕阅读宽度 */
@@ -160,8 +160,7 @@ tr.is-previewing td:first-child { box-shadow: inset 2px 0 var(--accent); }
 .chapter-number:hover { border-color: var(--line); background: var(--surface); }
 /* 紧凑的纯色状态标签，文字与标记共同区分。 */
 .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 5px; background: var(--muted); color: #fff; font-size: 12px; font-weight: 500; line-height: 18px; white-space: nowrap; }
-.badge.saved { background: var(--success); }
-.badge.exists { background: #526f63; }
+.badge.saved, .badge.exists { background: var(--success); }
 .badge.saved::before, .badge.exists::before { content: "✓"; }
 .badge.missing { background: var(--warning); }
 .badge.failed { background: var(--error); }
@@ -278,42 +277,17 @@ dialog [role="status"] { font-size: 16px; margin-top: 15px; color: var(--muted);
 .settings-feedback .settings-feedback-close { flex: none; width: 28px; min-height: 28px; height: 28px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: inherit; font-size: 20px; line-height: 1; font-weight: 400; }
 .settings-feedback .settings-feedback-close:hover { background: var(--accent-hover); border-color: transparent; }
 .settings-feedback .settings-feedback-close:focus-visible { outline-color: var(--on-accent); outline-offset: 0; }
-.settings-footer-info:has(.settings-feedback:not([hidden])) .download-kit { display: none; }
 @keyframes settings-feedback-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .settings-feedback { animation: none; } }
-.preferences-footer .download-kit { display: inline-block; margin: 0; font-size: 12px; color: var(--ink); text-decoration: none; }
-.preferences-footer .download-kit:hover { text-decoration: underline; }
 .configuration-guide { margin-top: 28px; }
 .configuration-guide .setup-steps { margin: 0; padding: 0 18px 0 38px; font-size: 14px; line-height: 1.5; color: var(--ink); }
 .configuration-guide .setup-steps li { padding: 14px 0; margin: 0; border-bottom: 1px solid var(--line); }
 .configuration-guide .setup-steps li:last-child { border-bottom: 0; }
-.preference-grid { display: block; }
 .preference-section { margin-top: 28px; }
-.property-group { padding-bottom: 10px; }
 .note-preferences .settings-toggle { position: relative; appearance: none; width: 36px; height: 20px; min-height: 0; padding: 0; border: 0; border-radius: 12px; background: var(--line); justify-self: end; cursor: pointer; }
 .settings-toggle::before { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); transition: transform 160ms ease; }
 .note-preferences .settings-toggle:checked { background: var(--accent); }
 .settings-toggle:checked::before { transform: translateX(16px); }
-.note-properties { display: grid; margin-top: 12px; }
-.builtin-properties { margin-top: 0; }
-.note-properties:empty { display: none; }
-.note-property-row { display: grid; grid-template-columns: 32px minmax(90px, 140px) minmax(0, 1fr) 28px; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
-.note-property-row > .icon { justify-self: center; color: var(--muted); }
-.note-property-row label { margin: 0; font-weight: 400; }
-.note-property-row .property-name { min-width: 0; padding: 8px 4px; border: 0; background: transparent; }
-.property-builtin .property-value-container { grid-column: 3 / -1; }
-.note-property-row .property-value-container > input, .note-property-row .property-value-container > select { min-height: 38px; padding: 8px 10px; border: 1px solid var(--line); background: var(--surface); }
-.property-type-control { position: relative; display: grid; place-items: center; width: 32px; height: 36px; color: var(--muted); }
-.note-preferences .property-type { position: absolute; inset: 0; width: 100%; min-height: 36px; padding: 0; border: 0; appearance: none; background: transparent; color: transparent; font-size: 0; cursor: pointer; }
-.property-type option { font-size: 14px; color: var(--ink); background: var(--surface); }
-.property-type-icon { pointer-events: none; --icon: url("icons/lucide/text.svg"); }
-.note-property-row[data-type="number"] .property-type-icon { --icon: url("icons/lucide/hash.svg"); }
-.note-property-row[data-type="list"] .property-type-icon { --icon: url("icons/lucide/list.svg"); }
-.note-property-row[data-type="boolean"] .property-type-icon { --icon: url("icons/lucide/toggle-left.svg"); }
-.note-property-row[data-type="date"] .property-type-icon { --icon: url("icons/lucide/calendar.svg"); }
-.note-properties .property-remove { width: 28px; padding: 0; font-size: 20px; line-height: 24px; }
-.property-value-container { min-width: 0; }
-#add-note-property { margin-top: 8px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 /* Official Lucide assets already bundled with the extension. */
 .icon { display: inline-block; width: 16px; height: 16px; flex: none; background: currentColor; mask: var(--icon) center / contain no-repeat; }
@@ -325,8 +299,6 @@ dialog [role="status"] { font-size: 16px; margin-top: 15px; color: var(--muted);
 .icon-save { --icon: url("icons/lucide/arrow-down-to-line.svg"); }
 .icon-retry { --icon: url("icons/lucide/rotate-ccw.svg"); }
 .icon-audio { --icon: url("icons/lucide/audio-lines.svg"); }
-.icon-property-text { --icon: url("icons/lucide/text.svg"); }
-.icon-property-list { --icon: url("icons/lucide/list.svg"); }
 @media (max-width: 1180px) {
   .main-content { padding: 20px 24px 0; }
   .workspace { gap: 12px; }
@@ -379,7 +351,4 @@ dialog [role="status"] { font-size: 16px; margin-top: 15px; color: var(--muted);
   .preferences-footer .settings-footer-info, .configuration-footer .settings-footer-info { flex-basis: 100%; }
   .configuration-footer .configuration-actions { margin-left: auto; }
   .preferences-footer .configuration-actions { width: 100%; justify-content: flex-end; }
-  .note-property-row { grid-template-columns: 28px minmax(60px, 80px) minmax(0, 1fr) 24px; gap: 6px; }
-  .property-type-control { width: 28px; }
-  .note-properties .property-remove { width: 24px; }
 }

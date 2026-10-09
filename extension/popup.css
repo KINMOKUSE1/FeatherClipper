@@ -1,5 +1,7 @@
+@import url("fonts.css");
+
 :root {
-  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-size: 14px;
   color: #303a4a;
   background: rgb(255, 255, 255);
@@ -51,9 +53,25 @@ summary::-webkit-details-marker { display: none; }
 .preview-panel[open] > summary > .icon-chevron { transform: rotate(180deg); }
 #subtitle-track { overflow-wrap: anywhere; }
 #subtitle-track:not(:empty)::before { content: "· "; }
+.subtitle-language-switch { display: inline-flex; align-items: center; min-width: 0; }
+.subtitle-language-switch::before { content: "·"; }
+#subtitle-language { display: inline-flex; align-items: center; gap: 4px; min-width: 0; min-height: 0; margin-block: -2px; padding: 2px 4px; border: 0; border-radius: 4px; background: transparent; color: inherit; font-size: inherit; font-weight: 400; }
+#subtitle-language:hover:not(:disabled), #subtitle-language[aria-expanded="true"] { background: #303a4a08; color: var(--ink); filter: none; }
+#subtitle-language .icon { width: 12px; height: 12px; }
+#subtitle-language-label { max-width: 200px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.subtitle-language-menu { position: fixed; inset: auto; width: max-content; min-width: 150px; max-width: calc(100vw - 32px); max-height: 220px; overflow-y: auto; margin: 0; padding: 5px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); box-shadow: 0 4px 16px #303a4a18; }
+.subtitle-language-menu button { display: flex; align-items: center; justify-content: space-between; gap: 18px; width: 100%; min-height: 32px; padding: 6px 9px; border: 0; border-radius: 4px; background: transparent; color: var(--ink); font-size: 12px; font-weight: 400; text-align: left; }
+.subtitle-language-menu button::after { content: ""; width: 12px; flex: none; }
+.subtitle-language-menu button[aria-checked="true"]::after { content: "✓"; }
+.subtitle-language-menu button:hover, .subtitle-language-menu button:focus-visible { background: #303a4a08; outline: none; filter: none; }
 .settings-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 0px; }
 .settings-heading h1 { font-size: 20px; }
 #subtitles { max-height: 180px; overflow: auto; padding: 0 4px 14px 0; font-size: 13px; }
+#subtitles::-webkit-scrollbar { width: 3px; background: transparent; }
+#subtitles::-webkit-scrollbar-track, #subtitles::-webkit-scrollbar-corner { background: transparent; }
+#subtitles::-webkit-scrollbar-thumb { background: #303a4a1a; border-radius: 3px; }
+#subtitles::-webkit-scrollbar-thumb:hover { background: #303a4a33; }
+#subtitles::-webkit-scrollbar-button { display: none; }
 #subtitles p { margin: 0 0 14px; line-height: 1.75; overflow-wrap: anywhere; }
 #subtitles p:last-child { margin-bottom: 0; }
 #subtitles a { display: block; text-decoration: none; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }

@@ -22,8 +22,9 @@
   <body>
     <header>
       <h1>Course Cove · 开发预览</h1>
-      <p>示例数据，不会写入 Obsidian。修改 popup.html / popup.css 后，点击刷新预览。</p>
+      <p>示例数据，不会写入 Obsidian。开发版读取 dev/popup 文件，当前版读取 extension/popup 文件。</p>
       <div class="controls">
+        <label for="version">版本<select id="version"><option value="dev">开发版</option><option value="current">当前版</option></select></label>
         <label for="scenario">状态
           <select id="scenario">
             <option value="series">系列课程 · 92 P</option>

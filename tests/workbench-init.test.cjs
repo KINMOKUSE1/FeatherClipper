@@ -68,74 +68,52 @@ test('ASR handoff uses the loaded preview without toggling it closed', async () 
   assert.equal(unavailable.calls.some(call => Array.isArray(call) && call[0] === 'asr'), false);
 });
 
-function notesHarness() {
-  const handlers = {}, calls = [], copied = [], feedback = [];
-  const elements = Object.fromEntries(['notes-nav', 'copy-study-prompt', 'folder'].map(id => [id, {
-    value: 'Clippings/Bilibili', disabled: false,
-    addEventListener: (event, handler) => { handlers[id] = handler; }
-  }]));
+test('notes opens offline without reading Obsidian', async () => {
+  const handlers = {}, calls = [];
   const context = vm.createContext({
+    $: () => ({ addEventListener: (event, handler) => { handlers.notes = handler; } }),
+    window: { NotePreferences: { load: async () => calls.push('load-preferences') } },
+    showSettingsFeedback() {}, showWorkbenchPage: id => calls.push(id),
+    status: message => { throw new Error(message); }
+  });
+  vm.runInContext(source.slice(source.indexOf('$("notes-nav").addEventListener'), source.indexOf('for (const button of document.querySelectorAll')), context);
+  await handlers.notes();
+  assert.deepEqual(calls, ['load-preferences', 'note-preferences-page']);
+});
+
+function materialHarness() {
+  const calls = [], context = vm.createContext({
     meta: { bvid: 'BV1ps4y1d73V', title: '课程' },
     pages: [{ cid: '456', page: 1, part: '课时', selected: true, chapter: '1' }],
-    $: id => elements[id],
-    window: { NotePreferences: {
-      load: async () => calls.push('load-preferences'),
-      save: async () => { calls.push('save-preferences'); return {}; }
-    } },
     CourseCore: require('../extension/course-core.js'),
-    navigator: { clipboard: { writeText: async text => copied.push(text) } },
-    showSettingsFeedback: (id, text) => feedback.push(text),
-    showWorkbenchPage: id => calls.push(id),
-    status: text => feedback.push(text),
+    uploadedReferences: [], uploadedMaterials: [],
+    get: () => ({ value: 'Clippings/Bilibili' }),
     request: async action => {
       calls.push(action);
       if (context.offline) throw new Error('无法连接 Obsidian');
       return { sources: { 456: context.path } };
     },
-    send: async message => {
-      calls.push(message.type);
-      if (context.offline) throw new Error('无法连接 Obsidian');
-      return { connected: true };
-    },
     offline: true, path: '原始字幕/最新文件.md'
   });
-  vm.runInContext(source.slice(source.indexOf('$("notes-nav").addEventListener'), source.indexOf('for (const button of document.querySelectorAll')), context);
-  return { context, handlers, calls, copied, feedback, elements };
+  const builder = fs.readFileSync(require.resolve('../extension/skill-builder.js'), 'utf8');
+  vm.runInContext(builder.slice(builder.indexOf('  async function collectContext('), builder.indexOf('  async function prepareTask(')), context);
+  return { context, calls, delivery: { environment: 'local', task: 'notes', paths: '', reference: '' } };
 }
 
-test('notes opens offline but copying fails without changing the clipboard', async () => {
-  const h = notesHarness();
-  await h.handlers['notes-nav']();
-  assert.deepEqual(h.calls, ['load-preferences', 'note-preferences-page']);
-  await h.handlers['copy-study-prompt']();
-  assert.deepEqual(h.copied, []);
-  assert.match(h.feedback.at(-1), /复制失败：无法连接 Obsidian/);
-  assert.equal(h.elements['copy-study-prompt'].disabled, false);
-});
-
-test('each task copy reads current paths without caching them on course pages', async () => {
-  const h = notesHarness();
+test('local task material lookup fails offline and rereads current paths every time', async () => {
+  const h = materialHarness();
+  await assert.rejects(h.context.collectContext(h.delivery), /无法连接 Obsidian/);
   h.context.offline = false;
-  await h.handlers['copy-study-prompt']();
-  assert.ok(h.copied[0].includes('原始字幕/最新文件.md'));
+  assert.equal((await h.context.collectContext(h.delivery)).materials[0].path, h.context.path);
   h.context.path = '原始字幕/改名后的文件.md';
-  await h.handlers['copy-study-prompt']();
-  assert.ok(h.copied[1].includes('原始字幕/改名后的文件.md'));
-  assert.equal(h.calls.filter(call => call === 'raw-paths').length, 2);
+  assert.equal((await h.context.collectContext(h.delivery)).materials[0].path, h.context.path);
+  assert.equal(h.calls.filter(action => action === 'raw-paths').length, 3);
   assert.equal('sourcePath' in h.context.pages[0], false);
-  h.context.offline = true;
-  await h.handlers['copy-study-prompt']();
-  assert.equal(h.copied.length, 2);
 });
 
-test('task copy without a loaded course also checks the saved connection', async () => {
-  const h = notesHarness();
-  h.context.meta = null;
-  h.context.pages = [];
-  await h.handlers['copy-study-prompt']();
-  assert.deepEqual(h.calls, ['settings-test']);
-  assert.equal(h.copied.length, 0);
-  h.context.offline = false;
-  await h.handlers['copy-study-prompt']();
-  assert.equal(h.copied.length, 1);
+test('manual local files work without a course or Obsidian lookup', async () => {
+  const h = materialHarness(); h.context.meta = null; h.context.pages = [];
+  const context = await h.context.collectContext({ ...h.delivery, paths: 'E:/素材/课程.md' });
+  assert.equal(context.materials[0].path, 'E:/素材/课程.md');
+  assert.deepEqual(h.calls, []);
 });

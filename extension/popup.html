@@ -33,11 +33,12 @@
         </div>
         <details id="preview-panel" class="preview-panel">
           <summary>
-            <span class="preview-summary"><span class="icon icon-captions" aria-hidden="true"></span><span id="preview-label">字幕预览</span><span id="subtitle-track"></span></span>
+            <span class="preview-summary"><span class="icon icon-captions" aria-hidden="true"></span><span id="preview-label">字幕预览</span><span id="subtitle-track"></span><span id="subtitle-language-switch" class="subtitle-language-switch" hidden><button id="subtitle-language" type="button" aria-label="切换字幕语言" aria-haspopup="menu" aria-expanded="false" aria-controls="subtitle-language-menu"><span id="subtitle-language-label"></span><span class="icon icon-chevron" aria-hidden="true"></span></button></span></span>
             <span class="icon icon-chevron" aria-hidden="true"></span>
           </summary>
           <div id="subtitles" tabindex="0" aria-label="字幕内容"></div>
         </details>
+        <div id="subtitle-language-menu" class="subtitle-language-menu" popover="auto" role="menu" aria-label="字幕语言"></div>
         <button id="asr-open" class="secondary" hidden>本地转写并导入</button>
         <div id="save-actions" class="save-actions">
           <button id="import" class="save-button" disabled>

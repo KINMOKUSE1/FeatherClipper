@@ -55,7 +55,7 @@ function buildSubtitleInfoRequests({ bvid, cid, aid }) {
   return [...(aid ? [{ url: `https://api.bilibili.com/x/player/wbi/v2?${query}` }] : []), { url: `https://api.bilibili.com/x/player/v2?${query}` }];
 }
 function mapSubtitleTracks(subtitles) {
-  return subtitles.map(item => ({ id: String(item.id || ""), lan: item.lan || "", lanDoc: item.lan_doc || "", subtitleUrl: String(item.subtitle_url || "").replace(/^\/\//, "https://") })).filter(item => item.subtitleUrl);
+  return subtitles.map(item => ({ id: String(item.id || item.lan || ""), lan: item.lan || "", lanDoc: item.lan_doc || "", subtitleUrl: String(item.subtitle_url || "").replace(/^\/\//, "https://") })).filter(item => item.subtitleUrl);
 }
 function normalizeSubtitleTracks(tracks) {
   const priority = track => {
