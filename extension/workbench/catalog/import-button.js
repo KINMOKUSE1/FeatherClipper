@@ -1,5 +1,6 @@
 /* 导入按钮的进度和状态动画；由课程队列传入状态。 */
 window.createImportButton = function ({ onActivate, clearStatus }) {
+  const ui = UiText.importButton, format = UiText.format;
   const importButton = document.getElementById("start");
   const buttonFill = document.createElement("span");
   buttonFill.className = "import-button-fill";
@@ -20,7 +21,7 @@ window.createImportButton = function ({ onActivate, clearStatus }) {
   buttonContent.className = "import-button-content";
   buttonContent.append(buttonIcon, buttonLabel, buttonCount);
   importButton.replaceChildren(buttonFill, buttonWash, buttonContent);
-  let importState = "idle", importDone = 0, importTotal = 0, importPhase = "导入", importResult = "", importResultDetail = "";
+  let importState = "idle", importDone = 0, importTotal = 0, importPhase = ui.phase, importResult = "", importResultDetail = "";
   let importResultTimer;
   let renderedButtonState = "", contentAnimation = null, outgoingContent = null, washAnimation = null, countAnimation = null;
   const reducedButtonMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -38,8 +39,8 @@ window.createImportButton = function ({ onActivate, clearStatus }) {
     stopping = state.stopping;
     const buttonState = importState === "running" && stopping ? "stopping" : importState;
     const busy = buttonState === "running" || buttonState === "stopping";
-    const text = busy ? stopping ? "正在取消" : `${importPhase}中`
-      : buttonState === "idle" ? "导入 Obsidian" : importResult;
+    const text = busy ? stopping ? ui.stopping : format(ui.running, { phase: importPhase })
+      : buttonState === "idle" ? ui.idle : importResult;
     const stateKey = `${buttonState}:${text}`;
     const changed = renderedButtonState && renderedButtonState !== stateKey;
     let outgoing = null, from = null;
@@ -69,9 +70,9 @@ window.createImportButton = function ({ onActivate, clearStatus }) {
     if (["warning", "error"].includes(buttonState)) buttonIcon.textContent = "!";
     if (buttonLabel.textContent !== text) buttonLabel.textContent = text;
     importButton.setAttribute("aria-label", busy
-      ? `${text}，已处理 ${importDone} 个，共 ${importTotal} 个课时${stopping ? "" : "，再次点击取消"}` : importResultDetail || text);
+      ? format(ui.progressLabel, { text, done: importDone, total: importTotal, cancel: stopping ? "" : ui.cancelSuffix }) : importResultDetail || text);
     importButton.setAttribute("aria-busy", String(busy));
-    importButton.title = busy ? stopping ? "正在取消，等待当前课时处理结束" : "再次点击取消" : importResultDetail;
+    importButton.title = busy ? stopping ? ui.stoppingHint : ui.cancelHint : importResultDetail;
     if (outgoing) {
       outgoingContent = outgoing;
       importButton.append(outgoing);
@@ -100,22 +101,22 @@ window.createImportButton = function ({ onActivate, clearStatus }) {
     importState = "idle"; importDone = 0; importTotal = 0; importResult = ""; importResultDetail = "";
     renderImportAction();
   }
-  function setImportProgress(done, total, phase = "导入") {
+  function setImportProgress(done, total, phase = ui.phase) {
     clearTimeout(importResultTimer);
     importState = "running"; importDone = done; importTotal = total; importPhase = phase;
     importResult = ""; importResultDetail = "";
     renderImportAction();
   }
   function reportImportResult(label, counts, remaining, error = null, detail = "", canceled = false) {
-    if (canceled && !error) label = "已取消";
-    const summary = [["新导入", counts.saved], ["已存在", counts.exists], ["无字幕", counts.missing], ["失败", counts.failed], ["未处理", remaining]]
+    if (canceled && !error) label = ui.canceled;
+    const summary = [[ui.summarySaved, counts.saved], [ui.summaryExists, counts.exists], [ui.summaryMissing, counts.missing], [ui.summaryFailed, counts.failed], [ui.summaryRemaining, remaining]]
       .filter(([, count]) => count > 0).map(([name, count]) => `${name} ${count}`);
     const text = [[label, ...summary].join(" · "), error?.message, detail].filter(Boolean).join("\n");
     clearStatus();
     importState = error || counts.failed ? "error" : canceled ? "canceled" : remaining || counts.missing ? "warning" : "complete";
-    importResult = error ? label : canceled ? `已取消 ${importDone}/${importTotal}` : remaining ? `${label} ${importDone}/${importTotal}`
-      : counts.failed ? `${counts.failed} 个课时失败` : counts.missing ? `${counts.missing} 个课时无字幕`
-      : counts.saved ? `已导入 ${counts.saved} 个课时` : counts.exists ? `已存在 ${counts.exists} 个课时` : label;
+    importResult = error ? label : canceled ? format(ui.canceledCount, { done: importDone, total: importTotal }) : remaining ? `${label} ${importDone}/${importTotal}`
+      : counts.failed ? format(ui.failedCount, { count: counts.failed }) : counts.missing ? format(ui.missingCount, { count: counts.missing })
+      : counts.saved ? format(ui.savedCount, { count: counts.saved }) : counts.exists ? format(ui.existsCount, { count: counts.exists }) : label;
     importResultDetail = text;
     renderImportAction();
     importResultTimer = setTimeout(resetImportButton, 4800);

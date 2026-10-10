@@ -103,7 +103,7 @@ tr.is-previewing td:first-child { box-shadow: inset 2px 0 var(--accent); }
 .destination { display: flex; align-items: center; gap: 7px; margin-top: 4px; color: var(--muted); font-size: 12px; }
 .destination > span, .destination .text-button { flex: none; }
 #destination { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.destination .text-button { font-size: 14px; padding: 0 4px; min-height: 18px; }
+.destination .text-button { width: 28px; height: 28px; min-height: 28px; padding: 0; }
 .empty-state { min-height: 65vh; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; max-width: 640px; padding: 0 30px; }
 .empty-state .empty-icon { width: 35px; height: 35px; color: var(--muted); margin-bottom: 30px; }
 .empty-state h1 { margin-bottom: 16px; font-size: 36px; }

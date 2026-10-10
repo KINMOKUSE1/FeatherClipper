@@ -21,7 +21,7 @@ test('bundle separates workflow, recipes and properties and resolves all entry r
   config.modules.push({ id: 'custom', enabled: true, title: '实验记录', writing: '记录实验步骤与实际结果' });
   const files = configFiles(config), entry = files['SKILL.md'], recipes = files['references/modules.md'];
   assert.equal(Object.keys(files).length, 7);
-  assert.ok(entry.startsWith('---\nname: course-notes\n'));
+  assert.match(entry, /^---\r?\nname: course-notes\r?\n/);
   for (const match of entry.matchAll(/\]\(([^)]+)\)/g)) assert.ok(files[match[1]], match[1]);
   assert.ok(!entry.includes('只生成应用题'));
   assert.equal(files['references/workflow.md'], resources.workflow);

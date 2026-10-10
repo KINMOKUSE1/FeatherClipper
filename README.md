@@ -1,8 +1,8 @@
-# Course Cove
+# Vid2Notes
 
 把 B站和 YouTube 的课程字幕收进 Obsidian，再交给你使用的 AI 整理成学习笔记。
 
-Course Cove 是面向课程学习的 Edge 扩展，支持单个视频、B站分 P 和 YouTube 播放列表。你可以预览字幕、按章节选择课时，导入笔记库，也可以直接复制字幕或保存 Markdown 文件。
+Vid2Notes 是面向课程学习的 Edge 扩展，支持单个视频、B站分 P 和 YouTube 播放列表。你可以预览字幕、按章节选择课时，导入笔记库，也可以直接复制字幕或保存 Markdown 文件。
 
 当前版本：**v1.3.5**
 
@@ -34,7 +34,7 @@ Course Cove 是面向课程学习的 Edge 扩展，支持单个视频、B站分 
 1. 下载并解压 [Edge 安装包](./downloads/course-clipper-edge.zip)
 2. 在 Edge 打开 `edge://extensions/`，开启“开发人员模式”
 3. 点击“加载解压缩的扩展”，选择解压后的 **`course-clipper` 文件夹**
-4. 将 Course Cove 固定到浏览器工具栏
+4. 将 Vid2Notes 固定到浏览器工具栏
 
 安装包附有 `安装指南.html`。使用源码安装时，加载仓库中的 `extension/` 文件夹。
 

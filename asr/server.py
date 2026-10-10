@@ -1,4 +1,4 @@
-"""Optional loopback service for Course Cove's local subtitle transcription."""
+"""Optional loopback service for Vid2Notes's local subtitle transcription."""
 
 import argparse
 import hmac
@@ -370,7 +370,7 @@ def make_handler(home, token):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Course Cove local ASR companion")
+    parser = argparse.ArgumentParser(description="Vid2Notes local ASR companion")
     parser.add_argument("--home", required=True, type=Path)
     options = parser.parse_args()
     home = options.home.resolve()
@@ -383,7 +383,7 @@ def main():
         server = ExclusiveLocalServer(("127.0.0.1", PORT), make_handler(home, token))
     except OSError as error:
         raise SystemExit(f"本地转写端口 {PORT} 已被占用。请关闭其他“启动本地转写”窗口后重试。({error})") from error
-    print(f"Course Cove 本地转写已启动：http://127.0.0.1:{PORT}", flush=True)
+    print(f"Vid2Notes 本地转写已启动：http://127.0.0.1:{PORT}", flush=True)
     print("连接码保存在安装目录的 config.json 中，请勿分享。", flush=True)
     try:
         server.serve_forever()

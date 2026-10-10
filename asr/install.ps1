@@ -3,7 +3,7 @@
 
 $nonSystem = Get-PSDrive -PSProvider FileSystem | Where-Object { $_.Name -ne $env:SystemDrive.TrimEnd(':') } | Select-Object -First 1
 $suggestion = if ($nonSystem) { Join-Path $nonSystem.Root 'CourseCove-ASR' } else { Join-Path $env:USERPROFILE 'CourseCove-ASR' }
-Write-Host 'Course Cove optional local transcription installer'
+Write-Host 'Vid2Notes optional local transcription installer'
 Write-Host 'Choose a folder with several GB free. The model, Python, packages and caches will stay there.'
 try {
     Add-Type -AssemblyName System.Windows.Forms
@@ -79,5 +79,5 @@ if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) {
     }
 }
 Write-Host "`nInstalled at: $homePath"
-Write-Host 'Start the local service with 启动本地转写.cmd, then paste this code into Course Cove:'
+Write-Host 'Start the local service with 启动本地转写.cmd, then paste this code into Vid2Notes:'
 Write-Host $token

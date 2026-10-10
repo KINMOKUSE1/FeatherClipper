@@ -1,5 +1,6 @@
 /* 笔记页的下拉菜单、按钮和自适应文本框。 */
 window.createNoteControls = function (form) {
+  const ui = UiText.notes;
   const selects = new WeakMap();
   let selectId = 0;
   function element(tag, className, text) {
@@ -45,7 +46,7 @@ window.createNoteControls = function (form) {
       menu.append(item); return item;
     });
     const sync = () => {
-      text.textContent = select.selectedOptions[0]?.textContent || "请选择"; button.disabled = select.disabled;
+      text.textContent = select.selectedOptions[0]?.textContent || ui.choose; button.disabled = select.disabled;
       options.forEach((item, index) => item.setAttribute("aria-selected", String(select.options[index].selected)));
     };
     function open() {

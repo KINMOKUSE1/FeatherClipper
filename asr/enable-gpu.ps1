@@ -5,7 +5,7 @@ $ErrorActionPreference = 'Stop'
 if ([string]::IsNullOrWhiteSpace($InstallDir)) {
     Add-Type -AssemblyName System.Windows.Forms
     $picker = New-Object System.Windows.Forms.FolderBrowserDialog
-    $picker.Description = '选择已有的 Course Cove 本地转写安装目录'
+    $picker.Description = '选择已有的 Vid2Notes 本地转写安装目录'
     if ($picker.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) { throw '已取消 GPU 安装。' }
     $InstallDir = $picker.SelectedPath
 }
@@ -14,7 +14,7 @@ $uv = Join-Path $homePath 'tools\uv.exe'
 $python = Join-Path $homePath '.venv\Scripts\python.exe'
 $configPath = Join-Path $homePath 'config.json'
 if (-not (Test-Path $uv) -or -not (Test-Path $python) -or -not (Test-Path $configPath)) {
-    throw '所选目录不是已安装的 Course Cove 本地转写组件。'
+    throw '所选目录不是已安装的 Vid2Notes 本地转写组件。'
 }
 
 $env:UV_CACHE_DIR = Join-Path $homePath 'cache\uv'

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Course Cove · 课程工作台</title>
+    <title>Vid2Notes · 课程工作台</title>
     <link rel="stylesheet" href="theme.css">
     <link rel="stylesheet" href="shell.css">
     <link rel="stylesheet" href="settings.css">
@@ -13,10 +13,10 @@
   <body>
     <div class="app-shell">
       <aside class="sidebar" aria-label="工作台导航">
-        <div class="brand"><img src="../shared/icons/icon128.png" alt=""><strong>Course Cove</strong></div>
+        <div class="brand"><img src="../shared/icons/icon128.png" alt=""><strong>Vid2Notes</strong></div>
         <button id="catalog-nav" class="nav-button active" type="button"><span class="icon icon-chapters" aria-hidden="true"></span>课程素材</button>
-        <button id="notes-nav" class="nav-button" type="button"><span class="icon icon-captions" aria-hidden="true"></span>整理笔记</button>
-        <button id="local-asr-settings" class="nav-button" type="button"><span class="icon icon-captions" aria-hidden="true"></span>本地转写</button>
+        <button id="notes-nav" class="nav-button" type="button"><span class="icon icon-notes" aria-hidden="true"></span>整理笔记</button>
+        <button id="local-asr-settings" class="nav-button" type="button"><span class="icon icon-audio" aria-hidden="true"></span>本地转写</button>
         <button id="settings" class="nav-button" type="button"><span class="icon icon-settings" aria-hidden="true"></span><span>连接配置</span></button>
       </aside>
 
@@ -29,6 +29,7 @@
       </main>
     </div>
 
+    <script src="../shared/ui-text.js"></script>
     <script src="../shared/course.js"></script>
     <script src="notes/rules/defaults.js"></script>
     <script src="notes/generator.js"></script>

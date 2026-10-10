@@ -9,7 +9,7 @@ test('popup displays automatic preview without requesting language options', asy
   const element = () => ({ textContent: '', value: '', children: [], classList: { toggle() {} },
     addEventListener() {}, setAttribute() {}, append(...items) { this.children.push(...items); } });
   const get = id => { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); };
-  const context = vm.createContext({ URL, console, CourseCore: core, window: { close() {} },
+  const context = vm.createContext({ UiText: require('../extension/shared/ui-text.js'), URL, console, CourseCore: core, window: { close() {} },
     document: { getElementById: get, createElement: element, createTextNode: text => text, addEventListener() {} },
     chrome: {
       tabs: { query: async () => [{ url: 'https://www.youtube.com/watch?v=GWwL_pLuX-U' }] },
@@ -46,7 +46,7 @@ test('popup keeps single-video saves separate from explicit whole-course handoff
     append(...items) { this.children.push(...items); } });
   const get = id => { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); };
   let count = 1, previewError = false, missing = false;
-  const context = vm.createContext({ URL, console, CourseCore: core, window: { close() {} },
+  const context = vm.createContext({ UiText: require('../extension/shared/ui-text.js'), URL, console, CourseCore: core, window: { close() {} },
     document: { getElementById: get, createElement: element, createTextNode: text => text, addEventListener() {} },
     chrome: {
       tabs: { query: async () => [{ url: 'https://www.bilibili.com/video/BV1ps4y1d73V/' }], create: async tab => opened.push(tab) },
@@ -116,7 +116,7 @@ async function exportHarness({ languages = false } = {}) {
     addEventListener(name, handler) { this.listeners[name] = handler; },
     append(...items) { this.children.push(...items); } });
   const get = id => { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); };
-  const context = vm.createContext({ URL, console, CourseCore: core, window: { close() {} },
+  const context = vm.createContext({ UiText: require('../extension/shared/ui-text.js'), URL, console, CourseCore: core, window: { close() {} },
     document: { documentElement: { clientWidth: 400, clientHeight: 600 }, getElementById: get, createElement: element, createTextNode: text => text, addEventListener() {} },
     navigator: { clipboard: { writeText: async text => {
       if (context.clipboardFail) throw new Error('Clipboard denied');

@@ -11,7 +11,8 @@
 .note-preferences label, .configuration-fields label { display: block; font-size: 15px; line-height: 1.45; font-weight: 500; margin: 0; }
 .settings-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 320px); column-gap: 24px; row-gap: 4px; align-items: start; padding: 14px 0; border-bottom: 1px solid var(--line); }
 .settings-row:last-child { border-bottom: 0; }
-.settings-row > label { grid-column: 1; grid-row: 1; }
+.settings-row > label { grid-column: 1; grid-row: 1 / span 2; align-self: center; }
+.settings-row:has(> .field-help:not(:empty):not([hidden])) > label { grid-row: 1; align-self: start; }
 .settings-row > input, .settings-row > select, .settings-row > textarea { grid-column: 2; grid-row: 1 / span 2; align-self: center; min-width: 0; }
 .settings-row > .field-help { grid-column: 1; grid-row: 2; margin: 0; }
 .settings-row-multiline { grid-template-rows: 22px auto; }

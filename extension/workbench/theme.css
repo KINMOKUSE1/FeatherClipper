@@ -71,6 +71,8 @@ h2 { font-size: 20px; font-weight: 500; }
 .icon-settings { --icon: url("../shared/icons/lucide/settings-2.svg"); }
 .icon-chapters { --icon: url("../shared/icons/lucide/list-tree.svg"); }
 .icon-captions { --icon: url("../shared/icons/lucide/captions.svg"); }
+.icon-notes { --icon: url("../shared/icons/lucide/notebook-pen.svg"); }
+.icon-edit { --icon: url("../shared/icons/lucide/pencil.svg"); }
 .icon-link { --icon: url("../shared/icons/lucide/link.svg"); }
 .icon-chevron { --icon: url("../shared/icons/lucide/chevron-down.svg"); }
 .icon-save { --icon: url("../shared/icons/lucide/arrow-down-to-line.svg"); }

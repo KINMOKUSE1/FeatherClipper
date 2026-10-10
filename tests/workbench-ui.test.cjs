@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-function boot(file) {
+function boot(file, copy = require('../extension/shared/ui-text.js')) {
   const nodes = new Map();
   function node() {
     return { hidden: true, dataset: {}, children: [], attributes: {}, handlers: {},
@@ -15,7 +15,7 @@ function boot(file) {
   }
   const get = id => { if (!nodes.has(id)) nodes.set(id, node()); return nodes.get(id); };
   const window = { matchMedia: () => ({ matches: true }) };
-  const context = vm.createContext({ window, setTimeout: () => 1, clearTimeout() {},
+  const context = vm.createContext({ UiText: copy, window, setTimeout: () => 1, clearTimeout() {},
     document: { getElementById: get, createElement: node, querySelector: selector => get(selector),
       querySelectorAll: () => [] }
   });
@@ -57,4 +57,24 @@ test('import action ignores repeated cancellation but allows restarting after ca
   action.progress(0, 3);
   assert.equal(button.dataset.state, 'running');
   assert.match(button.attributes['aria-label'], /再次点击取消/);
+});
+
+test('central copy can change result wording while preserving import state and count', () => {
+  const copy = require('../extension/shared/ui-text.js');
+  const h = boot('../extension/workbench/catalog/import-button.js', {
+    ...copy, importButton: { ...copy.importButton, savedCount: '保存完成，共 {count} 节' }
+  });
+  const action = h.window.createImportButton({ onActivate() {}, clearStatus() {} });
+  action.progress(2, 2);
+  action.result('导入完成', { saved: 2 }, 0);
+  const button = h.get('start');
+  const content = button.children.find(item => item.className === 'import-button-content');
+  const label = content.children.find(item => item.className === 'import-button-label');
+  assert.equal(button.dataset.state, 'complete');
+  assert.equal(label.textContent, '保存完成，共 2 节');
+});
+
+test('copy placeholders preserve zero counts and literal values', () => {
+  const { format } = require('../extension/shared/ui-text.js');
+  assert.equal(format('{count} 个 · {name}', { count: 0, name: '$& {count}' }), '0 个 · $& {count}');
 });

@@ -1,10 +1,11 @@
 /* 工作台入口：挂载各页面，再将明确的依赖传给功能控制器。 */
 (() => {
+  const ui = UiText.workbench, format = UiText.format;
   const assetBase = new URL(".", document.currentScript.src);
   async function send(message) {
     const response = await chrome.runtime.sendMessage(message);
     if (!response?.ok) {
-      const error = new Error(response?.error || "扩展连接中断，请重新打开导入页");
+      const error = new Error(response?.error || ui.connectionLost);
       error.fatal = response?.fatal;
       throw error;
     }
@@ -14,7 +15,7 @@
     const hosts = [...document.querySelectorAll("[data-page]")];
     const pages = await Promise.all(hosts.map(async host => {
       const response = await fetch(new URL(`${host.dataset.page}/page.html`, assetBase), { cache: "no-store" });
-      if (!response.ok) throw new Error(`页面读取失败：${host.dataset.page}`);
+      if (!response.ok) throw new Error(format(ui.pageFailed, { page: host.dataset.page }));
       return response.text();
     }));
     hosts.forEach((host, index) => {

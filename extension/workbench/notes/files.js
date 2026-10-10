@@ -1,5 +1,7 @@
 /* ZIP 编码及目录写入核对；不操作页面或生成整理规则。 */
 (() => {
+  const copy = typeof module !== "undefined" && module.exports ? require("../../shared/ui-text.js") : window.UiText;
+  const ui = copy.validation, format = copy.format;
   // Uncompressed ZIP keeps exports dependency-free and readable by standard unzip tools.
   function zip(files) {
     const encoder = new TextEncoder(), chunks = [], directory = [];
@@ -31,7 +33,7 @@
       for (const folder of parts.slice(0, -1)) target = await target.getDirectoryHandle(folder, { create: true });
       const handle = await target.getFileHandle(parts.at(-1), { create: true });
       const stream = await handle.createWritable(); await stream.write(file.content); await stream.close();
-      if ((await (await handle.getFile()).text()) !== file.content) throw new Error(`文件写入核对失败：${file.path}`);
+      if ((await (await handle.getFile()).text()) !== file.content) throw new Error(format(ui.writeFailed, { file: file.path }));
     }
   }
   const api = { zip, writeFiles };

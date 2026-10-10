@@ -1,38 +1,40 @@
 /* Editable recipes and file generation for course-notes. */
 (() => {
+  const copy = typeof module !== "undefined" && module.exports ? require("../../shared/ui-text.js") : window.UiText;
+  const ui = copy.validation, format = copy.format;
   const recipes = typeof module !== "undefined" && module.exports ? require("./rules/defaults.js") : window.NoteDefaults;
   const { modules, properties, types, taskTypes, defaults, deliveryDefaults } = recipes;
   function propertyValue(property) {
     const value = String(property.value ?? "").trim();
     if (property.type === "list") return value.split(/[,，\n]/).map(item => item.trim()).filter(Boolean);
     if (property.type === "number") {
-      if (!value || !Number.isFinite(Number(value))) throw new Error(`属性 ${property.name} 需要有效数字`);
+      if (!value || !Number.isFinite(Number(value))) throw new Error(format(ui.number, { name: property.name }));
       return Number(value);
     }
     if (property.type === "boolean") {
-      if (!["true", "false"].includes(value)) throw new Error(`属性 ${property.name} 请选择是或否`);
+      if (!["true", "false"].includes(value)) throw new Error(format(ui.boolean, { name: property.name }));
       return value === "true";
     }
-    if (property.type === "date" && (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(value)) || new Date(value).toISOString().slice(0, 10) !== value)) throw new Error(`属性 ${property.name} 需要有效日期`);
+    if (property.type === "date" && (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(value)) || new Date(value).toISOString().slice(0, 10) !== value)) throw new Error(format(ui.date, { name: property.name }));
     return value;
   }
   function validate(config) {
-    if (![config.language, config.folder, config.naming].every(value => value.trim())) throw new Error("请填写笔记语言、根目录和文件命名");
+    if (![config.language, config.folder, config.naming].every(value => value.trim())) throw new Error(ui.outputRequired);
     const enabled = config.modules.filter(item => item.enabled);
-    if (!enabled.length) throw new Error("请至少选择一个内容模块");
-    if (enabled.some(item => !item.title.trim() || !item.writing.trim())) throw new Error("请为启用的模块填写名称和写法");
-    if (config.links === "sources" && !enabled.some(item => item.id === "sources")) throw new Error("集中展示回看链接时，请启用“来源与待核实项”模块");
-    if (config.properties.some(item => item.enabled && !item.fixed && !item.rule.trim())) throw new Error("请为启用的属性填写规则");
+    if (!enabled.length) throw new Error(ui.moduleRequired);
+    if (enabled.some(item => !item.title.trim() || !item.writing.trim())) throw new Error(ui.moduleWritingRequired);
+    if (config.links === "sources" && !enabled.some(item => item.id === "sources")) throw new Error(ui.sourcesRequired);
+    if (config.properties.some(item => item.enabled && !item.fixed && !item.rule.trim())) throw new Error(ui.propertyRuleRequired);
     const names = new Set(properties.map(item => item.name).concat(["__proto__", "constructor", "prototype"]));
     for (const property of config.customProperties) {
-      if (!/^[\p{L}_][\p{L}\p{N}_-]*$/u.test(property.name) || names.has(property.name)) throw new Error(`属性名 ${property.name || "（空）"} 无效或重复`);
+      if (!/^[\p{L}_][\p{L}\p{N}_-]*$/u.test(property.name) || names.has(property.name)) throw new Error(format(ui.propertyName, { name: property.name || "（空）" }));
       names.add(property.name);
       propertyValue(property);
     }
   }
   function buildFiles(config, resources) {
     validate(config);
-    if (!resources?.entry?.trim() || !resources?.agent?.trim() || !resources?.workflow?.trim() || !resources?.tasks?.trim()) throw new Error("整理流程或任务说明未加载");
+    if (!resources?.entry?.trim() || !resources?.agent?.trim() || !resources?.workflow?.trim() || !resources?.tasks?.trim()) throw new Error(ui.rulesRequired);
     const links = { heading: "视频回看入口放在对应知识点标题旁，正文和例题共用该入口，跨视频补充可添加必要链接", paragraph: "视频回看入口放在对应内容段落末尾，同一来源的相邻内容共用入口，避免逐句重复标注", sources: "视频回看入口集中放在已选的“来源与待核实项”模块，注明对应知识点和时间" };
     const enabled = config.modules.filter(item => item.enabled);
     const attrs = config.properties.filter(item => item.enabled).map(item => {
@@ -63,12 +65,12 @@
     ];
   }
   function validateTask(delivery, context) {
-    if (!taskTypes[delivery.task]) throw new Error("请选择任务类型");
-    if (delivery.task === "review" && !delivery.question.trim()) throw new Error("请填写要复习或解答的问题");
+    if (!taskTypes[delivery.task]) throw new Error(ui.taskRequired);
+    if (delivery.task === "review" && !delivery.question.trim()) throw new Error(ui.questionRequired);
     const hasReference = delivery.environment === "web" ? context.references?.some(item => item.content.trim()) : Boolean(delivery.reference.trim());
-    if (["supplement", "continue"].includes(delivery.task) && !hasReference) throw new Error(delivery.environment === "web" ? "请上传已有笔记或整理进度" : "请填写已有笔记或整理进度路径");
+    if (["supplement", "continue"].includes(delivery.task) && !hasReference) throw new Error(delivery.environment === "web" ? ui.webReferenceRequired : ui.localReferenceRequired);
     const available = context.materials.some(item => delivery.environment === "web" ? item.content?.trim() : item.path);
-    if (!available && !(delivery.task === "review" && hasReference)) throw new Error(delivery.environment === "web" ? "没有可用字幕，请选择其他课时或上传素材文件" : "没有已导入素材，请先导入所选课时或填写本地素材路径");
+    if (!available && !(delivery.task === "review" && hasReference)) throw new Error(delivery.environment === "web" ? ui.webMaterialRequired : ui.localMaterialRequired);
   }
   function taskRequest(config, delivery) {
     const requests = {
@@ -89,7 +91,7 @@
       "只处理指定范围，缺失的字幕、板书、公式或原笔记应注明，不假定已经读取未上传的内容",
       "输出完整 Markdown，支持文件交付时可返回 .md 文件并说明建议文件名；目录仅作保存建议。请把结果交给我保存，不调用本地 skill，不读取本机路径，不声称已更新 Obsidian", ""
     ].join("\n\n");
-    if (!delivery.ready) throw new Error("请先安装或同步当前技能包，并确认当前配置已安装");
+    if (!delivery.ready) throw new Error(ui.installationRequired);
     return [`请使用 course-notes 执行“${taskTypes[delivery.task]}”`, `课程：${context.course}`,
       ...(context.index ? [`课程清单：${context.index}`] : []), "本次范围：",
       ...context.materials.map(item => `- ${item.label}（分组：${item.chapter}）：${item.path || `素材缺失：${item.missing || "未导入"}`}`),

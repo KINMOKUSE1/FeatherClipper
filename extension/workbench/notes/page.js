@@ -1,5 +1,6 @@
 /* 笔记配置界面：编辑栏目和属性、保存偏好及预览生成文件。 */
 window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
+  const ui = UiText.notes, format = UiText.format;
   const core = window.NoteGenerator;
   const storageKey = "course-cove:skill-builder:v1", deliveryKey = "course-cove:notes-delivery:v1";
   const installationKey = "course-cove:notes-installed:v1";
@@ -43,14 +44,14 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
     get("builder-web-reference-row").hidden = !web || !reference;
     get("builder-web-reference").disabled = !web || !reference;
     get("builder-web-reference").required = web && requiredReference && !model.uploadedReferences.length;
-    get("builder-environment-help").textContent = web ? "导出实际素材和规则，上传给网页 AI 后执行" : "agent 读取本地素材，已安装技能时使用简短任务指令";
-    const hints = { notes: "整理所选课时或提供的文件", supplement: "把新增内容合入实际提供的原笔记", continue: "核对已有记录，只继续本次范围的未完成部分", translate: "按笔记语言翻译字幕，保留原文与时间定位", review: "结合课程或已有笔记回答本次问题" };
+    get("builder-environment-help").textContent = web ? ui.webHelp : ui.localHelp;
+    const hints = { notes: ui.taskNotes, supplement: ui.taskSupplement, continue: ui.taskContinue, translate: ui.taskTranslate, review: ui.taskReview };
     get("builder-task-help").textContent = hints[model.delivery.task];
     const state = get("builder-install-state"), isReady = ready();
     state.dataset.state = isReady ? "ready" : model.installedSnapshot ? "dirty" : "missing";
-    state.textContent = isReady ? "✓ 已安装" : model.installedSnapshot ? "待同步" : "未安装";
-    get("builder-install-title").textContent = isReady ? "技能已就绪" : model.installedSnapshot ? "配置有更新" : "先安装技能";
-    get("builder-install-next").textContent = isReady ? "下一步：复制任务指令，交给本地 agent" : model.installedSnapshot ? "同步当前配置后，再复制任务指令" : "安装一次，之后用简短指令调用 course-notes";
+    state.textContent = isReady ? ui.installed : model.installedSnapshot ? ui.dirty : ui.missing;
+    get("builder-install-title").textContent = isReady ? ui.readyTitle : model.installedSnapshot ? ui.dirtyTitle : ui.missingTitle;
+    get("builder-install-next").textContent = isReady ? ui.readyNext : model.installedSnapshot ? ui.dirtyNext : ui.missingNext;
     get("builder-confirm-installed").checked = isReady;
     const supported = typeof window.parent.showDirectoryPicker === "function";
     const main = get("builder-install-actions"), utility = get("builder-install-utility"), manual = get("builder-manual-install");
@@ -63,28 +64,28 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
     };
     sync.hidden = !supported;
     sync.disabled = !supported;
-    sync.textContent = isReady ? model.directory ? "同步到已选目录" : "同步到目录" : model.installedSnapshot ? "同步当前配置" : "选择目录并同步";
-    sync.title = "选择 agent 的 skills 目录或 course-notes 文件夹，写入并核对当前 7 个文件";
-    downloadButton.textContent = !isReady && model.installedSnapshot ? "下载更新包" : "下载技能包";
+    sync.textContent = isReady ? model.directory ? ui.syncSelected : ui.sync : model.installedSnapshot ? ui.syncUpdate : ui.syncNew;
+    sync.title = ui.syncHint;
+    downloadButton.textContent = !isReady && model.installedSnapshot ? ui.downloadUpdate : ui.download;
     place(sync, isReady ? utility : main, isReady ? "text-button" : "builder-install-primary");
     place(downloadButton, isReady ? utility : main, isReady ? "text-button" : supported ? "builder-install-secondary" : "builder-install-primary");
     place(installPrompt, isReady ? utility : manual, "text-button");
     place(copyButton, web ? get("note-preferences-page").querySelector(".configuration-actions") : main, web ? "text-button" : "builder-install-primary");
     place(previewButton, web ? get("builder-web-preview") : main, web ? "text-button" : "builder-install-secondary");
     copyButton.hidden = previewButton.hidden = !web && !isReady;
-    copyButton.textContent = web ? "复制任务指令" : "复制任务指令 ↗";
-    previewButton.textContent = web ? "预览本次任务指令" : "预览指令";
+    copyButton.textContent = web ? ui.copyWeb : ui.copyLocal;
+    previewButton.textContent = web ? ui.previewWeb : ui.previewLocal;
     utility.hidden = !isReady; manual.hidden = isReady;
-    get("builder-install-caption").textContent = isReady ? "修改整理规则后，先同步技能，再复制指令" : supported ? "下载技能包后，完成安装再勾选确认" : "当前浏览器不支持目录写入，下载技能包并安装后勾选确认";
+    get("builder-install-caption").textContent = isReady ? ui.readyCaption : supported ? ui.manualCaption : ui.unsupportedCaption;
     get("builder-delivery-guide").hidden = get("builder-web-preview").hidden = !web;
     let webReady = false;
     try { webReady = model.exportedWeb?.snapshot === webSnapshot(); } catch {}
-    get("builder-delivery-guide").textContent = webReady ? "材料已按当前设置导出，上传后粘贴配套任务指令" : "先导出网页材料，再上传文件并复制配套指令；不需要连接 Obsidian";
+    get("builder-delivery-guide").textContent = webReady ? ui.exportedGuide : ui.exportGuide;
   }
   function renderFileList(files, selected = previewPath) {
     previewFiles = files; previewPath = files.some(file => file.path === selected) ? selected : files[0].path;
     get("builder-file-list").replaceChildren(...files.map(file => {
-      const button = action(file.path, `查看 ${file.path}`, () => renderFileList(previewFiles, file.path));
+      const button = action(file.path, format(ui.fileLabel, { file: file.path }), () => renderFileList(previewFiles, file.path));
       button.setAttribute("aria-current", String(file.path === previewPath)); return button;
     }));
     get("builder-file-name").textContent = previewPath;
@@ -93,7 +94,7 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
   function refreshPreview() {
     read(); updateDelivery();
     const enabled = model.config.modules.filter(item => item.enabled).length;
-    get("builder-module-count").textContent = `${enabled} / ${model.config.modules.length} 已启用`;
+    get("builder-module-count").textContent = format(ui.moduleCount, { enabled, total: model.config.modules.length });
     form.querySelectorAll("select").forEach(decorateSelect);
     resizeTextareas();
     try { renderFileList(core.buildFiles(model.config, model.resources)); }
@@ -112,7 +113,7 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
     model.config.modules.forEach((item, index) => {
       const row = element("div", `builder-module${item.enabled ? "" : " is-disabled"}`);
       const top = element("div", "builder-module-top");
-      const grip = action("⠿", `拖动${item.title || "自定义模块"}调整顺序`, () => openMenu());
+      const grip = action("⠿", format(ui.dragModule, { title: item.title || ui.customModule }), () => openMenu());
       grip.classList.add("builder-module-grip"); grip.draggable = true;
       grip.addEventListener("dragstart", event => {
         draggedModule = item; event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", item.id);
@@ -131,35 +132,35 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
       });
       const label = element("label", "builder-check");
       const check = element("input"); check.type = "checkbox"; check.checked = item.enabled;
-      check.setAttribute("aria-label", `启用${item.title || "自定义模块"}`);
+      check.setAttribute("aria-label", format(ui.enableModule, { title: item.title || ui.customModule }));
       const title = item.custom ? element("input", "builder-module-name") : element("h3", "builder-module-title", item.title);
       if (item.custom) {
-        title.value = item.title; title.placeholder = "模块名称"; title.required = item.enabled;
-        title.setAttribute("aria-label", "自定义模块名称");
+        title.value = item.title; title.placeholder = ui.moduleName; title.required = item.enabled;
+        title.setAttribute("aria-label", ui.customModuleName);
         title.addEventListener("input", () => { item.title = title.value; refreshPreview(); });
       }
       label.append(check);
-      const off = element("span", "builder-module-off", "未启用"); off.hidden = item.enabled;
-      const trigger = action("⋯", `${item.title || "自定义模块"}的操作`, () => controls.matches(":popover-open") ? controls.hidePopover() : openMenu());
+      const off = element("span", "builder-module-off", ui.disabled); off.hidden = item.enabled;
+      const trigger = action("⋯", format(ui.moduleActions, { title: item.title || ui.customModule }), () => controls.matches(":popover-open") ? controls.hidePopover() : openMenu());
       trigger.classList.add("builder-module-menu-trigger");
       const controls = element("div", "builder-module-actions");
       controls.id = `builder-module-actions-${index}`; controls.setAttribute("popover", "auto"); controls.setAttribute("role", "menu");
-      controls.setAttribute("aria-label", `${item.title || "自定义模块"}的操作`);
+      controls.setAttribute("aria-label", format(ui.moduleActions, { title: item.title || ui.customModule }));
       trigger.setAttribute("aria-haspopup", "menu"); trigger.setAttribute("aria-expanded", "false"); trigger.setAttribute("aria-controls", controls.id);
       function openMenu() {
         controls.showPopover(); positionSelectMenu(trigger, controls);
         controls.querySelector("button:not(:disabled)").focus({ preventScroll: true });
       }
       const move = direction => { controls.hidePopover(); moveModule(item, model.config.modules.indexOf(item) + direction); };
-      const up = action("上移", `上移${item.title}`, () => move(-1)); up.disabled = index === 0;
-      const down = action("下移", `下移${item.title}`, () => move(1)); down.disabled = index === model.config.modules.length - 1;
+      const up = action(ui.moveUp, format(ui.upModule, { title: item.title }), () => move(-1)); up.disabled = index === 0;
+      const down = action(ui.moveDown, format(ui.downModule, { title: item.title }), () => move(1)); down.disabled = index === model.config.modules.length - 1;
       controls.append(up, down);
-      if (item.custom) controls.append(action("删除", "删除自定义模块", () => { controls.hidePopover(); model.config.modules.splice(index, 1); renderModules(); refreshPreview(); get("builder-add-module").focus(); }));
-      else controls.append(action("恢复默认", `恢复${item.title}默认写法`, () => {
+      if (item.custom) controls.append(action(ui.remove, ui.removeModule, () => { controls.hidePopover(); model.config.modules.splice(index, 1); renderModules(); refreshPreview(); get("builder-add-module").focus(); }));
+      else controls.append(action(ui.restore, format(ui.restoreModule, { title: item.title }), () => {
         controls.hidePopover(); trigger.focus({ preventScroll: true });
         item.writing = core.modules.find(module => module.id === item.id).writing;
         textarea.value = item.writing; refreshPreview();
-        showSettingsFeedback("note-status", `已恢复“${item.title}”的默认写法`);
+        showSettingsFeedback("note-status", format(ui.restoredModule, { title: item.title }));
       }));
       controls.querySelectorAll("button").forEach(button => button.setAttribute("role", "menuitem"));
       controls.addEventListener("toggle", event => trigger.setAttribute("aria-expanded", String(event.newState === "open")));
@@ -173,7 +174,7 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
       });
       top.append(grip, title, off, label, trigger, controls);
       const textarea = element("textarea"); textarea.rows = 1; textarea.value = item.writing; textarea.required = item.enabled;
-      textarea.setAttribute("aria-label", `${item.title || "自定义模块"}写法`);
+      textarea.setAttribute("aria-label", format(ui.moduleWriting, { title: item.title || ui.customModule }));
       textarea.addEventListener("input", () => { item.writing = textarea.value; refreshPreview(); });
       check.addEventListener("change", () => {
         item.enabled = check.checked; row.classList.toggle("is-disabled", !item.enabled);
@@ -191,16 +192,16 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
       const row = element("div", `builder-property${item.enabled ? "" : " is-disabled"}`);
       row.dataset.type = item.type;
       const check = element("input", "builder-enable"); check.type = "checkbox"; check.checked = item.enabled;
-      check.id = `builder-property-${item.name}`; check.setAttribute("aria-label", `输出 ${item.name} 属性`);
+      check.id = `builder-property-${item.name}`; check.setAttribute("aria-label", format(ui.enableProperty, { name: item.name }));
       const label = element("label", "builder-property-name", item.name); label.htmlFor = check.id;
-      const hint = item.fixed ? item.name === "author" ? "你的署名 · 留空省略" : "固定标签 · 逗号分隔" : "自动填写";
+      const hint = item.fixed ? item.name === "author" ? ui.authorHint : ui.tagsHint : ui.automaticProperty;
       const icon = element("span", "icon property-type-icon"); icon.setAttribute("aria-hidden", "true"); icon.title = `${core.types[item.type]} · ${hint}`;
       const value = element("input");
       value.value = item.fixed ? item.value : item.rule; value.disabled = !item.enabled;
       value.required = item.enabled && !item.fixed;
-      value.setAttribute("aria-label", `${item.name}${item.fixed ? "属性值" : "填写规则"}`);
+      value.setAttribute("aria-label", format(ui.propertyInput, { name: item.name, kind: item.fixed ? ui.propertyValue : ui.propertyRule }));
       value.title = `${core.types[item.type]} · ${hint}`;
-      if (item.name === "author") value.placeholder = "你的署名 · 留空省略";
+      if (item.name === "author") value.placeholder = ui.authorHint;
       value.addEventListener("input", () => { item[item.fixed ? "value" : "rule"] = value.value; refreshPreview(); });
       check.addEventListener("change", () => {
         item.enabled = check.checked; value.disabled = !item.enabled; value.required = item.enabled && !item.fixed;
@@ -214,21 +215,21 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
     container.hidden = !model.config.customProperties.length; container.replaceChildren();
     model.config.customProperties.forEach((item, index) => {
       const row = element("div", "builder-property builder-custom-property");
-      const name = element("input"); name.value = item.name; name.placeholder = "属性名"; name.required = true;
-      name.setAttribute("aria-label", "自定义属性名称");
+      const name = element("input"); name.value = item.name; name.placeholder = ui.propertyName; name.required = true;
+      name.setAttribute("aria-label", ui.customPropertyName);
       name.addEventListener("input", () => { item.name = name.value.trim(); refreshPreview(); });
-      const type = element("select"); type.setAttribute("aria-label", "自定义属性类型");
+      const type = element("select"); type.setAttribute("aria-label", ui.customPropertyType);
       for (const [key, label] of Object.entries(core.types)) type.add(new Option(label, key));
       type.value = item.type;
       const value = element(item.type === "boolean" ? "select" : "input", "builder-custom-value");
-      value.setAttribute("aria-label", "自定义属性值");
-      if (item.type === "boolean") { value.add(new Option("否", "false")); value.add(new Option("是", "true")); }
+      value.setAttribute("aria-label", ui.customPropertyValue);
+      if (item.type === "boolean") { value.add(new Option(ui.falseLabel, "false")); value.add(new Option(ui.trueLabel, "true")); }
       else { value.type = item.type === "date" ? "date" : item.type === "number" ? "number" : "text"; if (item.type === "number") value.step = "any"; }
-      value.value = item.value; value.placeholder = item.type === "list" ? "逗号分隔" : "属性值";
+      value.value = item.value; value.placeholder = item.type === "list" ? ui.listValueHint : ui.propertyValue;
       value.required = ["number", "date"].includes(item.type);
       value.addEventListener("input", () => { item.value = value.value; refreshPreview(); });
       type.addEventListener("change", () => { item.type = type.value; item.value = item.type === "boolean" ? "false" : ""; renderCustomProperties(); refreshPreview(); });
-      const remove = action("×", "删除自定义属性", () => { model.config.customProperties.splice(index, 1); renderCustomProperties(); refreshPreview(); get("builder-add-property").focus(); });
+      const remove = action("×", ui.removeProperty, () => { model.config.customProperties.splice(index, 1); renderCustomProperties(); refreshPreview(); get("builder-add-property").focus(); });
       row.append(name, type, value, remove); container.append(row);
     });
   }
@@ -236,7 +237,7 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
     if (model.loaded) return;
     if (!model.resources) {
       const responses = await Promise.all(["SKILL.md", "openai.yaml", "workflow.md", "tasks.md"].map(file => fetch(new URL(file, resourceBase), { cache: "no-store" })));
-      if (responses.some(response => !response.ok)) throw new Error("整理规则读取失败，请重新打开工作台");
+      if (responses.some(response => !response.ok)) throw new Error(ui.rulesFailed);
       const [entry, agent, workflow, tasks] = await Promise.all(responses.map(response => response.text()));
       model.resources = { entry, agent, workflow, tasks };
     }
@@ -270,7 +271,7 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
   });
   form.addEventListener("submit", async event => {
     event.preventDefault();
-    try { await save(); updateDelivery(); showSettingsFeedback("note-status", model.delivery.environment === "web" ? "设置已保存，导出网页材料后使用" : "设置已保存，请按当前安装状态同步技能"); }
+    try { await save(); updateDelivery(); showSettingsFeedback("note-status", model.delivery.environment === "web" ? ui.savedWeb : ui.savedLocal); }
     catch (error) { showSettingsFeedback("note-status", error.message); }
   });
   get("builder-add-module").addEventListener("click", () => {

@@ -1,5 +1,6 @@
 /* 字幕面板的展开、收起、动画和提示。 */
 window.createSubtitlePreview = function () {
+  const ui = UiText.catalog;
   const workspace = document.querySelector(".workspace");
   const previewPanel = document.getElementById("preview-panel");
   let previewOpen = !previewPanel.hidden;
@@ -34,7 +35,7 @@ window.createSubtitlePreview = function () {
       for (const row of document.querySelectorAll("#parts tr")) {
         row.classList.remove("is-previewing");
         row.querySelector(".part-title").setAttribute("aria-expanded", "false");
-        row.querySelector(".part-title").title = "点击核对字幕";
+        row.querySelector(".part-title").title = ui.openPreview;
       }
     }
   }

@@ -16,10 +16,10 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body { width: 400px; max-height: 600px; overflow-y: auto; margin: 0; line-height: 1.6; font-family: inherit; font-size: 14px; }
-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 20px 24px 0; }
-.popup-brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
-.popup-brand-icon { width: 34px; height: 34px; flex: none; }
-header strong { font-size: 20px; font-weight: 600; letter-spacing: -.35px; white-space: nowrap; }
+header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 20px 0; }
+.popup-brand { display: flex; align-items: center; gap: 14px; min-width: 0; min-height: 44px; }
+.popup-brand-icon { width: 24px; height: 24px; flex: none; }
+header strong { font-size: 16px; font-weight: 600; letter-spacing: -.3px; white-space: nowrap; }
 main, #connection { padding: 0 24px 24px; }
 main { padding-bottom: 12px; }
 #connection {padding-top: 12px; }

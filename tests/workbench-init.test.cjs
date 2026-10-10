@@ -17,7 +17,7 @@ function boot(search, unavailable = false, missingSubtitle = false) {
   const get = id => { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); };
   let panelOpen = false;
   const window = { addEventListener() {}, matchMedia: () => ({ matches: false }) };
-  const context = vm.createContext({ window, URLSearchParams, location: { search }, CourseCore: core,
+  const context = vm.createContext({ UiText: require('../extension/shared/ui-text.js'), window, URLSearchParams, location: { search }, CourseCore: core,
     document: { getElementById: get, createElement: element, createTextNode: text => text,
       addEventListener() {}, querySelector: () => element(), querySelectorAll: () => [] },
     chrome: { storage: { local: { get: async () => ({}), set: async () => {} } } }
@@ -80,7 +80,7 @@ test('ASR handoff keeps the loaded preview open and transfers the current missin
 
 test('notes opens offline without reading Obsidian', async () => {
   const handlers = {}, calls = [];
-  const context = vm.createContext({
+  const context = vm.createContext({ UiText: require('../extension/shared/ui-text.js'),
     document: { getElementById: () => ({ addEventListener: (event, handler) => { handlers.notes = handler; } }) },
     load: async () => calls.push('load-preferences'), showSettingsFeedback() {},
     navigate: id => calls.push(id), feedback: { status: message => { throw new Error(message); } }

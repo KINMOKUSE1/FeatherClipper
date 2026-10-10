@@ -133,7 +133,7 @@ async function youtubePageRead(videoId, includeBody, includeAudio, playlistId) {
       const diagnostic = JSON.stringify(states.map(({ candidate, status }) => ({ source: candidate.source, status,
         idSource: candidate.evidence.idSource, ids: [...new Set(candidate.evidence.ids)] })));
       if (diagnostic !== lastDiagnostic) {
-        console.debug("[Course Cove YouTube] playlist", playlistId, diagnostic);
+        console.debug("[Vid2Notes YouTube] playlist", playlistId, diagnostic);
         lastDiagnostic = diagnostic;
       }
       if (accepted || Date.now() >= deadline) break;
@@ -181,7 +181,7 @@ async function youtubePageRead(videoId, includeBody, includeAudio, playlistId) {
   const report = (stage, outcome) => {
     diagnostics.push(`${stage}：${outcome}`);
     // Only route outcomes; never log cookies, response payloads or signed URLs.
-    console.debug("[Course Cove YouTube]", stage, outcome);
+    console.debug("[Vid2Notes YouTube]", stage, outcome);
   };
   const checkVideo = () => {
     if (new URL(location.href).searchParams.get("v") !== videoId) throw new Error("YouTube 页面已切换视频，请重新读取。");

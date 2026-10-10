@@ -1,11 +1,12 @@
 /* 课程目录状态、课时选择、字幕读取和字幕导入队列。 */
 window.createCatalogPage = function ({ send, feedback, previewView, importAction, connection, transcription }) {
+  const ui = UiText.catalog, format = UiText.format;
   const { status } = feedback;
   function reportImportResult(label, counts, remaining, error = null, detail = "") {
     return importAction.result(label, counts, remaining, error, detail, stopping);
   }
   const $ = id => document.getElementById(id);
-  const statusLabels = { pending: "待导入", running: "处理中", saved: "已导入", exists: "已存在", missing: "无字幕", failed: "失败" };
+  const statusLabels = { pending: ui.pending, running: ui.running, saved: ui.saved, exists: ui.exists, missing: ui.missing, failed: ui.failed };
   let meta = null, pages = [], running = false, loading = false, stopping = false;
   let previewId = "", previewRun = 0, previewLoading = false;
   let chapterFilter = "all";
@@ -55,20 +56,20 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
     syncControls();
     if (!meta) return;
     $("title").textContent = meta.title;
-    $("course-meta").textContent = meta.platform === "youtube" ? `${meta.author || "视频作者"} · ${pages.length} 个视频` : `${meta.author || "课程作者"} · ${pages.length} 个分 P`;
+    $("course-meta").textContent = meta.platform === "youtube" ? format(ui.youtubeMeta, { author: meta.author || ui.videoAuthor, count: pages.length }) : format(ui.bilibiliMeta, { author: meta.author || ui.courseAuthor, count: pages.length });
     const selected = pages.filter(p => p.selected).length;
     const missingSelected = pages.filter(p => p.selected && p.status === "missing").length;
     $("asr-selected").hidden = missingSelected === 0;
-    $("asr-selected-label").textContent = `本地转写 · ${missingSelected}`;
-    $("asr-selected").setAttribute("aria-label", `本地转写并导入 ${missingSelected} 个无字幕视频`);
-    $("count").textContent = `已选择 ${selected} / ${pages.length}`;
-    $("import-summary").textContent = selected ? `已选择 ${selected} 个课时` : "请先勾选要导入的课时";
+    $("asr-selected-label").textContent = format(ui.transcribeSelected, { count: missingSelected });
+    $("asr-selected").setAttribute("aria-label", format(ui.transcribeSelectedLabel, { count: missingSelected }));
+    $("count").textContent = format(ui.selectionCount, { selected, total: pages.length });
+    $("import-summary").textContent = selected ? format(ui.selectionSummary, { count: selected }) : ui.selectHint;
     const group = chapterFilter;
-    $("current").textContent = "仅选当前";
-    $("current").title = `只勾选课程链接指向的第 ${currentPage} 个视频，取消其他视频的勾选`;
-    $("select").textContent = group === "all" ? "全选" : group === "0" ? "全选未分章" : "全选本章";
-    $("clear").textContent = group === "all" ? "清空" : group === "0" ? "取消该组选择" : "取消本章选择";
-    $("select").title = group === "all" ? "勾选课程中的所有视频" : "仅勾选当前分组，其他分组将取消选择";
+    $("current").textContent = ui.current;
+    $("current").title = format(ui.currentHint, { number: currentPage });
+    $("select").textContent = group === "all" ? ui.selectAll : group === "0" ? ui.selectUngrouped : ui.selectChapter;
+    $("clear").textContent = group === "all" ? ui.clear : group === "0" ? ui.clearGroup : ui.clearChapter;
+    $("select").title = group === "all" ? ui.selectAllHint : ui.selectChapterHint;
     try { $("destination").textContent = CourseCore.courseFolder(meta, $("folder").value); }
     catch (error) { $("destination").textContent = error.message; }
     $("destination").title = $("destination").textContent;
@@ -81,24 +82,24 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
       const cells = Array.from({ length: 5 }, () => row.appendChild(document.createElement("td")));
       const check = document.createElement("input");
       check.type = "checkbox"; check.checked = page.selected; check.disabled = running || loading;
-      check.setAttribute("aria-label", meta.platform === "youtube" ? "选择 YouTube 视频" : `选择 P${page.page}`);
+      check.setAttribute("aria-label", meta.platform === "youtube" ? ui.selectYoutube : format(ui.selectPage, { number: page.page }));
       check.addEventListener("change", () => { page.selected = check.checked; render(); }); cells[0].append(check);
       cells[1].textContent = String(page.page).padStart(2, "0"); cells[1].className = "part-number";
-      cells[1].setAttribute("aria-label", `序号 ${page.page}`);
+      cells[1].setAttribute("aria-label", format(ui.pageNumber, { number: page.page }));
       const button = document.createElement("button");
       button.className = "part-title"; button.textContent = partTitle(page); button.disabled = running || loading;
-      button.setAttribute("aria-label", `预览 P${page.page} ${page.part}`);
-      button.title = isPreviewing ? "点击收起字幕" : "点击核对字幕";
+      button.setAttribute("aria-label", format(ui.previewPage, { number: page.page, title: page.part }));
+      button.title = isPreviewing ? ui.closePreview : ui.openPreview;
       button.setAttribute("aria-controls", "preview-panel");
       button.setAttribute("aria-expanded", String(isPreviewing));
       button.addEventListener("click", () => preview(page)); cells[2].append(button);
       const chapter = document.createElement("input");
       chapter.type = "text"; chapter.className = "chapter-number"; chapter.inputMode = "decimal"; chapter.value = page.chapter;
-      chapter.title = "可填写 2 或 2.3；0 表示未分章";
-      chapter.disabled = running || loading; chapter.setAttribute("aria-label", `P${page.page} 章节号`);
+      chapter.title = ui.chapterHint;
+      chapter.disabled = running || loading; chapter.setAttribute("aria-label", format(ui.chapterLabel, { number: page.page }));
       chapter.addEventListener("change", async () => {
         const value = CourseCore.normalizeChapter(chapter.value);
-        if (value === null) { chapter.value = page.chapter; status("章节号请填写 2、2.3 这样的编号；0 表示未分章。", true); return; }
+        if (value === null) { chapter.value = page.chapter; status(ui.invalidChapter, true); return; }
         page.chapter = value;
         renderFilters(); render();
         try { await persist(); } catch (error) { status(error.message, true); }
@@ -106,7 +107,7 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
       const chapterLabel = document.createElement("label");
       chapterLabel.className = "chapter-edit"; chapterLabel.append(chapter); cells[3].append(chapterLabel);
       const badge = document.createElement("span"); badge.className = `badge ${page.status}`;
-      badge.textContent = statusLabels[page.status] || "待导入"; cells[4].append(badge);
+      badge.textContent = statusLabels[page.status] || ui.pending; cells[4].append(badge);
       if (page.error) badge.title = page.error;
       $("parts").append(row);
     }
@@ -128,16 +129,16 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
     closeFilter();
     const chapters = [...new Set(pages.map(p => p.chapter))].sort(CourseCore.compareChapters);
     if (!chapters.includes(chapterFilter)) chapterFilter = "all";
-    const label = chapterFilter === "all" ? "全部章节" : CourseCore.chapterLabel(chapterFilter);
+    const label = chapterFilter === "all" ? ui.allChapters : CourseCore.chapterLabel(chapterFilter);
     $("filter-label").textContent = label;
-    $("filter").setAttribute("aria-label", `按章节筛选：${label}`);
+    $("filter").setAttribute("aria-label", format(ui.filterLabel, { label }));
     $("filter-options").replaceChildren();
     for (const value of ["all", ...chapters]) {
       const option = document.createElement("button");
       option.type = "button"; option.tabIndex = -1;
       option.setAttribute("role", "option");
       option.setAttribute("aria-selected", String(value === chapterFilter));
-      option.textContent = value === "all" ? "全部章节" : CourseCore.chapterLabel(value);
+      option.textContent = value === "all" ? ui.allChapters : CourseCore.chapterLabel(value);
       option.addEventListener("click", () => {
         chapterFilter = value; renderFilters(); render(); closeFilter(true);
       });
@@ -149,20 +150,21 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
     importAction.reset(); previewView.open(false);
     const source = $("url").value.trim();
     const parsed = CourseCore.parseSource(source);
-    if (!parsed) { status("请输入 B站或 YouTube 视频链接。", true); return; }
+    if (!parsed) { status(ui.invalidSource, true); return; }
     currentPage = parsed.page;
     loading = true; previewLoading = false; previewRun++; previewId = "";
     activeAsrPage = null; $("asr-panel").hidden = true;
-    render(); syncControls(); status("正在读取课程目录…");
+    render(); syncControls(); status(ui.loading);
     try {
       const result = await request("meta", parsed.platform === "youtube" ? { youtubeId: parsed.id, playlistId: parsed.playlistId } : { bvid: parsed.id }); meta = result.meta;
-      if (!meta.pages.length) throw new Error("该视频没有可读取的分 P 目录。");
+      if (!meta.pages.length) throw new Error(ui.emptyCourse);
       if (meta.platform === "youtube") currentPage = meta.pages.find(item => item.cid === parsed.id)?.page || 1;
       const baseKey = `boc-course-base:${meta.bvid}`;
       $("folder").value = (await chrome.storage.local.get(baseKey))[baseKey] || result.folder;
       const cached = (await chrome.storage.local.get(snapshotKey()))[snapshotKey()];
       pages = meta.pages.map(page => {
         const old = cached?.pages?.find(p => p.cid === page.cid);
+        // 旧记录识别值固定保留，不能随界面文案一起修改。
         const emptySubtitle = old?.status === "failed" && old?.error === "字幕文件为空。";
         return { ...page, chapter: old?.chapter ?? CourseCore.chapterOf(page.part), selected: page.page === currentPage, status: emptySubtitle ? "missing" : old?.status === "running" ? "pending" : old?.status || "pending", error: emptySubtitle ? "" : old?.error || "" };
       });
@@ -185,14 +187,14 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
     previewId = page.cid; previewLoading = true; render();
     activeAsrPage = null; $("asr-panel").hidden = true;
     $("preview-title").textContent = partTitle(page);
-    previewView.message("正在获取字幕，请稍候…");
+    previewView.message(ui.previewLoading);
     try {
       const result = await request("preview", { page });
       if (run !== previewRun) return;
       if (result.missing) {
         if (!["saved", "exists"].includes(page.status)) page.status = "missing";
         activeAsrPage = page;
-        previewView.message("没有可用字幕。可以尝试用本地组件转写音频。本地转写是可选扩展，需单独安装并连接。");
+        previewView.message(ui.transcriptionHint);
         $("asr-panel").hidden = false;
         try { await transcription.refresh(); } catch { /* Setup button remains available. */ }
         render(); return;
@@ -218,9 +220,9 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
     if (running || loading || previewLoading || !meta) return;
     try { CourseCore.normalizeFolder($("folder").value); } catch (error) { status(error.message, true); return; }
     const selected = pages.filter(p => p.selected && (!retryOnly || ["failed", "missing"].includes(p.status)));
-    if (!selected.length) { status("没有符合条件的已勾选分 P。"); return; }
+    if (!selected.length) { status(ui.nothingSelected); return; }
     await navigator.locks.request(`boc-course:${meta.bvid}`, { ifAvailable: true }, async lock => {
-      if (!lock) { status("这门课程正在另一个导入页处理，请回到该页面查看。", true); return; }
+      if (!lock) { status(ui.locked, true); return; }
       stopping = false; running = true; render();
       importAction.progress(0, selected.length);
       let done = 0, fatalError = null;
@@ -237,8 +239,8 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
           if (fatalError) break;
           if (!stopping && done < selected.length) await new Promise(resolve => setTimeout(resolve, 1200));
         }
-        reportImportResult(fatalError ? "已暂停" : stopping ? "已停止" : "导入完成", counts, selected.length - done, fatalError);
-      } catch (error) { reportImportResult("导入已中断", counts, selected.length - done, error); }
+        reportImportResult(fatalError ? ui.paused : stopping ? ui.stopped : ui.complete, counts, selected.length - done, fatalError);
+      } catch (error) { reportImportResult(ui.interrupted, counts, selected.length - done, error); }
       finally { running = false; render(); }
     });
   }
