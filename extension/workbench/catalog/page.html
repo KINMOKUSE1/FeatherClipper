@@ -1,0 +1,54 @@
+    <div id="catalog-page">
+    <section id="empty" class="empty-state">
+      <span class="icon icon-chapters empty-icon" aria-hidden="true"></span>
+      <p class="eyebrow">从一段想学的视频开始</p>
+      <h1>把课程收进你的学习空间。</h1>
+      <p>读取目录、核对字幕，再保存到 Obsidian。</p>
+      <button id="empty-load" type="button">粘贴视频或课程链接</button>
+    </section>
+
+    <section id="course" hidden>
+      <div class="course-heading">
+        <div class="course-title-row"><h1 id="title"></h1><button id="source-open" class="text-button" type="button"><span class="icon icon-link" aria-hidden="true"></span>更换课程</button></div>
+        <p id="course-meta" class="course-meta"></p>
+      </div>
+      <div class="workspace">
+        <section class="catalog" aria-label="课程目录">
+          <span id="count" class="sr-only" aria-live="polite"></span>
+          <div class="toolbar">
+            <div class="chapter-filter">
+              <button id="filter" class="text-button" type="button" aria-label="按章节筛选：全部章节" aria-haspopup="listbox" aria-expanded="false" aria-controls="filter-options"><span id="filter-label">全部章节</span><span class="icon icon-chevron" aria-hidden="true"></span></button>
+              <div id="filter-options" class="chapter-options" role="listbox" aria-label="按章节筛选" hidden></div>
+            </div>
+            <div class="selection-actions" role="group" aria-label="选择导入范围"><button id="select" class="text-button" type="button">全选视频</button><button id="current" class="text-button" type="button">仅选当前</button><button id="clear" class="text-button" type="button">取消全选</button></div>
+          </div>
+          <div class="table-wrap">
+            <table aria-label="课程课时列表">
+              <colgroup><col class="selection-column"><col class="number-column"><col><col class="chapter-column"><col class="status-column"></colgroup>
+              <tbody id="parts"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <aside id="preview-panel" class="preview" aria-label="字幕核对" hidden>
+          <div class="preview-header">
+            <div class="preview-tools-row"><h2 id="preview-title">选择一节课程</h2><button id="preview-close" class="text-button" type="button" aria-label="关闭字幕面板，返回目录">×</button></div>
+          </div>
+          <div id="preview-body" class="transcript"><p class="preview-message">点击课程标题查看字幕。</p></div>
+          <div id="asr-panel" class="asr-panel" hidden><button id="asr-current" type="button">本地转写并导入</button></div>
+        </aside>
+      </div>
+
+      <section class="import-bar" aria-label="导入操作">
+        <div class="import-heading"><div class="import-details"><p id="import-summary">请先勾选要导入的视频。</p><div class="destination"><span>保存到</span><p id="destination"></p><button id="folder-edit" class="text-button" type="button">修改</button></div></div><div class="import-actions"><button id="retry" class="text-button import-auxiliary" type="button" aria-label="重试失败项" hidden><span class="icon icon-retry" aria-hidden="true"></span>重试</button><button id="asr-selected" class="text-button import-auxiliary" type="button" aria-label="本地转写并导入无字幕视频" hidden><span class="icon icon-audio" aria-hidden="true"></span><span id="asr-selected-label">本地转写</span></button><button id="start" type="button"><span class="icon icon-save" aria-hidden="true"></span>导入 Obsidian</button></div></div>
+      </section>
+    </section>
+    </div>
+<dialog id="source-dialog" aria-labelledby="source-title">
+  <div class="dialog-heading"><div><p class="eyebrow">课程来源</p><h2 id="source-title">读取一门课程</h2></div><button class="close-button" type="button" data-close="source-dialog" aria-label="关闭课程来源">×</button></div>
+  <label for="url">B站或 YouTube 链接</label><div class="inline"><input id="url" type="text" placeholder="粘贴视频或播放列表链接" spellcheck="false"><button id="load" type="button">读取目录</button></div>
+  <label for="folder">素材根目录</label><input id="folder" value="Clippings/Bilibili" spellcheck="false">
+  <p class="muted">读取课程目录和可用字幕，素材将保存到所选根目录。</p>
+  <p id="source-status" role="status" aria-live="polite"></p>
+</dialog>
+

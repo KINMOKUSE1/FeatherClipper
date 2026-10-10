@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const test = require('node:test');
-const core = require('../extension/course-core.js');
+const core = require('../extension/shared/course.js');
 
 test('popup displays automatic preview without requesting language options', async () => {
   const elements = new Map(), messages = [];
@@ -27,7 +27,7 @@ test('popup displays automatic preview without requesting language options', asy
       } }
     }
   });
-  vm.runInContext(fs.readFileSync(require.resolve('../extension/popup.js'), 'utf8'), context);
+  vm.runInContext(fs.readFileSync(require.resolve('../extension/popup/page.js'), 'utf8'), context);
   await new Promise(setImmediate);
   assert.equal(get('video').hidden, false);
   assert.equal(get('subtitles').children.length, 1);
@@ -69,7 +69,7 @@ test('popup keeps single-video saves separate from explicit whole-course handoff
       } }
     }
   });
-  vm.runInContext(fs.readFileSync(require.resolve('../extension/popup.js'), 'utf8'), context);
+  vm.runInContext(fs.readFileSync(require.resolve('../extension/popup/page.js'), 'utf8'), context);
   await new Promise(setImmediate);
   assert.equal(get('current-part').hidden, true);
   assert.equal(get('save-scope').hidden, true);
@@ -143,7 +143,7 @@ async function exportHarness({ languages = false } = {}) {
       } }
     }
   });
-  vm.runInContext(fs.readFileSync(require.resolve('../extension/popup.js'), 'utf8'), context);
+  vm.runInContext(fs.readFileSync(require.resolve('../extension/popup/page.js'), 'utf8'), context);
   await new Promise(setImmediate);
   return { get, context, messages, copied, downloads };
 }

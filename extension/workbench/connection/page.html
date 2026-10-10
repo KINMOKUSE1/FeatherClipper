@@ -1,0 +1,13 @@
+<section id="connection-page" class="configuration-page" aria-labelledby="settings-title" hidden>
+  <div class="settings-scroll">
+  <header class="preferences-heading"><h1 id="settings-title">连接配置</h1><p class="section-description">连接 Obsidian，将课程素材保存到你的笔记库。</p></header>
+  <div class="configuration-fields settings-group">
+    <div class="configuration-intro"><span>Obsidian · Local REST API</span><span id="connection-state" class="configuration-state">未配置</span></div>
+    <div class="configuration-field settings-row"><label for="api-url">服务地址</label><input id="api-url" type="url" placeholder="http://127.0.0.1:27123" spellcheck="false"></div>
+    <div class="configuration-field settings-row"><label for="api-key">API Key</label><input id="api-key" type="password" autocomplete="off"><p class="field-help">在 Obsidian 的 Local REST API 设置中复制。</p></div>
+    <div class="configuration-field settings-row"><label for="default-folder">默认素材根目录</label><input id="default-folder" spellcheck="false"><p class="field-help">仅影响后续导入，已有文件保留在原目录。</p></div>
+  </div>
+  </div>
+  <footer class="configuration-footer"><div class="settings-footer-info"><div class="settings-feedback" hidden><p id="settings-status" role="status" aria-live="polite"></p><button class="settings-feedback-close" type="button" aria-label="关闭提示">×</button></div></div><div class="configuration-actions"><button id="test-settings" class="text-button" type="button"><span class="icon icon-link" aria-hidden="true"></span>测试连接</button><button id="save-settings" type="button">保存配置</button></div></footer>
+</section>
+

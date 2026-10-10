@@ -4,7 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const test = require('node:test');
 
-const source = fs.readFileSync(path.join(__dirname, '../extension/asr-background.js'), 'utf8');
+const source = fs.readFileSync(path.join(__dirname, '../extension/background/transcription.js'), 'utf8');
 
 test('local transcription receives Bilibili backup audio addresses', async () => {
   const context = vm.createContext({

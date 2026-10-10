@@ -3,8 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const test = require('node:test');
-const core = require('../extension/course-core.js');
-const source = fs.readFileSync(path.join(__dirname, '../extension/youtube-background.js'), 'utf8');
+const core = require('../extension/shared/course.js');
+const source = fs.readFileSync(path.join(__dirname, '../extension/background/youtube.js'), 'utf8');
 
 const videoId = 'GWwL_pLuX-U';
 function page({ tracks, entries, audio = [], playlist = null, mobilePlayer = null, domTranscript = null, inlineOnly = false, noPlayer = false, fetchOverride = null, metadataNodes = {}, otherPanels = [], playlistPanels = [], onWait = null }) {

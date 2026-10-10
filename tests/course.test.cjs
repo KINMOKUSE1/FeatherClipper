@@ -2,14 +2,14 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const test = require('node:test');
-const core = require('../extension/course-core.js');
-const background = fs.readFileSync(require('node:path').join(__dirname, '../extension/course-background.js'), 'utf8');
+const core = require('../extension/shared/course.js');
+const background = ['bilibili.js', 'obsidian.js', 'courses.js'].map(file => fs.readFileSync(require('node:path').join(__dirname, '../extension/background', file), 'utf8')).join('\n');
 const meta = { bvid: 'BV1ps4y1d73V', aid: '123', title: '计算机组成原理', author: '讲师', pages: [{ cid: '456' }] };
 const page = { cid: '456', page: 10, part: '2.1.1_进位计数制', duration: 60, chapter: '2', status: 'saved' };
 function harness({ existing = null, rawFiles = [], tracks = true, needLogin = false, biliCode = 0, body = [{ from: 0, to: 3, content: '示例' }], secondExists = false, localStatus, asrJob } = {}) {
   const calls = [], writes = [];
   let getCount = 0;
-  const context = vm.createContext({ CourseCore: core, URL, AbortSignal, console,
+  const context = vm.createContext({ CourseCore: core, URL, URLSearchParams, AbortSignal, console,
     getMergedSettings: async () => ({ obsidianApiBaseUrl: 'http://127.0.0.1:27123', obsidianApiKey: 'test-key' }),
     normalizeConnection: settings => settings,
     asrStart: async () => ({ id: 'a'.repeat(32), status: 'queued' }),
@@ -34,7 +34,7 @@ function harness({ existing = null, rawFiles = [], tracks = true, needLogin = fa
         const value = secondExists && getCount > 1 ? 'new user content' : existing;
         return value === null ? { ok: false, status: 404 } : { ok: true, status: 200, text: async () => value };
       }
-      if (url.includes('api.bilibili.com')) return { ok: true, status: 200, json: async () => ({ code: biliCode, message: 'test', data: { need_login_subtitle: needLogin, subtitle: { subtitles: tracks ? [{ subtitleUrl: 'https://aisubtitle.hdslb.com/test', lan: 'ai-zh', lanDoc: '中文（自动生成）' }] : [] } } }) };
+      if (url.includes('api.bilibili.com')) return { ok: true, status: 200, json: async () => ({ code: biliCode, message: 'test', data: { need_login_subtitle: needLogin, subtitle: { subtitles: tracks ? [{ id: 1, subtitle_url: 'https://aisubtitle.hdslb.com/test', lan: 'ai-zh', lan_doc: '中文（自动生成）' }] : [] } } }) };
       return { ok: true, status: 200, json: async () => ({ body }) };
     }
   });

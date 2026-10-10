@@ -74,13 +74,13 @@ Course Cove 是面向课程学习的 Edge 扩展，支持单个视频、B站分 
 导入素材后，勾选要整理的课时，打开 **整理笔记** 页面。
 
 1. 设置学习目标、笔记语言、根目录和整理粒度
-2. 调整栏目、署名、标签及自定义属性，保存偏好
-3. 保持 Obsidian 打开，点击 **复制任务指令**，获取所选范围、实际素材路径和笔记偏好
-4. 将指令交给能读取笔记库的本地 AI；使用网页 AI 时，同时提供课程清单与所选字幕
+2. 调整笔记结构、各栏目的写法、署名、标签及属性，保存设置
+3. 选择 **本地 AI agent**，下载或同步当前配置生成的技能，完成安装确认后复制简短任务指令
+4. 使用 **网页 AI** 时，先导出实际字幕与规则，再上传材料并复制配套任务指令
 
 可以按章节分组整理，也可以每个视频单独成篇。默认分组保留两级数字章节，如 `2.2`、`2.3`；同一 Lecture 的多个 Part 归入同一讲次，章节号可在课程目录中修改。
 
-工作台提供 [course-notes 技能包](./extension/learning-kit.zip)，包含课程整理、Mermaid 图表和比例时间线技能。安装方式见[技能包说明](./learning-kit/README.md)。
+工作台根据你的设置生成 `course-notes` 技能，包含完整整理流程、任务方法和个人配置，支持整理、继续、补充、翻译与复习。Mermaid 和比例时间线另作为可选绘图技能维护，见[绘图技能说明](./learning-kit/README.md)。
 
 ### 为无字幕视频转写音频
 
@@ -111,14 +111,17 @@ python -m http.server 8000 --bind 127.0.0.1
 - [快捷窗口预览](http://127.0.0.1:8000/dev/preview.html)
 - [工作台预览](http://127.0.0.1:8000/dev/workbench-preview.html)
 
-预览顶部可切换“开发版”和“当前版”，通过示例数据切换课程、无字幕、失败、导入和连接等状态。快捷窗口开发版使用 `dev/popup.html`、`dev/popup.css` 和 `dev/popup.js`，当前版使用 `extension/` 中的对应文件；工作台开发版使用 `dev/skill-builder*` 编辑整理规则，当前版加载 `extension/` 中的实现。修改文件后点击“刷新预览”，预览不会写入 Obsidian。
+预览直接加载当前分支的 `extension/` 源码，通过示例数据切换课程、无字幕、失败、导入和连接等状态。修改文件后点击“刷新预览”，预览不会写入 Obsidian。尚未定稿的改动在功能分支中开发，确认后合并到 `main`。
 
 项目目录：
 
-- `extension/`：扩展页面、字幕读取和导入逻辑
-- `dev/`：开发预览与示例接口
+- `extension/popup/`：快捷窗口
+- `extension/workbench/`：工作台外壳、课程目录、笔记配置、转写与连接页面
+- `extension/background/`：平台读取、Obsidian 导入和本地转写消息
+- `extension/shared/`：共用课程工具、字体和图标
+- `dev/`：预览入口与模拟接口
 - `asr/`：本地转写服务与安装向导
-- `learning-kit/`：课程整理与绘图技能
+- `learning-kit/`：可选绘图技能
 - `tests/`：功能测试
 - `scripts/`：安装包构建脚本
 
@@ -128,7 +131,7 @@ python -m http.server 8000 --bind 127.0.0.1
 node --test tests/*.test.cjs
 ```
 
-生成扩展、技能和本地转写安装包：
+文件职责、整理规则来源和开发流程见[开发指南](./docs/开发指南.md)。准备发布时生成扩展、绘图技能和本地转写安装包：
 
 ```sh
 python scripts/build_install_package.py

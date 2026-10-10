@@ -31,7 +31,7 @@ function boot({ authenticated = true, existing = null, beforeSubtitle, missing =
       if (locks.has(name)) return run(null);
       locks.add(name); try { return await run({ name }); } finally { locks.delete(name); }
     } } },
-    importScripts: (...files) => files.forEach(file => vm.runInContext(fs.readFileSync(path.join(extension, file), 'utf8'), context)),
+    importScripts: (...files) => files.forEach(file => vm.runInContext(fs.readFileSync(path.join(extension, 'background', file), 'utf8'), context)),
     fetch: async (url, options = {}) => {
       fetched.push(url);
       if (url === 'http://127.0.0.1:27123/') return { ok: true, json: async () => ({ authenticated }) };
@@ -58,8 +58,8 @@ function boot({ authenticated = true, existing = null, beforeSubtitle, missing =
       return { ok: true, json: async () => ({ body: body || [{ from: 1, to: 3, content: '实际解析链路' }] }) };
     }
   });
-  vm.runInContext(fs.readFileSync(path.join(extension, 'background.js'), 'utf8'), context);
-  function message(payload, sender = { id: 'test', url: chrome.runtime.getURL('course.html') }) {
+  vm.runInContext(fs.readFileSync(path.join(extension, 'background/index.js'), 'utf8'), context);
+  function message(payload, sender = { id: 'test', url: chrome.runtime.getURL('workbench/index.html') }) {
     return new Promise((resolve, reject) => {
       let accepted = false;
       for (const listener of listeners) accepted = listener(payload, sender, resolve) || accepted;
@@ -186,7 +186,7 @@ test('removed workflow install action cannot fetch or write documents', async ()
   assert.equal(h.writes.length, 0);
 });
 test('extension messages from an unrelated page are rejected', async () => {
-  const h = boot(); const sender = { id: 'test', url: 'chrome-extension://test/course.html-other' };
+  const h = boot(); const sender = { id: 'test', url: 'chrome-extension://test/workbench/index.html-other' };
   assert.equal((await h.message({ type: 'settings-get' }, sender)).ok, false);
   assert.equal((await h.message({ type: 'course-request', action: 'meta', bvid: 'BVexample' }, sender)).ok, false);
   assert.equal(h.fetched.length, 0);
@@ -194,11 +194,11 @@ test('extension messages from an unrelated page are rejected', async () => {
 test('manifest opens the popup and grants YouTube page reading', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(extension, 'manifest.json')));
   assert.deepEqual(manifest.permissions, ['storage', 'activeTab', 'scripting', 'downloads']);
-  assert.equal(manifest.action.default_popup, 'popup.html'); assert.equal(manifest.side_panel, undefined); assert.equal(manifest.content_scripts, undefined);
-  assert.ok(manifest.host_permissions.includes('https://www.youtube.com/*')); assert.ok(!manifest.host_permissions.includes('https://*/*')); assert.equal(manifest.options_page, 'course.html');
+  assert.equal(manifest.action.default_popup, 'popup/index.html'); assert.equal(manifest.side_panel, undefined); assert.equal(manifest.content_scripts, undefined);
+  assert.ok(manifest.host_permissions.includes('https://www.youtube.com/*')); assert.ok(!manifest.host_permissions.includes('https://*/*')); assert.equal(manifest.options_page, 'workbench/index.html');
 });
 
-const popupSender = { id: 'test', url: 'chrome-extension://test/popup.html' };
+const popupSender = { id: 'test', url: 'chrome-extension://test/popup/index.html' };
 const quickMeta = { bvid: 'BVexample', title: 'Course', author: 'Author', aid: '1', pages: [{ cid: '2', page: 1, part: '1.1 Intro', duration: 100 }] };
 const quickMessage = { type: 'quick-import', meta: quickMeta, bvid: 'BVexample', cid: '2', base: 'Clippings/Bilibili' };
 test('popup may configure and preview but cannot call raw course writes', async () => {

@@ -1,5 +1,0 @@
-/* 工作台和快捷窗口共用的界面字体；页面可局部覆盖。 */
-:root {
-  --font-ui: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
-  --font-controls: var(--font-ui);
-}

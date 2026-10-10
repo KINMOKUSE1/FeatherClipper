@@ -1,0 +1,11 @@
+<section id="asr-page" class="configuration-page" aria-labelledby="asr-title" hidden>
+  <div class="settings-scroll">
+  <header class="preferences-heading"><h1 id="asr-title">本地转写</h1><p class="section-description">连接本地组件，为没有字幕的课程转写音频。</p></header>
+  <div class="configuration-fields settings-group">
+    <div class="configuration-intro"><span>转写组件</span><span id="asr-state" class="configuration-state">未连接</span></div>
+    <div id="asr-pair-fields" class="configuration-field settings-row"><label for="asr-token">连接码</label><input id="asr-token" type="password" autocomplete="off" placeholder="粘贴组件提供的连接码"><p class="field-help">首次连接时填写，之后可直接检测服务。</p></div>
+  </div>
+  <section class="configuration-guide" aria-labelledby="asr-guide-title"><h2 id="asr-guide-title" class="preference-group-title">安装与启动</h2><ol class="setup-steps settings-group"><li><a href="../asr-installer.zip" download="course-cove-asr-installer.zip">下载安装向导</a>，选择安装目录与 CPU / GPU 环境。</li><li>运行“启动本地转写.cmd”，保持服务窗口打开。</li><li>复制组件提供的连接码，在上方连接。</li></ol></section>
+  </div>
+  <footer class="configuration-footer"><div class="settings-footer-info"><div class="settings-feedback" hidden><p id="asr-settings-status" role="status" aria-live="polite"></p><button class="settings-feedback-close" type="button" aria-label="关闭提示">×</button></div></div><div class="configuration-actions"><button id="asr-refresh" class="text-button" type="button"><span class="icon icon-retry" aria-hidden="true"></span>重新检测</button><button id="asr-connect" type="button">连接组件</button></div></footer>
+</section>

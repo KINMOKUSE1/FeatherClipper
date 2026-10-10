@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Course Cove · 新工作台开发预览</title>
     <!-- 预览工具条复用工作台的字体和颜色变量，避免另写一套配色。 -->
-    <link rel="stylesheet" href="../extension/course.css">
+    <link rel="stylesheet" href="../extension/workbench/theme.css">
     <style>
       * { box-sizing: border-box; }
       body { margin: 0; height: 100vh; display: flex; flex-direction: column; font: 12px/1.5 var(--font-ui); color: var(--muted); }
@@ -25,8 +25,7 @@
   </head>
   <body>
     <header class="preview-tools">
-      <strong>新工作台 · 开发预览</strong>
-      <label for="version">版本<select id="version"><option value="dev">开发版</option><option value="current">当前版</option></select></label>
+      <strong>工作台 · 开发预览</strong>
       <label for="scenario">场景
         <select id="scenario">
           <option value="series">B站 · 系列课程</option>
@@ -41,10 +40,10 @@
         </select>
       </label>
       <button id="reload" type="button">刷新预览</button>
-      <span class="preview-note">示例数据 · 不写入 Obsidian · 刷新会重置操作</span>
+      <span class="preview-note">当前分支源码 · 示例数据 · 不写入 Obsidian</span>
     </header>
     <p id="host-error" role="alert" hidden></p>
-    <iframe id="workbench-preview" title="新工作台界面" sandbox="allow-scripts allow-same-origin allow-popups allow-downloads allow-forms"></iframe>
-    <script src="workbench-preview-host.js?v=3"></script>
+    <iframe id="workbench-preview" title="工作台界面" sandbox="allow-scripts allow-same-origin allow-popups allow-downloads allow-forms"></iframe>
+    <script src="workbench-preview-host.js"></script>
   </body>
 </html>

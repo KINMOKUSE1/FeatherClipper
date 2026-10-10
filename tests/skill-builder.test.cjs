@@ -1,10 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const builder = require('../extension/skill-builder-core.js');
+const builder = require('../extension/workbench/notes/generator.js');
+const filesIO = require('../extension/workbench/notes/files.js');
 const resources = {
-  workflow: fs.readFileSync(require.resolve('../extension/skill-builder-workflow.md'), 'utf8'),
-  tasks: fs.readFileSync(require.resolve('../extension/skill-builder-tasks.md'), 'utf8')
+  entry: fs.readFileSync(require.resolve('../extension/workbench/notes/rules/SKILL.md'), 'utf8'),
+  agent: fs.readFileSync(require.resolve('../extension/workbench/notes/rules/openai.yaml'), 'utf8'),
+  workflow: fs.readFileSync(require.resolve('../extension/workbench/notes/rules/workflow.md'), 'utf8'),
+  tasks: fs.readFileSync(require.resolve('../extension/workbench/notes/rules/tasks.md'), 'utf8')
 };
 const configFiles = config => Object.fromEntries(builder.buildFiles(config, resources).map(file => [file.path, file.content]));
 const context = () => ({ course: '网络', index: '素材/清单.md', materials: [{ label: 'P1 TCP', chapter: '2.2', path: '素材/当前路径.md', fileName: '素材/P01-TCP.md', content: '00:00 教师用窗口大小 4 举例，接收方已经确认序号 3' }], references: [] });
@@ -120,7 +123,7 @@ test('configuration edits change install snapshot but delivery choice does not',
 });
 
 test('ZIP encodes Unicode names, known CRC and matching local/central entries', () => {
-  const files = [{ path: 'course-notes/SKILL.md', content: 'hello' }, { path: '素材/课程.md', content: '中文字幕' }], bytes = Buffer.from(builder.zip(files));
+  const files = [{ path: 'course-notes/SKILL.md', content: 'hello' }, { path: '素材/课程.md', content: '中文字幕' }], bytes = Buffer.from(filesIO.zip(files));
   assert.equal(bytes.readUInt32LE(0), 0x04034b50);
   assert.equal(bytes.readUInt16LE(6), 0x0800);
   assert.equal(bytes.readUInt32LE(14), 0x3610a686);
@@ -150,9 +153,9 @@ test('directory sync writes and verifies every file and propagates a write failu
       })
     };
   }
-  await builder.writeFiles(directory(), files);
+  await filesIO.writeFiles(directory(), files);
   assert.deepEqual([...saved.entries()], files.map(file => [file.path, file.content]));
-  await assert.rejects(builder.writeFiles(directory('', true), files), /write denied/);
+  await assert.rejects(filesIO.writeFiles(directory('', true), files), /write denied/);
 });
 
 test('invalid recipes, duplicate attributes and dates stop generation', () => {

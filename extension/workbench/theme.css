@@ -1,0 +1,78 @@
+/* 工作台主题、基础控件和图标；布局与功能样式分别维护。 */
+@import url("../shared/fonts.css");
+:root {
+  /* 背景：参考图中的中性灰色阶 */
+  --paper: #ffffff;     /* 整页浅纸色 */
+  --soft: #f6f6f5;        /* 侧栏、说明区和文档背景 */
+  --surface: #ffffff;     /* 输入框、下拉菜单和弹窗 */
+  --hover: #f0f1ef;       /* 可点击区域的悬停背景 */
+  --selected: #eeece57d;    /* 当前导航、选中课时和选中标签 */
+  --line: #e4e5e3;        /* 区域边界和输入框边框 */
+  --line-soft: var(--line); /* 表格行之间的细分隔线 */
+
+  /* 文字：正文、辅助信息、次要标注三个层级 */
+  --ink: #354052;         /* 标题和正文的深蓝灰色 */
+  --muted: #687487;       /* 导航、说明和时间戳 */
+  --faint: #737c87;       /* 表头、序号、页脚等次要信息 */
+
+  /* 交互保持深蓝灰，状态使用独立颜色。 */
+  --accent: #354052;      /* 主按钮、焦点轮廓和当前课时标记 */
+  --accent-hover: #293344; /* 主按钮悬停 */
+  --on-accent: #ffffff;   /* 深色按钮上的文字与图标 */
+  --success: #28745bd6;      /* 已导入、已存在 */
+  --warning: #ce8d25e3;      /* 无字幕提示 */
+  --error: #b44747e9;        /* 失败和错误提示 */
+  --import-fill: #53677d;  /* 按钮内的进度填充 */
+
+  /* 半透明层、阴影与遮罩 */
+  --bar-surface: #fffffff5; /* 底部操作栏的半透明纸色 */
+  --shadow-dialog: #35405220; /* 弹窗阴影 */
+  --backdrop: #35405233;    /* 弹窗后面的遮罩 */
+
+  /* 课程内容的英文和数字使用 Geist，中文使用 Noto Serif SC。 */
+  --font-body: "Geist", "Noto Serif SC", serif;
+  --sidebar-width: clamp(184px, 16vw, 240px); /* 随窗口线性变化，限制在 184–240px */
+  --catalog-width: 770px; /* 目录展开、收起字幕时保持相同宽度 */
+  --preview-width: 420px; /* 字幕阅读宽度 */
+  --scroll-fade: 18px; /* 底部渐变范围 */
+  font-family: var(--font-ui);
+  color: var(--ink);
+  background-color: var(--paper);
+  font-size: 16px;
+}
+* { box-sizing: border-box; }
+* { scrollbar-width: none; }
+*::-webkit-scrollbar { display: none; }
+[hidden] { display: none !important; }
+body { margin: 0; font-family: inherit; font-size: 16px; line-height: 1.6; }
+button, input, select, textarea { font: inherit; }
+button { display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-height: 40px; padding: 8px 14px; border: 1px solid var(--accent); border-radius: 7px; background: var(--accent); color: var(--on-accent); font-weight: 500; cursor: pointer; }
+button:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+button:disabled { opacity: .45; cursor: default; }
+button.text-button { border-color: transparent; background: transparent; color: var(--ink); padding: 5px 7px; min-height: 30px; font-size: 16px; }
+button.text-button:hover:not(:disabled) { color: var(--ink); background: var(--hover); border-color: transparent; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+input { min-width: 0; min-height: 38px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); color: var(--ink); }
+input::placeholder { color: var(--faint); }
+input[type="checkbox"] { width: 15px; height: 15px; min-height: 0; accent-color: var(--accent); cursor: pointer; }
+a { color: var(--ink); text-underline-offset: 3px; }
+h1, h2, p { margin: 0; }
+h1 { font-size: 28px; line-height: 1.45; font-weight: 600; letter-spacing: 0px; }
+h2 { font-size: 20px; font-weight: 500; }
+.muted { color: var(--muted); font-size: 16px; }
+.eyebrow { font-size: 15px; color: var(--muted); margin-bottom: 10px; letter-spacing: .6px; }
+[role="status"]:empty { display: none; }
+.error, [role="status"].error { color: var(--error); }
+.import-toast { position: fixed; left: 24px; bottom: 24px; z-index: 60; max-width: min(430px, calc(100vw - 32px)); padding: 12px 18px; border-radius: 8px; background: var(--accent); color: var(--on-accent); font-family: var(--font-controls); font-size: 14px; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; box-shadow: 0 6px 24px var(--shadow-dialog); pointer-events: none; }
+[role="status"].import-toast.error { background: var(--error); color: var(--on-accent); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+/* Official Lucide assets already bundled with the extension. */
+.icon { display: inline-block; width: 16px; height: 16px; flex: none; background: currentColor; mask: var(--icon) center / contain no-repeat; }
+.icon-settings { --icon: url("../shared/icons/lucide/settings-2.svg"); }
+.icon-chapters { --icon: url("../shared/icons/lucide/list-tree.svg"); }
+.icon-captions { --icon: url("../shared/icons/lucide/captions.svg"); }
+.icon-link { --icon: url("../shared/icons/lucide/link.svg"); }
+.icon-chevron { --icon: url("../shared/icons/lucide/chevron-down.svg"); }
+.icon-save { --icon: url("../shared/icons/lucide/arrow-down-to-line.svg"); }
+.icon-retry { --icon: url("../shared/icons/lucide/rotate-ccw.svg"); }
+.icon-audio { --icon: url("../shared/icons/lucide/audio-lines.svg"); }

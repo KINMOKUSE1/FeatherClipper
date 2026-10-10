@@ -141,20 +141,15 @@
     storage: { local: {
       get: async keys => {
         const list = keys == null ? Object.keys(store) : Array.isArray(keys) ? keys : [keys];
-        if (list.includes("boc-note-preferences:v1")) {
-          const saved = localStorage.getItem("boc-note-preferences:v1");
-          if (saved) store["boc-note-preferences:v1"] = JSON.parse(saved);
-        }
         return Object.fromEntries(list.filter(key => key in store).map(key => [key, structuredClone(store[key])]));
       },
       set: async values => {
-        if (values["boc-note-preferences:v1"]) localStorage.setItem("boc-note-preferences:v1", JSON.stringify(values["boc-note-preferences:v1"]));
         Object.assign(store, structuredClone(values));
       }
     } }
   };
   window.addEventListener("DOMContentLoaded", async () => {
-    await workbenchReady;
+    await window.WorkbenchApp.ready;
     if (scenario === "empty") {
       if (window.frameElement.dataset.page === "notes") document.getElementById("notes-nav").click();
       return;
@@ -162,7 +157,7 @@
     document.getElementById("url").value = scenario === "youtube"
       ? "https://www.youtube.com/watch?v=GWwL_pLuX-U&list=PLKq1TCpsv3Y4"
       : `https://www.bilibili.com/video/BV1ps4y1d73V/?p=${scenario === "single" ? 1 : 4}`;
-    await loadCourse().catch(error => status(error.message, true));
+    await window.WorkbenchApp.loadCourse();
     if (window.frameElement.dataset.page === "notes") document.getElementById("notes-nav").click();
   });
 })();

@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const core = require('../extension/course-core.js');
+const core = require('../extension/shared/course.js');
 
 test('Bilibili combines adjacent cues up to 30 seconds, preserving Chinese and English text', () => {
   const body = [
