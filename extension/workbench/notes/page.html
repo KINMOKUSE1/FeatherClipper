@@ -6,27 +6,43 @@
     </header>
     <form id="skill-builder-form" class="note-preferences" novalidate>
       <section aria-labelledby="builder-delivery-title">
-        <h2 id="builder-delivery-title" class="preference-group-title">这次怎么使用</h2>
+        <h2 id="builder-delivery-title" class="preference-group-title">本次任务</h2>
         <div class="settings-group">
-          <div class="settings-row"><label for="builder-environment">AI 使用方式</label><p id="builder-environment-help" class="field-help"></p><select id="builder-environment"><option value="local">AI agent</option><option value="web">网页 AI</option></select></div>
-          <div class="settings-row"><label for="builder-task">任务类型</label><p id="builder-task-help" class="field-help"></p><select id="builder-task"><option value="notes">整理笔记</option><option value="supplement">补充已有笔记</option><option value="continue">继续整理</option><option value="translate">翻译字幕</option><option value="review">复习答疑</option></select></div>
-          <div id="builder-reference-row" class="settings-row" hidden><label for="builder-reference">已有笔记或进度</label><p class="field-help">补充和继续任务需要实际读取已有内容</p><input id="builder-reference" placeholder="填写 agent 能读取的文件路径"></div>
-          <div id="builder-question-row" class="settings-row settings-row-multiline" hidden><label for="builder-question">本次问题</label><textarea id="builder-question" rows="1" placeholder="希望解释什么，或围绕哪些内容复习"></textarea></div>
-          <div id="builder-paths-row" class="settings-row settings-row-multiline"><label for="builder-paths">其他本地素材</label><p class="field-help">也可以直接使用课程素材页勾选的已导入课时</p><textarea id="builder-paths" rows="1" placeholder="可选，每行一个文件路径"></textarea></div>
-          <div id="builder-web-materials-row" class="settings-row" hidden><label for="builder-web-materials">补充素材文件</label><p id="builder-web-materials-help" class="field-help">可选；也会读取课程素材页勾选课时的实际字幕</p><input id="builder-web-materials" type="file" accept=".md,.txt,.srt,.vtt" multiple></div>
-          <div id="builder-web-reference-row" class="settings-row" hidden><label for="builder-web-reference">上传已有笔记或进度</label><p id="builder-web-reference-help" class="field-help">文件会随网页材料一起导出</p><input id="builder-web-reference" type="file" accept=".md,.txt" multiple></div>
-          <div id="builder-format-row" class="settings-row" hidden><label for="builder-format">网页材料格式</label><p class="field-help">网页支持读取 ZIP 时可选择分文件包，否则使用 Markdown</p><select id="builder-format"><option value="md">单个上传文件 · Markdown</option><option value="zip">分文件材料包 · ZIP</option></select></div>
+          <div class="settings-row"><label for="builder-environment">AI 使用方式</label><select id="builder-environment"><option value="local">本地 agent</option><option value="web">网页 AI</option></select></div>
+          <div class="settings-row"><label for="builder-task">任务类型</label><p id="builder-task-help" class="field-help"></p><select id="builder-task"><option value="notes">整理笔记</option><option value="supplement">补充笔记</option><option value="continue">继续整理</option><option value="translate">翻译字幕</option><option value="review">复习答疑</option></select></div>
+          <div id="builder-reference-row" class="settings-row" hidden><label for="builder-reference">已有内容 <span class="builder-reference-requirement"></span></label><p id="builder-reference-help" class="field-help"></p><input id="builder-reference" placeholder="原笔记或进度文件路径"></div>
+          <div id="builder-web-reference-row" class="settings-row" hidden><label for="builder-web-reference">已有内容 <span class="builder-reference-requirement"></span></label><p id="builder-web-reference-help" class="field-help"></p><input id="builder-web-reference" type="file" accept=".md,.txt" multiple></div>
+          <div id="builder-question-row" class="settings-row settings-row-multiline" hidden><label for="builder-question">本次问题</label><textarea id="builder-question" rows="1" placeholder="希望解释什么？"></textarea></div>
+          <div id="builder-paths-row" class="settings-row settings-row-multiline"><label for="builder-paths">补充素材 <span class="builder-field-optional">可选</span></label><p class="field-help">默认使用课程素材页所选课时</p><textarea id="builder-paths" rows="1" placeholder="其他素材路径，每行一个"></textarea></div>
+          <div id="builder-web-materials-row" class="settings-row" hidden><label for="builder-web-materials">补充素材 <span class="builder-field-optional">可选</span></label><p id="builder-web-materials-help" class="field-help">默认使用课程素材页所选课时</p><input id="builder-web-materials" type="file" accept=".md,.txt,.srt,.vtt" multiple></div>
         </div>
-        <div id="builder-install" class="settings-group builder-install">
-          <header class="builder-install-heading"><h3 id="builder-install-title"></h3><span id="builder-install-state" class="builder-delivery-state" aria-live="polite"></span></header>
-          <p id="builder-install-next" class="builder-install-next"></p>
-          <div id="builder-install-actions" class="builder-install-actions"><button id="builder-sync" type="button">选择目录并同步</button><button id="builder-download" type="button">下载技能包</button></div>
-          <div id="builder-install-utility" class="builder-install-utility" hidden><span>更新技能</span></div>
-          <div id="builder-manual-install" class="builder-manual-install"><label class="builder-check builder-install-confirm"><input id="builder-confirm-installed" type="checkbox">我已在 agent 中安装当前配置</label><button id="builder-install-prompt" class="text-button" type="button">复制安装指令</button></div>
-          <p id="builder-install-caption" class="builder-install-caption"></p>
+        <div class="settings-group builder-delivery">
+          <div class="builder-delivery-row">
+            <div class="builder-delivery-summary">
+              <div class="builder-delivery-heading"><strong id="builder-delivery-name">course-notes</strong><span id="builder-install-state" class="builder-delivery-state" aria-live="polite"></span></div>
+              <p id="builder-delivery-guide" class="field-help" hidden></p>
+            </div>
+            <div class="builder-delivery-actions">
+              <button id="copy-study-prompt" class="builder-delivery-primary" type="button"><span class="icon icon-copy" aria-hidden="true"></span><span id="builder-copy-label">复制任务指令</span></button>
+              <button id="builder-preview-task" class="text-button" type="button" aria-expanded="false" aria-controls="builder-task-source">预览</button>
+              <button id="builder-delivery-more" class="text-button builder-delivery-more" type="button" aria-label="更多操作" aria-haspopup="menu" aria-expanded="false" aria-controls="builder-delivery-menu">⋯</button>
+              <div id="builder-delivery-menu" class="builder-delivery-menu" popover="auto" role="menu" aria-label="更多操作">
+                <div id="builder-local-actions">
+                  <button id="builder-sync" type="button" role="menuitem">同步技能</button>
+                  <button id="builder-download" type="button" role="menuitem">下载技能</button>
+                  <button id="builder-install-prompt" type="button" role="menuitem">复制安装指令</button>
+                  <button id="builder-confirm-installed" type="button" role="menuitem" hidden>确认已安装</button>
+                </div>
+                <div id="builder-web-actions" hidden>
+                  <button id="builder-export-web" type="button" role="menuitem">单独导出材料</button>
+                  <div id="builder-format-row" class="builder-delivery-format"><label for="builder-format">导出格式</label><select id="builder-format"><option value="md">Markdown</option><option value="zip">ZIP</option></select></div>
+                  <p class="builder-format-help">ZIP 适用于支持解压的网页 AI</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <pre id="builder-task-source" class="builder-task-source" tabindex="0" aria-label="本次任务指令" hidden></pre>
         </div>
-        <p id="builder-delivery-guide" class="builder-section-help"></p>
-        <div id="builder-web-preview"><button id="builder-preview-task" class="text-button" type="button">预览本次任务指令</button></div>
       </section>
       <section class="preference-section" aria-labelledby="builder-output-title">
         <h2 id="builder-output-title" class="preference-group-title">整理方式</h2>
@@ -69,8 +85,6 @@
     <div class="settings-footer-info"><div class="settings-feedback" hidden><p id="note-status" role="status" aria-live="polite"></p><button class="settings-feedback-close" type="button" aria-label="关闭提示">×</button></div></div>
     <div class="configuration-actions">
       <button id="builder-save" class="text-button" type="submit" form="skill-builder-form">保存设置</button>
-      <button id="copy-study-prompt" class="text-button" type="button">复制任务指令</button>
-      <button id="builder-export-web" type="button" hidden><span class="icon icon-save" aria-hidden="true"></span>导出网页材料</button>
     </div>
   </footer>
 </section>

@@ -29,8 +29,6 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
   function updateDelivery() {
     const web = model.delivery.environment === "web", reference = ["supplement", "continue", "review"].includes(model.delivery.task);
     const requiredReference = ["supplement", "continue"].includes(model.delivery.task);
-    get("builder-install").hidden = web;
-    get("builder-export-web").hidden = !web;
     for (const id of ["paths"]) {
       get(`builder-${id}-row`).hidden = web; get(`builder-${id}`).disabled = web;
     }
@@ -38,49 +36,37 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
     get("builder-reference").disabled = web || !reference; get("builder-reference").required = !web && requiredReference;
     get("builder-question-row").hidden = model.delivery.task !== "review";
     get("builder-question").disabled = model.delivery.task !== "review"; get("builder-question").required = model.delivery.task === "review";
-    for (const id of ["web-materials", "format"]) {
-      get(`builder-${id}-row`).hidden = !web; get(`builder-${id}`).disabled = !web;
-    }
+    get("builder-web-materials-row").hidden = !web; get("builder-web-materials").disabled = !web;
+    get("builder-format").disabled = !web;
     get("builder-web-reference-row").hidden = !web || !reference;
     get("builder-web-reference").disabled = !web || !reference;
     get("builder-web-reference").required = web && requiredReference && !model.uploadedReferences.length;
-    get("builder-environment-help").textContent = web ? ui.webHelp : ui.localHelp;
+    form.querySelectorAll(".builder-reference-requirement").forEach(label => label.textContent = requiredReference ? ui.required : ui.optional);
+    const referenceHelp = model.delivery.task === "supplement" ? ui.referenceSupplement : model.delivery.task === "continue" ? ui.referenceContinue : ui.referenceReview;
+    get("builder-reference-help").textContent = referenceHelp;
+    get("builder-web-reference-help").textContent = model.uploadedReferences.length ? format(ui.filesRead, { count: model.uploadedReferences.length }) : referenceHelp;
     const hints = { notes: ui.taskNotes, supplement: ui.taskSupplement, continue: ui.taskContinue, translate: ui.taskTranslate, review: ui.taskReview };
     get("builder-task-help").textContent = hints[model.delivery.task];
     const state = get("builder-install-state"), isReady = ready();
-    state.dataset.state = isReady ? "ready" : model.installedSnapshot ? "dirty" : "missing";
-    state.textContent = isReady ? ui.installed : model.installedSnapshot ? ui.dirty : ui.missing;
-    get("builder-install-title").textContent = isReady ? ui.readyTitle : model.installedSnapshot ? ui.dirtyTitle : ui.missingTitle;
-    get("builder-install-next").textContent = isReady ? ui.readyNext : model.installedSnapshot ? ui.dirtyNext : ui.missingNext;
-    get("builder-confirm-installed").checked = isReady;
     const supported = typeof window.parent.showDirectoryPicker === "function";
-    const main = get("builder-install-actions"), utility = get("builder-install-utility"), manual = get("builder-manual-install");
-    const sync = get("builder-sync"), downloadButton = get("builder-download"), installPrompt = get("builder-install-prompt");
-    const copyButton = get("copy-study-prompt"), previewButton = get("builder-preview-task");
-    // Keep one real control for each action while placing it at the relevant step.
-    const place = (button, container, className) => {
-      if (button.parentElement !== container) container.append(button);
-      button.className = className;
-    };
+    const sync = get("builder-sync");
     sync.hidden = !supported;
     sync.disabled = !supported;
-    sync.textContent = isReady ? model.directory ? ui.syncSelected : ui.sync : model.installedSnapshot ? ui.syncUpdate : ui.syncNew;
+    sync.textContent = ui.sync;
     sync.title = ui.syncHint;
-    downloadButton.textContent = !isReady && model.installedSnapshot ? ui.downloadUpdate : ui.download;
-    place(sync, isReady ? utility : main, isReady ? "text-button" : "builder-install-primary");
-    place(downloadButton, isReady ? utility : main, isReady ? "text-button" : supported ? "builder-install-secondary" : "builder-install-primary");
-    place(installPrompt, isReady ? utility : manual, "text-button");
-    place(copyButton, web ? get("note-preferences-page").querySelector(".configuration-actions") : main, web ? "text-button" : "builder-install-primary");
-    place(previewButton, web ? get("builder-web-preview") : main, web ? "text-button" : "builder-install-secondary");
-    copyButton.hidden = previewButton.hidden = !web && !isReady;
-    copyButton.textContent = web ? ui.copyWeb : ui.copyLocal;
-    previewButton.textContent = web ? ui.previewWeb : ui.previewLocal;
-    utility.hidden = !isReady; manual.hidden = isReady;
-    get("builder-install-caption").textContent = isReady ? ui.readyCaption : supported ? ui.manualCaption : ui.unsupportedCaption;
-    get("builder-delivery-guide").hidden = get("builder-web-preview").hidden = !web;
+    get("builder-download").textContent = ui.download;
+    get("builder-local-actions").hidden = web; get("builder-web-actions").hidden = !web;
+    get("builder-confirm-installed").hidden = isReady;
+    get("builder-copy-label").textContent = web || isReady ? ui.copyTask : supported ? ui.sync : ui.download;
+    get("builder-preview-task").textContent = ui.previewTask;
+    get("builder-preview-task").disabled = !web && !isReady;
+    get("builder-delivery-name").textContent = web ? ui.webMaterials : "course-notes";
+    get("builder-delivery-guide").hidden = !web;
+    get("builder-delivery-guide").textContent = ui.webGuide;
     let webReady = false;
     try { webReady = model.exportedWeb?.snapshot === webSnapshot(); } catch {}
-    get("builder-delivery-guide").textContent = webReady ? ui.exportedGuide : ui.exportGuide;
+    state.dataset.state = web || isReady ? "ready" : model.installedSnapshot ? "dirty" : "missing";
+    state.textContent = web ? webReady ? ui.webPrepared : ui.webAutomatic : isReady ? ui.installed : model.installedSnapshot ? ui.dirty : ui.missing;
   }
   function renderFileList(files, selected = previewPath) {
     previewFiles = files; previewPath = files.some(file => file.path === selected) ? selected : files[0].path;
@@ -93,6 +79,7 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
   }
   function refreshPreview() {
     read(); updateDelivery();
+    get("builder-task-source").hidden = true; get("builder-preview-task").setAttribute("aria-expanded", "false");
     const enabled = model.config.modules.filter(item => item.enabled).length;
     get("builder-module-count").textContent = format(ui.moduleCount, { enabled, total: model.config.modules.length });
     form.querySelectorAll("select").forEach(decorateSelect);
@@ -264,10 +251,10 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
     if (width !== formWidth) { formWidth = width; resizeTextareas(); }
   }).observe(form);
   get("note-preferences-page").querySelector(".settings-scroll").addEventListener("scroll", () => {
-    for (const menu of form.querySelectorAll(".builder-select-menu:popover-open, .builder-module-actions:popover-open")) positionSelectMenu(menu.previousElementSibling, menu);
+    for (const menu of form.querySelectorAll(".builder-select-menu:popover-open, .builder-module-actions:popover-open, .builder-delivery-menu:popover-open")) positionSelectMenu(menu.previousElementSibling, menu);
   });
   for (const eventName of ["input", "change"]) form.addEventListener(eventName, event => {
-    if (event.target.id !== "builder-confirm-installed") refreshPreview();
+    refreshPreview();
   });
   form.addEventListener("submit", async event => {
     event.preventDefault();
@@ -285,8 +272,27 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
 
   function previewTask(task, files = []) {
     renderFileList([{ path: "任务指令.txt", content: task.text }, ...files], "任务指令.txt");
-    get("builder-preview").scrollIntoView({ block: "start", behavior: "smooth" });
+    get("builder-task-source").textContent = task.text; get("builder-task-source").hidden = false;
+    get("builder-preview-task").setAttribute("aria-expanded", "true");
   }
+
+  const deliveryMenu = get("builder-delivery-menu"), moreButton = get("builder-delivery-more");
+  moreButton.addEventListener("click", () => {
+    if (deliveryMenu.matches(":popover-open")) deliveryMenu.hidePopover();
+    else { deliveryMenu.showPopover(); positionSelectMenu(moreButton, deliveryMenu); deliveryMenu.querySelector("div:not([hidden]) > button:not([hidden]):not(:disabled)").focus({ preventScroll: true }); }
+  });
+  deliveryMenu.addEventListener("toggle", event => moreButton.setAttribute("aria-expanded", String(event.newState === "open")));
+  deliveryMenu.addEventListener("click", event => { if (event.target.closest('[role="menuitem"]')) deliveryMenu.hidePopover(); });
+  deliveryMenu.addEventListener("keydown", event => {
+    if (event.defaultPrevented || event.target.closest(".builder-select")) return;
+    const buttons = [...deliveryMenu.querySelectorAll('button[role="menuitem"]')].filter(button => !button.hidden && !button.disabled && !button.closest("[hidden]"));
+    const index = buttons.indexOf(document.activeElement);
+    if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+      event.preventDefault();
+      buttons[event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1 : (index + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length].focus({ preventScroll: true });
+    } else if (event.key === "Escape") { event.preventDefault(); deliveryMenu.hidePopover(); moreButton.focus({ preventScroll: true }); }
+    else if (event.key === "Tab") deliveryMenu.hidePopover();
+  });
 
   createNotesDelivery({ model, catalog, feedback, element, read, save, ready, skillSnapshot, webSnapshot, updateDelivery, refreshPreview, previewTask });
   document.getElementById("notes-nav").addEventListener("click", async () => {

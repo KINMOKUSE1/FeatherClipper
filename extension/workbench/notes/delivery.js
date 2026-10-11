@@ -9,7 +9,7 @@ window.createNotesDelivery = function ({ model, catalog, feedback, element, read
     link.href = url; link.download = name; document.body.append(link); link.click();
     setTimeout(() => { link.remove(); URL.revokeObjectURL(url); }, 30000);
   }
-  get("builder-download").addEventListener("click", async () => {
+  async function downloadSkill() {
     try {
       await save();
       const files = core.buildFiles(model.config, model.resources);
@@ -17,15 +17,16 @@ window.createNotesDelivery = function ({ model, catalog, feedback, element, read
       updateDelivery();
       showSettingsFeedback("note-status", ui.downloaded);
     } catch (error) { showSettingsFeedback("note-status", error.message); }
-  });
-  get("builder-confirm-installed").addEventListener("change", event => {
+  }
+  get("builder-download").addEventListener("click", downloadSkill);
+  get("builder-confirm-installed").addEventListener("click", () => {
     try {
-      read(); model.installedSnapshot = event.target.checked ? skillSnapshot() : null;
-      if (model.installedSnapshot) localStorage.setItem(model.installationKey, model.installedSnapshot); else localStorage.removeItem(model.installationKey);
+      read(); model.installedSnapshot = skillSnapshot();
+      localStorage.setItem(model.installationKey, model.installedSnapshot);
       updateDelivery();
-    } catch (error) { event.target.checked = false; showSettingsFeedback("note-status", error.message); }
+    } catch (error) { showSettingsFeedback("note-status", error.message); }
   });
-  get("builder-sync").addEventListener("click", async () => {
+  async function syncSkill() {
     const button = get("builder-sync");
     try {
       const files = core.buildFiles(read(), model.resources), snapshot = JSON.stringify(files);
@@ -37,7 +38,8 @@ window.createNotesDelivery = function ({ model, catalog, feedback, element, read
       showSettingsFeedback("note-status", ui.synced);
     } catch (error) { if (error.name !== "AbortError") showSettingsFeedback("note-status", format(ui.syncFailed, { error: error.message })); }
     finally { updateDelivery(); }
-  });
+  }
+  get("builder-sync").addEventListener("click", syncSkill);
   get("builder-install-prompt").addEventListener("click", async () => {
     try {
       await navigator.clipboard.writeText(ui.installPrompt);
@@ -50,7 +52,7 @@ window.createNotesDelivery = function ({ model, catalog, feedback, element, read
       try {
         const files = await Promise.all(selected.map(async (file, index) => ({ fileName: `${reference ? "已有笔记" : "素材"}/${index + 1}-${CourseCore.safeName(file.name)}`, content: await file.text() })));
         if (reference) model.uploadedReferences = files; else model.uploadedMaterials = files;
-        get(`${id}-help`).textContent = files.length ? format(ui.filesRead, { count: files.length, names: selected.map(file => file.name).join("、") }) : reference ? ui.referenceHelp : ui.materialsHelp;
+        if (!reference) get(`${id}-help`).textContent = files.length ? format(ui.filesRead, { count: files.length }) : ui.materialsHelp;
         refreshPreview();
       } catch (error) { showSettingsFeedback("note-status", format(ui.readFailed, { error: error.message })); }
     });
@@ -63,21 +65,29 @@ window.createNotesDelivery = function ({ model, catalog, feedback, element, read
     return { text: core.buildTask(currentConfig, currentDelivery, context), config: currentConfig, delivery: currentDelivery, context };
   }
   get("builder-preview-task").addEventListener("click", async () => {
+    if (!get("builder-task-source").hidden) {
+      get("builder-task-source").hidden = true; get("builder-preview-task").setAttribute("aria-expanded", "false"); return;
+    }
     try {
       const task = await prepareTask();
       const files = task.delivery.environment === "web" ? core.buildWebFiles(task.config, task.delivery, task.context, model.resources) : core.buildFiles(task.config, model.resources);
       previewTask(task, files);
     } catch (error) { showSettingsFeedback("note-status", error.message); }
   });
+  async function prepareWebTask() {
+    read(); const snapshot = webSnapshot(), task = await prepareTask();
+    if (snapshot !== webSnapshot()) throw new Error(ui.exportChanged);
+    return { ...task, snapshot, files: core.buildWebFiles(task.config, task.delivery, task.context, model.resources) };
+  }
+  function exportWebTask(task) {
+    if (task.delivery.format === "zip") download(window.NoteFiles.zip(task.files), "course-web-task.zip", "application/zip");
+    else download(core.combineWebFiles(task.files), "课程任务材料.md", "text/markdown;charset=utf-8");
+    model.exportedWeb = { snapshot: task.snapshot }; updateDelivery();
+  }
   get("builder-export-web").addEventListener("click", async () => {
     const button = get("builder-export-web"); button.disabled = true;
     try {
-      read(); const snapshot = webSnapshot(), task = await prepareTask();
-      if (snapshot !== webSnapshot()) throw new Error(ui.exportChanged);
-      const files = core.buildWebFiles(task.config, task.delivery, task.context, model.resources);
-      if (task.delivery.format === "zip") download(window.NoteFiles.zip(files), "course-web-task.zip", "application/zip");
-      else download(core.combineWebFiles(files), "课程任务材料.md", "text/markdown;charset=utf-8");
-      model.exportedWeb = { snapshot, task }; previewTask(task, files); updateDelivery();
+      exportWebTask(await prepareWebTask());
       showSettingsFeedback("note-status", ui.exported);
     } catch (error) { showSettingsFeedback("note-status", format(ui.exportFailed, { error: error.message })); }
     finally { button.disabled = false; }
@@ -86,14 +96,16 @@ window.createNotesDelivery = function ({ model, catalog, feedback, element, read
   copy.addEventListener("click", async () => {
     copy.disabled = true;
     try {
-      await save();
-      let task;
-      if (model.delivery.environment === "web") {
-        if (model.exportedWeb?.snapshot !== webSnapshot()) throw new Error(ui.exportRequired);
-        task = model.exportedWeb.task;
-      } else task = await prepareTask();
+      read();
+      if (model.delivery.environment === "local" && !ready()) {
+        if (typeof window.parent.showDirectoryPicker === "function") await syncSkill();
+        else await downloadSkill();
+        return;
+      }
+      const task = model.delivery.environment === "web" ? await prepareWebTask() : await prepareTask();
       await navigator.clipboard.writeText(task.text);
-      showSettingsFeedback("note-status", model.delivery.environment === "web" ? ui.copiedWeb : ui.copiedLocal);
+      if (task.delivery.environment === "web") exportWebTask(task);
+      showSettingsFeedback("note-status", task.delivery.environment === "web" ? ui.copiedWeb : ui.copiedLocal);
     } catch (error) { showSettingsFeedback("note-status", format(ui.copyFailed, { error: error.message })); }
     finally { copy.disabled = false; }
   });

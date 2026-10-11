@@ -58,25 +58,28 @@
 .builder-custom-property > .builder-select { justify-self: end; }
 .skill-builder .builder-custom-property .builder-select-trigger { gap: 5px; padding-inline: 7px; }
 .builder-source { margin: 0; padding: 16px; max-height: 560px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--line); border-radius: 8px; background: #fafafa; font: 13px/1.6 "Cascadia Code", Consolas, "HarmonyOS Sans SC", monospace; color: var(--ink); }
-.builder-install { margin-top: 14px; padding-block: 22px; }
-.builder-install-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.builder-install-heading h3 { margin: 0; font-size: 16px; line-height: 1.4; font-weight: 500; }
+.builder-delivery { margin-top: 16px; padding-block: 16px; }
+.builder-delivery-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 18px; }
+.builder-delivery-summary { flex: 1 1 220px; min-width: 0; }
+.builder-delivery-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.builder-delivery-heading strong { font-size: 14px; line-height: 1.5; font-weight: 500; }
+.builder-delivery-summary .field-help { margin: 3px 0 0; }
 .builder-delivery-state { flex: none; font-size: 12px; line-height: 1.5; color: var(--muted); }
 .builder-delivery-state[data-state="dirty"] { color: var(--warning); }
 .builder-delivery-state[data-state="ready"] { color: var(--success); }
-.builder-install-next { margin: 10px 0 18px; font-size: 14px; line-height: 1.5; }
-.builder-install-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.note-preferences .builder-install-primary, .note-preferences .builder-install-secondary { min-height: 38px; padding: 8px 14px; border-radius: 7px; font: 14px/20px var(--font-controls); }
-.note-preferences .builder-install-primary { border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent); }
-.note-preferences .builder-install-primary:hover { opacity: .9; }
-.note-preferences .builder-install-secondary { border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
-.note-preferences .builder-install-secondary:hover { background: var(--soft); }
-.builder-install-utility { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 20px; margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--line); }
-.builder-install-utility > span { color: var(--muted); font-size: 12px; }
-.note-preferences .builder-install-utility button.text-button, .note-preferences .builder-manual-install button.text-button { min-height: 26px; padding: 3px 0; font-size: 12px; }
-.builder-manual-install { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--line); }
-.note-preferences .builder-install-confirm { font-weight: 400; }
-.builder-install-caption { margin: 12px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.builder-delivery-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.note-preferences .builder-delivery-primary { min-width: 138px; min-height: 36px; padding: 8px 11px; border-radius: 7px; font: 14px/20px var(--font-controls); background: var(--accent); color: var(--on-accent); }
+.note-preferences .builder-delivery-actions button.text-button { border-radius: 7px; padding: 8px 11px; }
+.note-preferences button.builder-delivery-more { width: 36px; padding: 8px; font-size: 20px; }
+.builder-delivery-menu { position: fixed; inset: auto; width: 230px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow-y: auto; margin: 0; padding: 5px; border: 1px solid #e5e6e9; border-radius: 10px; background: var(--surface); color: var(--ink); box-shadow: 0 6px 24px #2026311c, 0 2px 6px #20263108; }
+.note-preferences .builder-delivery-menu button[role="menuitem"] { display: flex; justify-content: flex-start; width: 100%; min-height: 36px; padding: 8px 11px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font: 14px/20px var(--font-controls); }
+.note-preferences .builder-delivery-menu button[role="menuitem"]:hover:not(:disabled) { background: var(--hover); }
+.builder-delivery-format { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; padding: 8px 11px; border-top: 1px solid var(--line); }
+.note-preferences .builder-delivery-format label { font-size: 13px; font-weight: 400; }
+.builder-delivery-format .builder-select-trigger { font-size: 13px; padding: 5px 7px; }
+.builder-format-help { margin: 0 11px 8px; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.builder-reference-requirement, .builder-field-optional { margin-left: 5px; font-size: 12px; font-weight: 400; color: var(--muted); }
+.builder-task-source { margin: 16px 0 0; padding: 13px 0 0; border-top: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; font: 14px/1.7 var(--font-controls); color: var(--ink); }
 .note-preferences input[type="file"] { padding: 6px; font-size: 12px; border-radius: 6px; }
 .note-preferences input[type="file"]::file-selector-button { padding: 5px 8px; margin-right: 8px; border: 0; border-radius: 4px; color: var(--ink); background: var(--soft); font: inherit; cursor: pointer; }
 .builder-file-viewer { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 12px; }
@@ -84,7 +87,6 @@
 .note-preferences #builder-file-list button { min-height: 32px; padding: 6px 10px; text-align: left; font: 12px/1.5 var(--font-controls); background: transparent; border: 0; border-radius: 6px; color: var(--ink); overflow-wrap: anywhere; }
 .note-preferences #builder-file-list button[aria-current="true"] { background: var(--selected); font-weight: 500; }
 .note-preferences #builder-file-list button:hover { background: var(--hover); }
-#builder-web-preview { margin-top: 8px; }
 .skill-builder .preferences-footer .settings-footer-info { flex: none; }
 .skill-builder .configuration-actions { margin-left: auto; gap: 8px; }
 @media (max-width: 740px) {
@@ -97,10 +99,14 @@
   .builder-property { grid-template-columns: 14px 16px minmax(100px, 130px) minmax(0, 1fr); gap: 8px; }
   .skill-builder .configuration-actions { width: 100%; gap: 4px; }
   .skill-builder .configuration-actions button { font-size: 13px; padding-inline: 10px; }
+  .builder-delivery-actions { width: 100%; }
+  .note-preferences button.builder-delivery-more { margin-left: auto; }
 }
 @media (pointer: coarse) {
   .note-preferences button.builder-module-grip, .note-preferences button.builder-module-menu-trigger, .note-preferences .builder-module-actions button { min-height: 44px; }
   .skill-builder .builder-module textarea { font-size: 16px; }
+  .note-preferences .builder-delivery-actions button, .note-preferences .builder-delivery-menu button[role="menuitem"] { min-height: 44px; }
+  .note-preferences button.builder-delivery-more { width: 44px; }
 }
 @media (max-width: 480px) {
   .builder-property { grid-template-columns: 14px 16px minmax(0, 1fr); }

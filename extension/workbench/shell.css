@@ -12,7 +12,6 @@
 .nav-button.active { background: rgba(0, 0, 0, .05); }
 .nav-button.active::before { content: ""; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 4px; height: 13px; border-radius: 0; background: #d9a363; }
 .main-content { display: flex; flex-direction: column; width: 100%; max-width: 1440px; margin-inline: auto; min-width: 0; min-height: 0; padding: 24px 32px 0; }
-@media (max-width: 1180px) { .main-content { padding: 20px 24px 0; } }
 @media (max-width: 620px) {
   .app-shell { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
   .main-content { flex: 1; }
