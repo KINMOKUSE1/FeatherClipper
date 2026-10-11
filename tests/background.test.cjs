@@ -103,6 +103,11 @@ test('automatic preview and import preserve the actual subtitle language', async
   const imported = await h.message(quickMessage, popupSender);
   assert.equal(imported.status, 'saved');
   assert.match(h.writes.find(write => decodeURIComponent(write.url).endsWith('1.1 Intro [CID-2].md')).content, /subtitle_lang: "中文（自动生成）"/);
+  const records = Object.entries(h.local).filter(([key]) => key.startsWith('vid2notes:import-history:'));
+  assert.equal(records.length, 1);
+  assert.equal(records[0][1].language, '中文（自动生成）');
+  assert.equal(records[0][1].cid, '2');
+  assert.ok(Number.isFinite(records[0][1].importedAt));
 });
 
 test('automatic Bilibili retrieval imports the only available language', async () => {
@@ -218,6 +223,32 @@ test('quick import saves raw subtitles, index and durable status; repeat skips r
   assert.equal((await h.message(quickMessage, popupSender)).status, 'exists');
   assert.equal(h.writes.filter(w => decodeURIComponent(w.url).endsWith('1.1 Intro [CID-2].md')).length, 1);
   assert.ok(h.writes.at(-1).content.includes('已存在，跳过'));
+  const records = Object.entries(h.local).filter(([key]) => key.startsWith('vid2notes:import-history:'));
+  assert.equal(records.length, 1);
+  assert.equal(records[0][1].language, '中文（自动生成）');
+});
+
+test('workbench imports and completed local transcription both persist history', async () => {
+  const h = boot();
+  const saved = await h.message({ type: 'course-request', action: 'import', meta: quickMeta, page: quickMeta.pages[0], base: 'Clippings/Bilibili' });
+  assert.equal(saved.status, 'saved');
+  assert.equal(Object.entries(h.local).filter(([key]) => key.startsWith('vid2notes:import-history:')).length, 1);
+  const asr = boot();
+  asr.context.asrPoll = async () => ({ status: 'done', bvid: quickMeta.bvid, cid: quickMeta.pages[0].cid, language: 'zh', body: [{ from: 0, content: '转写结果' }] });
+  const completed = await asr.message({ type: 'course-request', action: 'asr-finish', meta: quickMeta, page: quickMeta.pages[0], base: 'Clippings/Bilibili', jobId: 'test-job' });
+  assert.equal(completed.status, 'saved');
+  const record = Object.entries(asr.local).find(([key]) => key.startsWith('vid2notes:import-history:'))[1];
+  assert.match(record.language, /本地转写/);
+  assert.equal(record.sourcePath, completed.path);
+});
+
+test('missing subtitles and rejected imports do not write history', async () => {
+  for (const options of [{ missing: true }, { initial: { obsidianApiKey: '' } }]) {
+    const h = boot(options);
+    const result = await h.message(quickMessage, popupSender);
+    assert.ok(['missing', 'failed'].includes(result.status));
+    assert.equal(Object.keys(h.local).some(key => key.startsWith('vid2notes:import-history:')), false);
+  }
 });
 
 test('YouTube video previews and imports through the same Obsidian workflow', async () => {
@@ -233,6 +264,9 @@ test('YouTube video previews and imports through the same Obsidian workflow', as
   assert.equal(result.status, 'saved');
   assert.equal(h.youtubeCalls.length, 2, 'import reuses the immediately preceding preview');
   assert.ok(h.writes.some(write => decodeURIComponent(write.url).endsWith(`Lecture [YT-${id}].md`) && write.content.includes('platform: youtube')));
+  const record = Object.entries(h.local).find(([key]) => key.startsWith('vid2notes:import-history:'))[1];
+  assert.equal(record.thumbnail, `https://i.ytimg.com/vi/${id}/hqdefault.jpg`);
+  assert.equal(record.language, 'English');
 });
 test('YouTube playlist imports the selected lecture using its own video ID', async () => {
   const id = 'GWwL_pLuX-U', playlistId = 'PLKq1TCpsv3Y4';

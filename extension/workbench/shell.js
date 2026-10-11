@@ -1,7 +1,7 @@
 /* 页面切换和侧栏选中状态。 */
 window.createWorkbenchShell = function () {
   const workbenchPages = [
-    ["catalog-page", "catalog-nav"], ["note-preferences-page", "notes-nav"],
+    ["catalog-page", "catalog-nav"], ["history-page", "history-nav"], ["note-preferences-page", "notes-nav"],
     ["asr-page", "local-asr-settings"], ["connection-page", "settings"]
   ];
   function showWorkbenchPage(pageId) {

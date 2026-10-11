@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <rect width="640" height="360" fill="#e8e5dc"/>
+  <rect x="44" y="44" width="5" height="36" fill="#c99758"/>
+  <text x="65" y="71" font-family="Segoe UI,sans-serif" font-size="22" fill="#596473">Vid2Notes · 示例课程</text>
+  <text x="44" y="143" font-family="Noto Serif SC,serif" font-size="47" fill="#354052">计算机网络</text>
+  <text x="46" y="187" font-family="Noto Serif SC,serif" font-size="25" fill="#596473">从原理到实践</text>
+  <g stroke="#7c8b97" stroke-width="3" fill="#f8f7f3"><path d="M82 286H309M330 286H548"/><rect x="44" y="252" width="92" height="66" rx="8"/><rect x="273" y="252" width="92" height="66" rx="8"/><rect x="502" y="252" width="92" height="66" rx="8"/></g>
+  <g font-family="Segoe UI,sans-serif" font-size="18" fill="#354052" text-anchor="middle"><text x="90" y="292">Client</text><text x="319" y="292">HTTP</text><text x="548" y="292">Server</text></g>
+</svg>

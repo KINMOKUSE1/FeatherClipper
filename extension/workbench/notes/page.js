@@ -246,11 +246,30 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
     return model.config;
   }
   let formWidth = 0;
+  const scroll = get("note-preferences-page").querySelector(".settings-scroll");
+  const sectionLinks = [...get("note-preferences-page").querySelectorAll(".notes-section-nav a")];
+  const sections = sectionLinks.map(link => get(link.hash.slice(1)).closest("section"));
+  function updateSectionNavigation() {
+    const top = scroll.getBoundingClientRect().top + 36;
+    let active = 0;
+    sections.forEach((section, index) => { if (section.getBoundingClientRect().top <= top) active = index; });
+    if (scroll.scrollTop + scroll.clientHeight >= scroll.scrollHeight - 2) active = sections.length - 1;
+    sectionLinks.forEach((link, index) => {
+      if (index === active) link.setAttribute("aria-current", "location");
+      else link.removeAttribute("aria-current");
+    });
+  }
+  sectionLinks.forEach((link, index) => link.addEventListener("click", event => {
+    event.preventDefault();
+    scroll.scrollTo({ top: scroll.scrollTop + sections[index].getBoundingClientRect().top - scroll.getBoundingClientRect().top - 18,
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+  }));
   new ResizeObserver(entries => {
     const width = entries[0].contentRect.width;
     if (width !== formWidth) { formWidth = width; resizeTextareas(); }
   }).observe(form);
-  get("note-preferences-page").querySelector(".settings-scroll").addEventListener("scroll", () => {
+  scroll.addEventListener("scroll", () => {
+    updateSectionNavigation();
     for (const menu of form.querySelectorAll(".builder-select-menu:popover-open, .builder-module-actions:popover-open, .builder-delivery-menu:popover-open")) positionSelectMenu(menu.previousElementSibling, menu);
   });
   for (const eventName of ["input", "change"]) form.addEventListener(eventName, event => {

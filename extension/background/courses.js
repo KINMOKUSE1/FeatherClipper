@@ -17,7 +17,7 @@ async function handleCourseMessage(message) {
     const data = payload.data;
     const settings = await getMergedSettings();
     const folder = String(settings.noteFolder || "Clippings/Bilibili").replace(/\{\{created\}\}/g, formatLocalDate()).replace(/\{\{upload_date\}\}/g, formatLocalDate(data.pubdate * 1000)).replace(/\{\{author\}\}/g, CourseCore.safeName(data.owner?.name)).replace(/\{\{bvid\}\}/g, bvid);
-    return { meta: { bvid: data.bvid, aid: String(data.aid), title: data.title, author: data.owner?.name || "", pages: (data.pages || []).map(p => ({ cid: String(p.cid), page: p.page, part: p.part, duration: p.duration })) }, folder };
+    return { meta: { bvid: data.bvid, aid: String(data.aid), title: data.title, author: data.owner?.name || "", thumbnail: String(data.pic || "").replace(/^http:/, "https:").replace(/^\/\//, "https://"), pages: (data.pages || []).map(p => ({ cid: String(p.cid), page: p.page, part: p.part, duration: p.duration })) }, folder };
   }
   if (!meta || !(meta.platform === "youtube" ? /^[\w-]{11}$/.test(meta.videoId || "") && (meta.playlistId ? /^[\w-]{8,60}$/.test(meta.playlistId) && meta.bvid === `YTPL_${meta.playlistId}` : meta.bvid === `YT_${meta.videoId}`) : /^BV[0-9A-Za-z]+$/.test(meta.bvid || ""))) throw new Error("课程信息无效，请重新读取目录。");
   if (action === "raw-paths") return { sources: await courseRawSources(meta, message.pages || meta.pages, base) };
@@ -30,7 +30,7 @@ async function handleCourseMessage(message) {
     if (action === "asr-cancel") return asrCancel(message.jobId);
     const path = CourseCore.rawPath(meta, page, base);
     const existingPath = existingRawPath(meta, page, base, await courseRawFiles(meta, base));
-    if (existingPath) return { status: "exists", path: existingPath };
+    if (existingPath) return rememberCourseImport(meta, page, base, { status: "exists", path: existingPath });
     if (action === "asr-start") {
       const subtitle = await courseSubtitle(meta, page);
       if (subtitle) return { status: "subtitle-available" };
@@ -43,10 +43,10 @@ async function handleCourseMessage(message) {
       throw new Error("本地转写结果无效，未保存到 Obsidian。");
     }
     const appearedPath = existingRawPath(meta, page, base, await courseRawFiles(meta, base));
-    if (appearedPath) return { status: "exists", path: appearedPath };
+    if (appearedPath) return rememberCourseImport(meta, page, base, { status: "exists", path: appearedPath });
     const track = { lan: job.language || "auto", lanDoc: `本地转写（faster-whisper-small · ${job.language || "自动识别"}）`, source: "local-asr" };
     await courseLocalRequest(path, "PUT", CourseCore.buildRaw(meta, page, track, job.body));
-    return { status: "saved", path };
+    return rememberCourseImport(meta, page, base, { status: "saved", path }, track);
   }
   if (["preview", "tracks"].includes(action)) {
     if (!(meta.platform === "youtube" ? /^[\w-]{11}$/.test(page?.cid || "") && meta.pages?.some(item => item.cid === page.cid) : /^\d+$/.test(page?.cid || ""))) throw new Error("视频信息无效。");
@@ -72,14 +72,14 @@ async function handleCourseMessage(message) {
     if (!(meta.platform === "youtube" ? /^[\w-]{11}$/.test(page?.cid || "") && meta.pages?.some(item => item.cid === page.cid) : /^\d+$/.test(page?.cid || ""))) throw new Error("视频信息无效。");
     const path = CourseCore.rawPath(meta, page, base);
     const existingPath = existingRawPath(meta, page, base, await courseRawFiles(meta, base));
-    if (existingPath) return { status: "exists", path: existingPath };
+    if (existingPath) return rememberCourseImport(meta, page, base, { status: "exists", path: existingPath });
     const subtitle = await courseSubtitle(meta, page, "import", message.activateVideo === true, message.trackId || "");
     if (!subtitle) return { status: "missing" };
     // Recheck after network work in case a note appeared while fetching subtitles.
     const appearedPath = existingRawPath(meta, page, base, await courseRawFiles(meta, base));
-    if (appearedPath) return { status: "exists", path: appearedPath };
+    if (appearedPath) return rememberCourseImport(meta, page, base, { status: "exists", path: appearedPath });
     await courseLocalRequest(path, "PUT", CourseCore.buildRaw(meta, page, subtitle.track, subtitle.body));
-    return { status: "saved", path };
+    return rememberCourseImport(meta, page, base, { status: "saved", path }, subtitle.track);
   }
   throw new Error("未知的课程操作。");
 }

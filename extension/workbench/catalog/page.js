@@ -38,7 +38,7 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
   function syncControls() {
     const locked = running || loading;
     if (locked) closeFilter();
-    for (const id of ["load", "url", "folder", "settings", "notes-nav", "filter", "select", "clear", "current"]) $(id).disabled = locked;
+    for (const id of ["load", "url", "folder", "settings", "notes-nav", "history-nav", "filter", "select", "clear", "current"]) $(id).disabled = locked;
     $("start").disabled = locked || previewLoading || !meta || !pages.some(p => p.selected);
     $("retry").disabled = locked || previewLoading || !pages.some(p => p.selected && ["failed", "missing"].includes(p.status));
     $("current").disabled = locked || !meta;
@@ -145,8 +145,9 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
       $("filter-options").append(option);
     }
   }
-  async function loadCourse() {
+  async function loadCourse(options = {}) {
     if (running || loading) return;
+    if (options.source) $("url").value = options.source;
     importAction.reset(); previewView.open(false);
     const source = $("url").value.trim();
     const parsed = CourseCore.parseSource(source);
@@ -160,7 +161,7 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
       if (!meta.pages.length) throw new Error(ui.emptyCourse);
       if (meta.platform === "youtube") currentPage = meta.pages.find(item => item.cid === parsed.id)?.page || 1;
       const baseKey = `boc-course-base:${meta.bvid}`;
-      $("folder").value = (await chrome.storage.local.get(baseKey))[baseKey] || result.folder;
+      $("folder").value = options.base ? CourseCore.normalizeFolder(options.base) : (await chrome.storage.local.get(baseKey))[baseKey] || result.folder;
       const cached = (await chrome.storage.local.get(snapshotKey()))[snapshotKey()];
       pages = meta.pages.map(page => {
         const old = cached?.pages?.find(p => p.cid === page.cid);
@@ -176,7 +177,7 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
     if (meta) {
       if ($("source-dialog").open) $("source-dialog").close();
       const page = pages.find(item => item.page === currentPage);
-      if (page) await preview(page);
+      if (page && options.preview !== false) await preview(page);
     }
   }
   async function preview(page) {

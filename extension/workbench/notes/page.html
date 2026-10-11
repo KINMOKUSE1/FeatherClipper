@@ -1,9 +1,11 @@
 <section id="note-preferences-page" class="preferences-page skill-builder" aria-labelledby="notes-title" hidden>
   <div class="settings-scroll">
+    <div class="notes-layout">
     <header class="preferences-heading">
       <h1 id="notes-title">整理笔记</h1>
       <p class="section-description">配置整理规则并自动生成相应 skill。</p>
     </header>
+    <div class="notes-content">
     <form id="skill-builder-form" class="note-preferences" novalidate>
       <section aria-labelledby="builder-delivery-title">
         <h2 id="builder-delivery-title" class="preference-group-title">本次任务</h2>
@@ -80,6 +82,16 @@
       <p class="builder-section-help">选择文件查看完整内容</p>
       <div class="builder-file-viewer"><nav id="builder-file-list" aria-label="生成文件列表"></nav><pre id="builder-source" class="builder-source" tabindex="0" aria-label="当前生成文件内容"></pre></div>
     </section>
+    </div>
+    <nav class="notes-section-nav" aria-label="整理笔记页内导航">
+      <a href="#builder-delivery-title" aria-current="location">本次任务</a>
+      <a href="#builder-output-title">整理方式</a>
+      <a href="#builder-modules-title">笔记结构</a>
+      <a href="#builder-properties-title">笔记属性</a>
+      <a href="#builder-writing-title">写作与回看</a>
+      <a href="#builder-preview-title">文件预览</a>
+    </nav>
+    </div>
   </div>
   <footer class="preferences-footer">
     <div class="settings-footer-info"><div class="settings-feedback" hidden><p id="note-status" role="status" aria-live="polite"></p><button class="settings-feedback-close" type="button" aria-label="关闭提示">×</button></div></div>

@@ -1,0 +1,14 @@
+<section id="history-page" class="history-page" aria-labelledby="history-title" hidden>
+  <header class="history-heading"><h1 id="history-title">导入记录</h1><span id="history-count"></span></header>
+  <div class="history-toolbar">
+    <label class="history-search"><span class="icon icon-search" aria-hidden="true"></span><input id="history-search" type="search" aria-label="搜索视频或课程" placeholder="搜索视频或课程"></label>
+    <div class="history-filters"><select id="history-source" aria-label="来源"><option value="all">全部来源</option><option value="bilibili">B站</option><option value="youtube">YouTube</option></select><select id="history-sort" aria-label="排序"><option value="newest">最近导入</option><option value="oldest">最早导入</option></select></div>
+  </div>
+  <div class="history-scroll"><div id="history-list" role="list" aria-label="已导入的视频"></div><p id="history-empty" class="history-empty" hidden></p></div>
+  <footer class="history-footer"><div class="settings-footer-info"><div class="settings-feedback" hidden><p id="history-status" role="status" aria-live="polite"></p><button class="settings-feedback-close" type="button" aria-label="关闭提示">×</button></div></div></footer>
+</section>
+<div id="history-menu" class="history-menu" popover="auto" role="menu" aria-label="记录操作">
+  <a id="history-original" role="menuitem" target="_blank" rel="noopener">打开原视频 ↗</a>
+  <button id="history-copy" type="button" role="menuitem">复制素材路径</button>
+  <button id="history-remove" type="button" role="menuitem">移除记录</button>
+</div>

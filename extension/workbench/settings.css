@@ -7,7 +7,7 @@
 .section-description { margin-top: 8px; color: var(--muted); font-size: 13px; line-height: 1.45; }
 .note-preferences { padding-bottom: 18px; }
 .preference-group-title { margin-bottom: 20px; font-size: 16px; line-height: 1.4; font-weight: 500; }
-.settings-group { padding: 0 18px; border: 1px solid var(--line); border-radius: 14px; background: #fafafa; box-shadow: 0 2px 6px #35405208, 0 8px 20px #3540520a; }
+.settings-group { padding: 4px 18px; border: 1px solid var(--line); border-radius: 14px; background: #fafafa; box-shadow: 0 2px 6px #35405208, 0 8px 20px #3540520a; }
 .note-preferences label, .configuration-fields label { display: block; font-size: 14px; line-height: 1.45; font-weight: 500; margin: 0; }
 .settings-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 320px); column-gap: 24px; row-gap: 4px; align-items: start; padding: 14px 0; border-bottom: 1px solid var(--line); }
 .settings-row:last-child { border-bottom: 0; }

@@ -51,6 +51,16 @@
       connectionLost: "扩展连接中断，请重新打开导入页",
       pageFailed: "页面读取失败：{page}"
     },
+    // 已成功保存到 Obsidian 的视频
+    history: {
+      count: "{count} 个视频",
+      empty: "尚无导入记录，成功保存的视频会显示在这里",
+      noMatches: "没有匹配的记录",
+      openVideo: "查看 {title} 的课程素材",
+      more: "{title}的更多操作",
+      copied: "素材路径已复制",
+      removed: "记录已移除，字幕文件保留"
+    },
     // 连接配置
     connection: {
       configured: "已配置",

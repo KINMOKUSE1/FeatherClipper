@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="shell.css">
     <link rel="stylesheet" href="settings.css">
     <link rel="stylesheet" href="catalog/style.css">
+    <link rel="stylesheet" href="history/style.css">
     <link rel="stylesheet" href="notes/style.css">
   </head>
   <body>
@@ -15,6 +16,7 @@
       <aside class="sidebar" aria-label="工作台导航">
         <div class="brand"><img src="../shared/icons/icon128.png" alt=""><strong>Vid2Notes</strong></div>
         <button id="catalog-nav" class="nav-button active" type="button"><span class="icon icon-chapters" aria-hidden="true"></span>课程素材</button>
+        <button id="history-nav" class="nav-button" type="button"><span class="icon icon-history" aria-hidden="true"></span>导入记录</button>
         <button id="notes-nav" class="nav-button" type="button"><span class="icon icon-notes" aria-hidden="true"></span>整理笔记</button>
         <button id="local-asr-settings" class="nav-button" type="button"><span class="icon icon-audio" aria-hidden="true"></span>本地转写</button>
         <button id="settings" class="nav-button" type="button"><span class="icon icon-settings" aria-hidden="true"></span><span>连接配置</span></button>
@@ -23,6 +25,7 @@
       <main class="main-content">
         <p id="import-toast" class="import-toast" role="status" aria-live="polite" aria-atomic="true" hidden></p>
         <div data-page="catalog"></div>
+        <div data-page="history"></div>
         <div data-page="notes"></div>
         <div data-page="connection"></div>
         <div data-page="transcription"></div>
@@ -31,6 +34,7 @@
 
     <script src="../shared/ui-text.js"></script>
     <script src="../shared/course.js"></script>
+    <script src="../shared/import-history.js"></script>
     <script src="notes/rules/defaults.js"></script>
     <script src="notes/generator.js"></script>
     <script src="notes/files.js"></script>
@@ -41,6 +45,7 @@
     <script src="connection/page.js"></script>
     <script src="transcription/page.js"></script>
     <script src="catalog/page.js"></script>
+    <script src="history/page.js"></script>
     <script src="notes/controls.js"></script>
     <script src="notes/materials.js"></script>
     <script src="notes/delivery.js"></script>

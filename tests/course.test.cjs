@@ -3,11 +3,11 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const test = require('node:test');
 const core = require('../extension/shared/course.js');
-const background = ['bilibili.js', 'obsidian.js', 'courses.js'].map(file => fs.readFileSync(require('node:path').join(__dirname, '../extension/background', file), 'utf8')).join('\n');
+const background = ['bilibili.js', 'obsidian.js', 'history.js', 'courses.js'].map(file => fs.readFileSync(require('node:path').join(__dirname, '../extension/background', file), 'utf8')).join('\n');
 const meta = { bvid: 'BV1ps4y1d73V', aid: '123', title: '计算机组成原理', author: '讲师', pages: [{ cid: '456' }] };
 const page = { cid: '456', page: 10, part: '2.1.1_进位计数制', duration: 60, chapter: '2', status: 'saved' };
 function harness({ existing = null, rawFiles = [], tracks = true, needLogin = false, biliCode = 0, body = [{ from: 0, to: 3, content: '示例' }], secondExists = false, localStatus, asrJob } = {}) {
-  const calls = [], writes = [];
+  const calls = [], writes = [], stored = {};
   let getCount = 0;
   const context = vm.createContext({ CourseCore: core, URL, URLSearchParams, AbortSignal, console,
     getMergedSettings: async () => ({ obsidianApiBaseUrl: 'http://127.0.0.1:27123', obsidianApiKey: 'test-key' }),
@@ -18,7 +18,8 @@ function harness({ existing = null, rawFiles = [], tracks = true, needLogin = fa
     buildSubtitleInfoRequests: () => [{ url: 'https://api.bilibili.com/player' }],
     mapSubtitleTracks: list => list,
     normalizeSubtitleTracks: list => list,
-    chrome: { runtime: { id: 'test', getURL: name => `chrome-extension://test/${name}`, onMessage: { addListener() {} } } },
+    chrome: { runtime: { id: 'test', getURL: name => `chrome-extension://test/${name}`, onMessage: { addListener() {} } },
+      storage: { local: { get: async key => ({ [key]: stored[key] }), set: async data => Object.assign(stored, data) } } },
     fetch: async (url, options = {}) => {
       calls.push({ url, method: options.method || 'GET' });
       if (url.startsWith('http://127.0.0.1')) {
@@ -38,6 +39,7 @@ function harness({ existing = null, rawFiles = [], tracks = true, needLogin = fa
       return { ok: true, status: 200, json: async () => ({ body }) };
     }
   });
+  vm.runInContext(fs.readFileSync(require.resolve('../extension/shared/import-history.js'), 'utf8'), context);
   vm.runInContext(background, context);
   return { calls, writes, run: (action, extra = {}) => context.handleCourseMessage({ action, meta, page, base: 'Clippings/Bilibili', ...extra }) };
 }

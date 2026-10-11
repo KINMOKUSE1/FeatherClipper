@@ -15,8 +15,8 @@
 @media (max-width: 620px) {
   .app-shell { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
   .main-content { flex: 1; }
-  .sidebar { position: static; flex: none; height: auto; padding: 16px; flex-direction: row; flex-wrap: wrap; gap: 4px; border-right: 0; border-bottom: 1px solid var(--line); }
-  .brand { width: 100%; margin-bottom: 12px; }
+  .sidebar { position: static; flex: none; height: auto; padding: 4px 12px; flex-direction: row; flex-wrap: wrap; gap: 4px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .brand { width: 100%; margin-bottom: 0px; }
   .sidebar > .nav-button { width: auto; }
   .main-content { padding: 20px 16px 0; }
 }

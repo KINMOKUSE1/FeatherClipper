@@ -2,6 +2,7 @@
 (() => {
   if (window.frameElement?.id !== "workbench-preview") return;
   const scenario = window.frameElement.dataset.scenario;
+  const previewAssets = new URL("covers/", document.currentScript.src);
   const store = {}, files = new Map(), jobs = new Map();
   const settings = { hasApiKey: scenario !== "unconfigured", obsidianApiBaseUrl: "http://127.0.0.1:27123", noteFolder: scenario === "youtube" ? "Clippings/YouTube" : "Clippings/Bilibili" };
   let paired = false;
@@ -37,7 +38,8 @@
     const youtube = Boolean(message.youtubeId);
     const single = scenario === "single" || (youtube && !message.playlistId);
     const pages = titles.slice(0, single ? 1 : titles.length).map((part, index) => ({
-      cid: youtube ? `demoVID${String(index + 1).padStart(4, "0")}` : String(700001 + index), page: index + 1, part, duration: 900 + index * 73
+      cid: youtube ? `demoVID${String(index + 1).padStart(4, "0")}` : String(700001 + index), page: index + 1, part, duration: 900 + index * 73,
+      thumbnail: new URL(youtube ? "network-en.svg" : "network.svg", previewAssets).href
     }));
     if (youtube) pages[Math.min(3, pages.length - 1)].cid = message.youtubeId;
     const meta = youtube ? { platform: "youtube", videoId: message.youtubeId, playlistId: message.playlistId, bvid: message.playlistId ? `YTPL_${message.playlistId}` : `YT_${message.youtubeId}`, title: single ? "Computer Networking · HTTP requests" : "Computer Networking · from protocols to practice", author: "示例讲师", pages }
@@ -52,6 +54,8 @@
         if (status === "saved") {
           item.sourcePath = CourseCore.rawPath(meta, item, base);
           files.set(item.sourcePath, CourseCore.buildRaw(meta, item, { lan: youtube ? "en" : "zh", lanDoc: youtube ? "English" : "中文" }, transcript(item, meta.platform)));
+          const record = ImportHistory.create(meta, item, base, { status: "saved", path: item.sourcePath, track: { lanDoc: youtube ? "English" : "中文" } }, Date.now() - index * 86400000);
+          store[record.id] = record;
         }
         return item;
       });
@@ -135,7 +139,14 @@
   }
   window.chrome = {
     runtime: { sendMessage: async message => {
-      try { return await sendMessage(message); }
+      try {
+        const result = await sendMessage(message);
+        if (message.type === "course-request" && ["import", "asr-start", "asr-finish"].includes(message.action) && ["saved", "exists"].includes(result.status)) {
+          await ImportHistory.save(window.chrome.storage.local, message.meta, message.page, message.base, { ...result,
+            track: { lanDoc: message.action.startsWith("asr-") ? "本地转写" : message.meta.platform === "youtube" ? "English" : "中文" } });
+        }
+        return result;
+      }
       catch (error) { return { ok: false, error: error.message }; }
     } },
     storage: { local: {
@@ -145,19 +156,22 @@
       },
       set: async values => {
         Object.assign(store, structuredClone(values));
-      }
+      },
+      remove: async key => { delete store[key]; }
     } }
   };
   window.addEventListener("DOMContentLoaded", async () => {
     await window.WorkbenchApp.ready;
     if (scenario === "empty") {
-      if (window.frameElement.dataset.page === "notes") document.getElementById("notes-nav").click();
+      const page = window.frameElement.dataset.page;
+      if (["notes", "history"].includes(page)) document.getElementById(`${page}-nav`).click();
       return;
     }
     document.getElementById("url").value = scenario === "youtube"
       ? "https://www.youtube.com/watch?v=GWwL_pLuX-U&list=PLKq1TCpsv3Y4"
       : `https://www.bilibili.com/video/BV1ps4y1d73V/?p=${scenario === "single" ? 1 : 4}`;
     await window.WorkbenchApp.loadCourse();
-    if (window.frameElement.dataset.page === "notes") document.getElementById("notes-nav").click();
+    const page = window.frameElement.dataset.page;
+    if (["notes", "history"].includes(page)) document.getElementById(`${page}-nav`).click();
   });
 })();
