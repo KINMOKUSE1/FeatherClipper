@@ -90,11 +90,6 @@
     const groups = [];
     let current = null;
     const flush = () => { if (current) groups.push(current); current = null; };
-    const join = (left, right) => {
-      const noSpace = /[\u3400-\u9fff]$/.test(left) && /^[\u3400-\u9fff]/.test(right)
-        || /^[,.;:!?，。！？；：、）)\]”’]/.test(right) || /[(（\[“‘]$/.test(left);
-      return left + (noSpace ? "" : " ") + right;
-    };
     // Keep source cues intact for fetching and language checks. Both previews
     // and Markdown use these reading blocks; no text is summarized or deduped.
     for (const cue of body || []) {
@@ -104,7 +99,7 @@
       if (current && (cue.from - current.to > 20 || end - current.from > 30
         || (platform === "youtube" && /^(?:>>|[-–—]\s)/.test(content)))) flush();
       if (!current) current = { from: cue.from, to: end, content };
-      else { current.content = join(current.content, content); current.to = Math.max(current.to, end); }
+      else { current.content += " " + content; current.to = Math.max(current.to, end); }
       if (platform === "youtube" && /[.!?。！？][)\]"'”’）]*$/.test(content)) flush();
     }
     flush();

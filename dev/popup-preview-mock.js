@@ -25,6 +25,7 @@
   ];
   let jobState = scenario === "saving" ? { status: "running" } : scenario === "saved" ? { status: "saved" } : null;
   async function sendMessage(message) {
+    if (message.type === "video-seek") return { ok: false, error: "开发预览不控制视频页，请在扩展中测试时间跳转" };
     if (message.type === "settings-get") return { ok: true, settings: { ...settings } };
     if (message.type === "settings-test") return { ok: true };
     if (message.type === "settings-save") {

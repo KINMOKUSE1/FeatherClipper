@@ -223,10 +223,10 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
   async function load() {
     if (model.loaded) return;
     if (!model.resources) {
-      const responses = await Promise.all(["SKILL.md", "openai.yaml", "workflow.md", "tasks.md"].map(file => fetch(new URL(file, resourceBase), { cache: "no-store" })));
+      const responses = await Promise.all(["SKILL.md", "openai.yaml", "workflow.md", "tasks.md", "mermaid.md"].map(file => fetch(new URL(file, resourceBase), { cache: "no-store" })));
       if (responses.some(response => !response.ok)) throw new Error(ui.rulesFailed);
-      const [entry, agent, workflow, tasks] = await Promise.all(responses.map(response => response.text()));
-      model.resources = { entry, agent, workflow, tasks };
+      const [entry, agent, workflow, tasks, mermaid] = await Promise.all(responses.map(response => response.text()));
+      model.resources = { entry, agent, workflow, tasks, mermaid };
     }
     const saved = localStorage.getItem(storageKey);
     if (saved) model.config = { ...core.defaults(), ...JSON.parse(saved) };

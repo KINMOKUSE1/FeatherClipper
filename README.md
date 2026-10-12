@@ -6,7 +6,7 @@ Vid2Notes 是面向课程学习的 Edge 扩展，支持单个视频、B站分 P 
 
 当前版本：**v1.3.5**
 
-[下载 Edge 安装包](./downloads/course-clipper-edge.zip) · [使用说明](./使用说明.md) · [本地转写安装包](./downloads/course-cove-asr-installer.zip)
+[下载 Edge 安装包](./downloads/course-clipper-edge.zip) · [使用说明](./使用说明.md) · [本地转写安装程序](./downloads/vid2notes-asr-setup.exe)
 
 ## 功能
 
@@ -80,12 +80,12 @@ Vid2Notes 是面向课程学习的 Edge 扩展，支持单个视频、B站分 P 
 
 可以按章节分组整理，也可以每个视频单独成篇。默认分组保留两级数字章节，如 `2.2`、`2.3`；同一 Lecture 的多个 Part 归入同一讲次，章节号可在课程目录中修改。
 
-工作台根据你的设置生成 `course-notes` 技能，包含完整整理流程、任务方法和个人配置，支持整理、继续、补充、翻译与复习。Mermaid 和比例时间线另作为可选绘图技能维护，见[绘图技能说明](./learning-kit/README.md)。
+工作台根据你的设置生成 `course-notes` 技能，包含完整整理流程、任务方法、个人配置和 Mermaid 绘图规则，支持整理、继续、补充、翻译与复习。绘图规则随技能一起安装，并包含在网页 AI 的材料导出中。
 
 ### 为无字幕视频转写音频
 
-1. 下载并解压 [本地转写安装包](./downloads/course-cove-asr-installer.zip)，运行 `install.cmd`，选择安装目录与 CPU / GPU 环境
-2. 运行安装目录中的 `启动本地转写.cmd`
+1. 下载并运行 [本地转写安装程序](./downloads/vid2notes-asr-setup.exe)，在中文向导中选择安装目录与 CPU / GPU 环境
+2. 在完成页复制连接码，并启动组件；以后可从开始菜单启动本地转写
 3. 在工作台的 **本地转写** 页面填写连接码，连接组件
 4. 返回课程素材，选择无字幕课时，点击 **本地转写** 或 **本地转写并导入**
 
@@ -121,7 +121,6 @@ python -m http.server 8000 --bind 127.0.0.1
 - `extension/shared/`：共用课程工具、字体和图标
 - `dev/`：预览入口与模拟接口
 - `asr/`：本地转写服务与安装向导
-- `learning-kit/`：可选绘图技能
 - `tests/`：功能测试
 - `scripts/`：安装包构建脚本
 
@@ -131,7 +130,7 @@ python -m http.server 8000 --bind 127.0.0.1
 node --test tests/*.test.cjs
 ```
 
-文件职责、整理规则来源和开发流程见[开发指南](./docs/开发指南.md)。准备发布时生成扩展、绘图技能和本地转写安装包：
+文件职责、整理规则来源和开发流程见[开发指南](./docs/开发指南.md)。准备发布时生成扩展和本地转写安装包：
 
 ```sh
 python scripts/build_install_package.py

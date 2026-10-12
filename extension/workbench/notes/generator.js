@@ -34,7 +34,7 @@
   }
   function buildFiles(config, resources) {
     validate(config);
-    if (!resources?.entry?.trim() || !resources?.agent?.trim() || !resources?.workflow?.trim() || !resources?.tasks?.trim()) throw new Error(ui.rulesRequired);
+    if (!resources?.entry?.trim() || !resources?.agent?.trim() || !resources?.workflow?.trim() || !resources?.tasks?.trim() || !resources?.mermaid?.trim()) throw new Error(ui.rulesRequired);
     const links = { heading: "视频回看入口放在对应知识点标题旁，正文和例题共用该入口，跨视频补充可添加必要链接", paragraph: "视频回看入口放在对应内容段落末尾，同一来源的相邻内容共用入口，避免逐句重复标注", sources: "视频回看入口集中放在已选的“来源与待核实项”模块，注明对应知识点和时间" };
     const enabled = config.modules.filter(item => item.enabled);
     const attrs = config.properties.filter(item => item.enabled).map(item => {
@@ -58,6 +58,7 @@
       { path: "SKILL.md", content: entry },
       { path: "references/workflow.md", content: resources.workflow },
       { path: "references/tasks.md", content: resources.tasks },
+      { path: "references/mermaid.md", content: resources.mermaid },
       { path: "references/preferences.md", content: preferences },
       { path: "references/modules.md", content: moduleText },
       { path: "references/properties.md", content: propertyText },

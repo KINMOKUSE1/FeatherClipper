@@ -3,14 +3,12 @@ import json
 from pathlib import Path
 from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
 
-from build_learning_kit import build as build_learning_kit
 from build_asr_installer import build as build_asr_installer
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def build():
-    build_learning_kit()
     build_asr_installer()
     extension = ROOT / 'extension'
     manifest = json.loads((extension / 'manifest.json').read_text(encoding='utf-8'))
@@ -23,7 +21,7 @@ def build():
             archive.writestr(info, content)
 
         for file in sorted(extension.rglob('*')):
-            if not file.is_file() or '__pycache__' in file.parts or file.suffix in {'.pyc', '.before'}:
+            if not file.is_file() or '__pycache__' in file.parts or file.suffix in {'.pyc', '.before'} or file.name == 'learning-kit.zip':
                 continue
             add('course-clipper/' + file.relative_to(extension).as_posix(), file.read_bytes())
         guide = (ROOT / 'docs/安装指南.html').read_text(encoding='utf-8')

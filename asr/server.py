@@ -114,7 +114,7 @@ def gpu_failure_message(error):
         reason = "缺少 CUDA 12 cuDNN 9 运行库"
     else:
         reason = detail[:100] or "GPU 无法运行"
-    remedy = "可运行安装包中的 enable-gpu.cmd 补装运行库。" if "cublas" in lowered or "cudnn" in lowered else ""
+    remedy = "可重新运行安装程序，选择原安装目录和 NVIDIA GPU 补装运行库。" if "cublas" in lowered or "cudnn" in lowered else ""
     return f"GPU 不可用（{reason}），已改用 CPU。{remedy}"
 
 

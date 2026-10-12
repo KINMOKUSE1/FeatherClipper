@@ -14,7 +14,7 @@ function boot(environment = 'web') {
       setAttribute() {}, remove() {}, click() { downloads.push({ name: this.download, blob: blobs.get(this.href) }); } };
   }
   const get = id => { if (!nodes.has(id)) nodes.set(id, element()); return nodes.get(id); };
-  const resources = Object.fromEntries([['entry','SKILL.md'],['agent','openai.yaml'],['workflow','workflow.md'],['tasks','tasks.md']].map(([key,file]) => [key,fs.readFileSync(require.resolve(`../extension/workbench/notes/rules/${file}`),'utf8')]));
+  const resources = Object.fromEntries([['entry','SKILL.md'],['agent','openai.yaml'],['workflow','workflow.md'],['tasks','tasks.md'],['mermaid','mermaid.md']].map(([key,file]) => [key,fs.readFileSync(require.resolve(`../extension/workbench/notes/rules/${file}`),'utf8')]));
   const model = { config: generator.defaults(), delivery: { ...generator.deliveryDefaults(), environment }, resources,
     installedSnapshot: null, installationKey: 'test-install', uploadedMaterials: [], uploadedReferences: [] };
   const material = { label: 'P1 TCP', chapter: '1', fileName: '素材/P01-TCP.md', path: '素材/P01-TCP.md', content: '第一份实际字幕' };

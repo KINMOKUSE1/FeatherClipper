@@ -7,7 +7,8 @@ const resources = {
   entry: fs.readFileSync(require.resolve('../extension/workbench/notes/rules/SKILL.md'), 'utf8'),
   agent: fs.readFileSync(require.resolve('../extension/workbench/notes/rules/openai.yaml'), 'utf8'),
   workflow: fs.readFileSync(require.resolve('../extension/workbench/notes/rules/workflow.md'), 'utf8'),
-  tasks: fs.readFileSync(require.resolve('../extension/workbench/notes/rules/tasks.md'), 'utf8')
+  tasks: fs.readFileSync(require.resolve('../extension/workbench/notes/rules/tasks.md'), 'utf8'),
+  mermaid: fs.readFileSync(require.resolve('../extension/workbench/notes/rules/mermaid.md'), 'utf8')
 };
 const configFiles = config => Object.fromEntries(builder.buildFiles(config, resources).map(file => [file.path, file.content]));
 const context = () => ({ course: '网络', index: '素材/清单.md', materials: [{ label: 'P1 TCP', chapter: '2.2', path: '素材/当前路径.md', fileName: '素材/P01-TCP.md', content: '00:00 教师用窗口大小 4 举例，接收方已经确认序号 3' }], references: [] });
@@ -20,12 +21,19 @@ test('bundle separates workflow, recipes and properties and resolves all entry r
   config.modules = [questions, ...config.modules.filter(item => item !== questions)];
   config.modules.push({ id: 'custom', enabled: true, title: '实验记录', writing: '记录实验步骤与实际结果' });
   const files = configFiles(config), entry = files['SKILL.md'], recipes = files['references/modules.md'];
-  assert.equal(Object.keys(files).length, 7);
+  assert.equal(Object.keys(files).length, 8);
   assert.match(entry, /^---\r?\nname: course-notes\r?\n/);
   for (const match of entry.matchAll(/\]\(([^)]+)\)/g)) assert.ok(files[match[1]], match[1]);
   assert.ok(!entry.includes('只生成应用题'));
   assert.equal(files['references/workflow.md'], resources.workflow);
   assert.equal(files['references/tasks.md'], resources.tasks);
+  assert.equal(files['references/mermaid.md'], resources.mermaid);
+  for (const [path, content] of Object.entries(files)) {
+    for (const match of content.matchAll(/\]\(([^)]+)\)/g)) {
+      const target = require('node:path').posix.join(require('node:path').posix.dirname(path), match[1]);
+      assert.ok(files[target], `${path} → ${target}`);
+    }
+  }
   assert.ok(recipes.indexOf('## 思考题／自测题') < recipes.indexOf('## 详细笔记'));
   assert.ok(recipes.includes('只生成应用题，答案放在本节末尾'));
   assert.ok(recipes.includes('## 实验记录\n\n记录实验步骤与实际结果'));
@@ -74,6 +82,7 @@ test('web prompt and uploads carry actual content without local source paths', (
   assert.ok(merged.includes('窗口大小 4'));
   assert.ok(files.some(file => file.path === '规则/workflow.md'));
   assert.ok(files.some(file => file.path === '规则/tasks.md'));
+  assert.equal(files.find(file => file.path === '规则/mermaid.md').content, resources.mermaid);
   delivery.format = 'zip';
   assert.ok(builder.buildTask(config, delivery, ctx).includes('course-web-task.zip'));
 });

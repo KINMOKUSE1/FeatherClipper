@@ -5,6 +5,7 @@ importScripts(
   "settings.js",
   "bilibili.js",
   "youtube.js",
+  "video-navigation.js",
   "obsidian.js",
   "transcription.js",
   "history.js",

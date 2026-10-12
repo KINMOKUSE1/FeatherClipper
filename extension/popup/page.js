@@ -15,6 +15,13 @@ async function send(message) {
   if (!result?.ok) throw new Error(result?.error || ui.connectionLost);
   return result;
 }
+$("subtitles").addEventListener("click", async event => {
+  const link = event.target.closest("a");
+  if (!link || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
+  try { await send({ type: "video-seek", url: link.href }); }
+  catch (error) { status(error.message, true); }
+});
 function setSourceOpen(open) {
   $("source-panel").hidden = !open;
   $("source-label").setAttribute("aria-expanded", String(open));

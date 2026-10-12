@@ -11,7 +11,7 @@ test('Bilibili combines adjacent cues up to 30 seconds, preserving Chinese and E
   const original = JSON.stringify(body);
   const groups = core.groupSubtitles(body, 'bilibili');
   assert.deepEqual(groups.map(item => item.from), [0, 31, 54]);
-  assert.equal(groups[0].content, '今天学习浮点数。 IEEE 754 standard');
+  assert.equal(groups[0].content, '今天 学习浮点数。 IEEE 754 standard');
   assert.equal(groups.map(item => item.content).join('').replace(/\s/g, ''), body.map(item => item.content).join('').replace(/\s/g, ''));
   assert.equal(JSON.stringify(body), original);
 });

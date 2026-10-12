@@ -70,6 +70,7 @@
     return page.page === 7 || (scenario === "missing" && page.page === Math.min(4, meta.pages.length));
   }
   async function sendMessage(message) {
+    if (message.type === "video-seek") return { ok: false, error: "开发预览不控制视频页，请在扩展中测试时间跳转" };
     if (message.type === "settings-get") return { ok: true, settings: { ...settings } };
     if (["settings-save", "settings-test"].includes(message.type)) {
       message.settings ||= settings;

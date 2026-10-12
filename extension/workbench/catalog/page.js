@@ -6,6 +6,13 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
     return importAction.result(label, counts, remaining, error, detail, stopping);
   }
   const $ = id => document.getElementById(id);
+  $("preview-body").addEventListener("click", async event => {
+    const link = event.target.closest("a");
+    if (!link || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    try { await send({ type: "video-seek", url: link.href }); }
+    catch (error) { status(error.message, true); }
+  });
   const statusLabels = { pending: ui.pending, running: ui.running, saved: ui.saved, exists: ui.exists, missing: ui.missing, failed: ui.failed };
   let meta = null, pages = [], running = false, loading = false, stopping = false;
   let previewId = "", previewRun = 0, previewLoading = false;
