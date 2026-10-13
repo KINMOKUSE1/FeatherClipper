@@ -75,6 +75,53 @@ test('CS61C recordings group by lecture instead of each dotted segment', () => {
   for (const part of lecturePages) assert.ok(index.includes(part.part));
 });
 
+test('short L lecture markers recognize course titles and group lecture segments', () => {
+  for (const [title, expected] of [
+    ['Data Mining Lecture - L4', '4'], ['Data Mining Lecture - L3', '3'],
+    ['Data Mining Lecture 2', '2'], ['Data Mining Lecture 1', '1'],
+    ['L1 Introduction', '1'], ['[L04] Part 2', '4'], ['l02.3 Conversions', '2'],
+    ['Ｌ０４ 课程', '4'], ['HTML1 Introduction', '0'], ['L1Cache', '0'], ['L1000 Introduction', '0']
+  ]) assert.equal(core.chapterOf(title), expected, title);
+  const parts = ['Data Mining Lecture - L4', 'L4 Part 2', 'Data Mining Lecture - L3']
+    .map((part, i) => ({ ...page, part, page: i + 1, cid: String(i + 1), chapter: core.chapterOf(part) }));
+  assert.deepEqual(parts.map(part => part.chapter), ['4', '4', '3']);
+  const index = core.buildIndex(meta, parts, 'Clippings/Bilibili');
+  assert.equal((index.match(/^## /gm) || []).length, 2);
+  assert.ok(index.indexOf('## 第03章') < index.indexOf('## 第04章'));
+});
+
+test('explicit chapters take precedence over video positions and lecture numbers', () => {
+  for (const [title, expected] of [
+    ['5.第一章 第一节 函数（幂函数）', '1.1'],
+    ['13.第一章 第二节 数列的极限', '1.2'],
+    ['02-第一章第一节-函数（一）', '1.1'],
+    ['第24讲 第三章 微分的应用 微分中值定理j', '3'],
+    ['江苏省专转本高等数学第一章-函数的定义-03(基础课)', '1'],
+    ['高等数学01（第一章 函数）', '1'],
+    ['第一章 2.1认识数列极限', '1'],
+    ['5.第十八讲 导数', '18']
+  ]) assert.equal(core.chapterOf(title), expected, title);
+});
+
+test('numeric section prefixes accept brackets and adjacent Chinese titles', () => {
+  for (const [title, expected] of [
+    ['[1.1.1]--1.1计算机系统简介课程简介', '1.1'],
+    ['【２．１０．１】例题', '2.10'], ['（1.2.3）函数', '1.2'],
+    ['1.1函数的定义', '1.1'], ['1.1（上）', '1.1'], ['[1.2] 函数', '1.2'],
+    ['0101 映射与函数', '0'], ['2024.09 课程介绍', '0'],
+    ['[CS61C FA20] Introduction', '0'], ['1.1000 课程介绍', '0']
+  ]) assert.equal(core.chapterOf(title), expected, title);
+});
+
+test('English chapters are explicit groups rather than lecture segments', () => {
+  for (const [title, expected] of [
+    ['Vectors, what even are they? | Chapter 1, Essence of linear algebra', '1'],
+    ['Lecture 24: Chapter 3 - Derivatives', '3'], ['5. Chapter 02: Functions', '2'],
+    ['CHAPTER: 04 - Limits', '4'], ['Chapter 2024 Introduction', '0'],
+    ['Subchapter 3 Introduction', '0']
+  ]) assert.equal(core.chapterOf(title), expected, title);
+});
+
 test('section identifiers stay strings and sort as hierarchy rather than decimal fractions', () => {
   assert.equal(core.normalizeChapter('02.010'), '2.10');
   for (const input of ['2.3.4', '-2', '2e3', '1000', '2.', 'abc']) assert.equal(core.normalizeChapter(input), null);

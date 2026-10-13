@@ -82,13 +82,13 @@ test('notes opens offline without reading Obsidian', async () => {
   const handlers = {}, calls = [];
   const context = vm.createContext({ UiText: require('../extension/shared/ui-text.js'),
     document: { getElementById: () => ({ addEventListener: (event, handler) => { handlers.notes = handler; } }) },
-    load: async () => calls.push('load-preferences'), showSettingsFeedback() {},
+    load: async () => calls.push('load-preferences'), refreshPreview: () => calls.push('refresh-preferences'), showSettingsFeedback() {},
     navigate: id => calls.push(id), feedback: { status: message => { throw new Error(message); } }
   });
   const notes = fs.readFileSync(require.resolve('../extension/workbench/notes/page.js'), 'utf8');
   vm.runInContext(notes.slice(notes.indexOf('  document.getElementById("notes-nav")'), notes.indexOf('  return { load, save }')), context);
   await handlers.notes();
-  assert.deepEqual(calls, ['load-preferences', 'note-preferences-page']);
+  assert.deepEqual(calls, ['load-preferences', 'refresh-preferences', 'note-preferences-page']);
 });
 
 function materialHarness() {

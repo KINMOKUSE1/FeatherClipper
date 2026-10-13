@@ -4,10 +4,14 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
   const core = window.NoteGenerator;
   const storageKey = "course-cove:skill-builder:v1", deliveryKey = "course-cove:notes-delivery:v1";
   const installationKey = "course-cove:notes-installed:v1";
+  const installationMethodKey = "course-cove:notes-install-method:v1", exportedSkillKey = "course-cove:notes-exported:v1";
   const get = id => document.getElementById(id);
   const form = get("skill-builder-form");
   const resourceBase = new URL("notes/rules/", assetBase);
-  const model = { config: core.defaults(), delivery: core.deliveryDefaults(), resources: null, loaded: false, installationKey, installedSnapshot: localStorage.getItem(installationKey), directory: null, exportedWeb: null, uploadedMaterials: [], uploadedReferences: [] };
+  const model = { config: core.defaults(), delivery: core.deliveryDefaults(), resources: null, loaded: false, busy: false, readingFiles: 0,
+    installationKey, installationMethodKey, exportedSkillKey, installedSnapshot: localStorage.getItem(installationKey),
+    installationMethod: localStorage.getItem(installationMethodKey) || "confirmed", exportedSkillSnapshot: localStorage.getItem(exportedSkillKey),
+    directory: null, uploadedMaterials: [], uploadedReferences: [] };
   let previewFiles = [], previewPath = "SKILL.md";
   const fields = ["goal", "language", "granularity", "folder", "naming", "links", "instructions"];
   const deliveryFields = ["environment", "task", "reference", "question", "paths", "format"];
@@ -26,6 +30,15 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
       selected: catalog.getState().pages.filter(page => page.selected).map(page => [page.cid, page.chapter, page.part]), uploadedMaterials: model.uploadedMaterials, uploadedReferences: model.uploadedReferences });
   }
   function ready() { try { return model.installedSnapshot === skillSnapshot(); } catch { return false; } }
+  function pendingInstallation() { try { return !ready() && model.exportedSkillSnapshot === skillSnapshot(); } catch { return false; } }
+  function taskIssue() {
+    const web = model.delivery.environment === "web", task = model.delivery.task, validation = UiText.validation;
+    const reference = web ? model.uploadedReferences.some(item => item.content.trim()) : model.delivery.reference.trim();
+    if (["supplement", "continue"].includes(task) && !reference) return web ? validation.webReferenceRequired : validation.localReferenceRequired;
+    if (task === "review" && !model.delivery.question.trim()) return validation.questionRequired;
+    const materials = catalog.getState().pages.some(page => page.selected) || (web ? model.uploadedMaterials.some(item => item.content.trim()) : model.delivery.paths.trim());
+    return !materials && !(task === "review" && reference) ? ui.materialRequired : "";
+  }
   function updateDelivery() {
     const web = model.delivery.environment === "web", reference = ["supplement", "continue", "review"].includes(model.delivery.task);
     const requiredReference = ["supplement", "continue"].includes(model.delivery.task);
@@ -36,10 +49,10 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
     get("builder-reference").disabled = web || !reference; get("builder-reference").required = !web && requiredReference;
     get("builder-question-row").hidden = model.delivery.task !== "review";
     get("builder-question").disabled = model.delivery.task !== "review"; get("builder-question").required = model.delivery.task === "review";
-    get("builder-web-materials-row").hidden = !web; get("builder-web-materials").disabled = !web;
+    get("builder-web-materials-row").hidden = !web; get("builder-web-materials").disabled = !web || !!model.readingFiles;
     get("builder-format").disabled = !web;
     get("builder-web-reference-row").hidden = !web || !reference;
-    get("builder-web-reference").disabled = !web || !reference;
+    get("builder-web-reference").disabled = !web || !reference || !!model.readingFiles;
     get("builder-web-reference").required = web && requiredReference && !model.uploadedReferences.length;
     form.querySelectorAll(".builder-reference-requirement").forEach(label => label.textContent = requiredReference ? ui.required : ui.optional);
     const referenceHelp = model.delivery.task === "supplement" ? ui.referenceSupplement : model.delivery.task === "continue" ? ui.referenceContinue : ui.referenceReview;
@@ -47,26 +60,39 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
     get("builder-web-reference-help").textContent = model.uploadedReferences.length ? format(ui.filesRead, { count: model.uploadedReferences.length }) : referenceHelp;
     const hints = { notes: ui.taskNotes, supplement: ui.taskSupplement, continue: ui.taskContinue, translate: ui.taskTranslate, review: ui.taskReview };
     get("builder-task-help").textContent = hints[model.delivery.task];
-    const state = get("builder-install-state"), isReady = ready();
+    const state = get("builder-install-state"), isReady = ready(), pending = pendingInstallation();
+    let configIssue = "";
+    try { core.validate(model.config); } catch (error) { configIssue = error.message; }
+    const issue = configIssue || taskIssue(), busy = model.busy || !!model.readingFiles;
     const supported = typeof window.parent.showDirectoryPicker === "function";
     const sync = get("builder-sync");
     sync.hidden = !supported;
-    sync.disabled = !supported;
+    sync.disabled = !supported || busy || !!configIssue;
     sync.textContent = ui.sync;
     sync.title = ui.syncHint;
     get("builder-download").textContent = ui.download;
+    get("builder-install").textContent = ui.installAction;
+    for (const id of ["builder-install", "builder-download", "builder-confirm-installed"]) get(id).disabled = busy || !!configIssue;
+    get("builder-export-web").disabled = busy || !!issue;
     get("builder-local-actions").hidden = web; get("builder-web-actions").hidden = !web;
     get("builder-confirm-installed").hidden = isReady;
-    get("builder-copy-label").textContent = web || isReady ? ui.copyTask : supported ? ui.sync : ui.download;
+    get("builder-copy-label").textContent = web || isReady ? ui.copyTask : pending ? ui.confirm : model.installedSnapshot || model.exportedSkillSnapshot ? ui.update : ui.install;
+    get("copy-study-prompt").disabled = busy || !!configIssue || ((web || isReady) && !!issue);
+    get("builder-action-icon").className = `icon ${web || isReady ? "icon-copy" : "icon-save"}`;
+    get("builder-action-icon").hidden = !web && pending;
     get("builder-preview-task").textContent = ui.previewTask;
-    get("builder-preview-task").disabled = !web && !isReady;
+    get("builder-preview-task").disabled = busy || !!configIssue;
+    get("builder-delivery-more").disabled = busy;
     get("builder-delivery-name").textContent = web ? ui.webMaterials : "course-notes";
     get("builder-delivery-guide").hidden = !web;
     get("builder-delivery-guide").textContent = ui.webGuide;
-    let webReady = false;
-    try { webReady = model.exportedWeb?.snapshot === webSnapshot(); } catch {}
-    state.dataset.state = web || isReady ? "ready" : model.installedSnapshot ? "dirty" : "missing";
-    state.textContent = web ? webReady ? ui.webPrepared : ui.webAutomatic : isReady ? ui.installed : model.installedSnapshot ? ui.dirty : ui.missing;
+    get("builder-delivery-next").textContent = !web && pending ? ui.installGuide : issue;
+    get("builder-delivery-next").hidden = !get("builder-delivery-next").textContent;
+    state.hidden = web;
+    state.dataset.state = isReady ? "ready" : pending ? "pending" : model.installedSnapshot || model.exportedSkillSnapshot ? "dirty" : "missing";
+    state.textContent = isReady ? model.installationMethod === "synced" ? ui.syncReady : ui.installed : pending ? ui.pending : state.dataset.state === "dirty" ? ui.dirty : ui.missing;
+    const selected = catalog.getState().pages.filter(page => page.selected).length;
+    get("builder-material-count").textContent = selected ? format(ui.materialCount, { count: selected }) : ui.noMaterials;
   }
   function renderFileList(files, selected = previewPath) {
     previewFiles = files; previewPath = files.some(file => file.path === selected) ? selected : files[0].path;
@@ -79,13 +105,16 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
   }
   function refreshPreview() {
     read(); updateDelivery();
-    get("builder-task-source").hidden = true; get("builder-preview-task").setAttribute("aria-expanded", "false");
     const enabled = model.config.modules.filter(item => item.enabled).length;
     get("builder-module-count").textContent = format(ui.moduleCount, { enabled, total: model.config.modules.length });
     form.querySelectorAll("select").forEach(decorateSelect);
     resizeTextareas();
     try { renderFileList(core.buildFiles(model.config, model.resources)); }
     catch (error) { get("builder-source").textContent = error.message; }
+    if (model.loaded) {
+      try { storePreferences(); }
+      catch (error) { get("builder-save-status").textContent = format(ui.saveFailed, { error: error.message }); }
+    }
   }
   let draggedModule = null;
   function moveModule(item, next) {
@@ -239,10 +268,14 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
     model.loaded = true;
     document.fonts.ready.then(resizeTextareas);
   }
-  async function save() {
-    core.validate(read());
+  function storePreferences() {
     localStorage.setItem(storageKey, JSON.stringify(model.config));
     localStorage.setItem(deliveryKey, JSON.stringify(model.delivery));
+    get("builder-save-status").textContent = ui.autosaved;
+  }
+  async function save() {
+    core.validate(read());
+    storePreferences();
     return model.config;
   }
   let formWidth = 0;
@@ -275,11 +308,7 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
   for (const eventName of ["input", "change"]) form.addEventListener(eventName, event => {
     refreshPreview();
   });
-  form.addEventListener("submit", async event => {
-    event.preventDefault();
-    try { await save(); updateDelivery(); showSettingsFeedback("note-status", model.delivery.environment === "web" ? ui.savedWeb : ui.savedLocal); }
-    catch (error) { showSettingsFeedback("note-status", error.message); }
-  });
+  form.addEventListener("submit", event => event.preventDefault());
   get("builder-add-module").addEventListener("click", () => {
     model.config.modules.push({ id: `custom-${crypto.randomUUID()}`, custom: true, title: "", writing: "", enabled: true });
     renderModules(); refreshPreview(); get("builder-modules").lastElementChild.querySelector(".builder-module-name").focus();
@@ -290,15 +319,21 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
   });
 
   function previewTask(task, files = []) {
-    renderFileList([{ path: "任务指令.txt", content: task.text }, ...files], "任务指令.txt");
-    get("builder-task-source").textContent = task.text; get("builder-task-source").hidden = false;
-    get("builder-preview-task").setAttribute("aria-expanded", "true");
+    const path = task.path || "任务指令.txt";
+    renderFileList([{ path, content: task.text }, ...files], path);
+    scroll.scrollTo({ top: scroll.scrollTop + get("builder-preview").getBoundingClientRect().top - scroll.getBoundingClientRect().top - 18,
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+    get("builder-source").focus({ preventScroll: true });
   }
 
   const deliveryMenu = get("builder-delivery-menu"), moreButton = get("builder-delivery-more");
   moreButton.addEventListener("click", () => {
     if (deliveryMenu.matches(":popover-open")) deliveryMenu.hidePopover();
-    else { deliveryMenu.showPopover(); positionSelectMenu(moreButton, deliveryMenu); deliveryMenu.querySelector("div:not([hidden]) > button:not([hidden]):not(:disabled)").focus({ preventScroll: true }); }
+    else {
+      deliveryMenu.showPopover(); positionSelectMenu(moreButton, deliveryMenu);
+      const first = deliveryMenu.querySelector("div:not([hidden]) > button:not([hidden]):not(:disabled)") || deliveryMenu.querySelector("#builder-web-actions .builder-select-trigger:not(:disabled)");
+      first?.focus({ preventScroll: true });
+    }
   });
   deliveryMenu.addEventListener("toggle", event => moreButton.setAttribute("aria-expanded", String(event.newState === "open")));
   deliveryMenu.addEventListener("click", event => { if (event.target.closest('[role="menuitem"]')) deliveryMenu.hidePopover(); });
@@ -308,15 +343,16 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
     const index = buttons.indexOf(document.activeElement);
     if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
       event.preventDefault();
+      if (!buttons.length) return;
       buttons[event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1 : (index + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length].focus({ preventScroll: true });
     } else if (event.key === "Escape") { event.preventDefault(); deliveryMenu.hidePopover(); moreButton.focus({ preventScroll: true }); }
     else if (event.key === "Tab") deliveryMenu.hidePopover();
   });
 
-  createNotesDelivery({ model, catalog, feedback, element, read, save, ready, skillSnapshot, webSnapshot, updateDelivery, refreshPreview, previewTask });
+  createNotesDelivery({ model, catalog, feedback, element, read, save, ready, pendingInstallation, skillSnapshot, webSnapshot, updateDelivery, refreshPreview, previewTask });
   document.getElementById("notes-nav").addEventListener("click", async () => {
     showSettingsFeedback("note-status", "");
-    try { await load(); navigate("note-preferences-page"); }
+    try { await load(); refreshPreview(); navigate("note-preferences-page"); }
     catch (error) { feedback.status(error.message, true); }
   });
   return { load, save };

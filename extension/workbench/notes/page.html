@@ -12,6 +12,7 @@
         <div class="settings-group">
           <div class="settings-row"><label for="builder-environment">AI 使用方式</label><select id="builder-environment"><option value="local">本地 agent</option><option value="web">网页 AI</option></select></div>
           <div class="settings-row"><label for="builder-task">任务类型</label><p id="builder-task-help" class="field-help"></p><select id="builder-task"><option value="notes">整理笔记</option><option value="supplement">补充笔记</option><option value="continue">继续整理</option><option value="translate">翻译字幕</option><option value="review">复习答疑</option></select></div>
+          <div class="settings-row"><span class="builder-material-label">课程素材</span><p class="field-help">使用课程素材页所选课时</p><span id="builder-material-count" class="builder-material-count"></span></div>
           <div id="builder-reference-row" class="settings-row" hidden><label for="builder-reference">已有内容 <span class="builder-reference-requirement"></span></label><p id="builder-reference-help" class="field-help"></p><input id="builder-reference" placeholder="原笔记或进度文件路径"></div>
           <div id="builder-web-reference-row" class="settings-row" hidden><label for="builder-web-reference">已有内容 <span class="builder-reference-requirement"></span></label><p id="builder-web-reference-help" class="field-help"></p><input id="builder-web-reference" type="file" accept=".md,.txt" multiple></div>
           <div id="builder-question-row" class="settings-row settings-row-multiline" hidden><label for="builder-question">本次问题</label><textarea id="builder-question" rows="1" placeholder="希望解释什么？"></textarea></div>
@@ -21,19 +22,18 @@
         <div class="settings-group builder-delivery">
           <div class="builder-delivery-row">
             <div class="builder-delivery-summary">
-              <div class="builder-delivery-heading"><strong id="builder-delivery-name">course-notes</strong><span id="builder-install-state" class="builder-delivery-state" aria-live="polite"></span></div>
-              <p id="builder-delivery-guide" class="field-help" hidden></p>
+              <div class="builder-delivery-heading"><strong id="builder-delivery-name">course-notes</strong><span id="builder-install-state" class="builder-delivery-state" aria-live="polite"></span><span id="builder-delivery-guide" class="field-help" hidden></span></div>
             </div>
             <div class="builder-delivery-actions">
-              <button id="copy-study-prompt" class="builder-delivery-primary" type="button"><span class="icon icon-copy" aria-hidden="true"></span><span id="builder-copy-label">复制任务指令</span></button>
-              <button id="builder-preview-task" class="text-button" type="button" aria-expanded="false" aria-controls="builder-task-source">预览</button>
+              <button id="copy-study-prompt" class="builder-delivery-primary" type="button"><span id="builder-action-icon" class="icon icon-copy" aria-hidden="true"></span><span id="builder-copy-label">复制任务指令</span></button>
+              <button id="builder-preview-task" class="text-button" type="button" aria-controls="builder-preview">预览</button>
               <button id="builder-delivery-more" class="text-button builder-delivery-more" type="button" aria-label="更多操作" aria-haspopup="menu" aria-expanded="false" aria-controls="builder-delivery-menu">⋯</button>
               <div id="builder-delivery-menu" class="builder-delivery-menu" popover="auto" role="menu" aria-label="更多操作">
                 <div id="builder-local-actions">
-                  <button id="builder-sync" type="button" role="menuitem">同步技能</button>
-                  <button id="builder-download" type="button" role="menuitem">下载技能</button>
-                  <button id="builder-install-prompt" type="button" role="menuitem">复制安装指令</button>
-                  <button id="builder-confirm-installed" type="button" role="menuitem" hidden>确认已安装</button>
+                  <button id="builder-install" type="button" role="menuitem">导出并复制安装指令</button>
+                  <button id="builder-download" type="button" role="menuitem">单独下载技能包</button>
+                  <button id="builder-sync" type="button" role="menuitem">同步到目录</button>
+                  <button id="builder-confirm-installed" type="button" role="menuitem" hidden>确认已安装当前技能</button>
                 </div>
                 <div id="builder-web-actions" hidden>
                   <button id="builder-export-web" type="button" role="menuitem">单独导出材料</button>
@@ -43,7 +43,7 @@
               </div>
             </div>
           </div>
-          <pre id="builder-task-source" class="builder-task-source" tabindex="0" aria-label="本次任务指令" hidden></pre>
+          <p id="builder-delivery-next" class="builder-delivery-next" hidden></p>
         </div>
       </section>
       <section class="preference-section" aria-labelledby="builder-output-title">
@@ -95,8 +95,6 @@
   </div>
   <footer class="preferences-footer">
     <div class="settings-footer-info"><div class="settings-feedback" hidden><p id="note-status" role="status" aria-live="polite"></p><button class="settings-feedback-close" type="button" aria-label="关闭提示">×</button></div></div>
-    <div class="configuration-actions">
-      <button id="builder-save" class="text-button" type="submit" form="skill-builder-form">保存设置</button>
-    </div>
+    <span id="builder-save-status" class="builder-save-status" role="status" aria-live="polite">设置已保存</span>
   </footer>
 </section>

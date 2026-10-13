@@ -14,20 +14,25 @@
   }
   function chapterOf(title) {
     const text = String(title || "").normalize("NFKC").trim();
+    // Explicit chapters outrank playlist positions and lecture numbers.
+    const chineseChapter = text.match(/第([\d零〇一二两三四五六七八九十百]+)章/);
+    if (chineseChapter) {
+      const section = text.slice(chineseChapter.index + chineseChapter[0].length).match(/^\s*[、:.-]?\s*第([\d零〇一二两三四五六七八九十百]+)节/);
+      return normalizeChapter(String(chineseNumber(chineseChapter[1])) + (section ? `.${chineseNumber(section[1])}` : "")) || "0";
+    }
+    const englishChapter = text.match(/\bchapter\s*[.#:-]?\s*(\d{1,3})(?!\d)/i);
+    if (englishChapter) return normalizeChapter(englishChapter[1]);
     // Lecture numbers may follow a playlist position or a course code. Dotted
     // segments (02.1), Part numbers and LIVE recordings share one lecture.
-    const lecture = text.match(/\b(?:lecture|lec)\s*[.#:-]?\s*(\d{1,3})(?!\d)/i);
+    const lecture = text.match(/\b(?:lecture|lec)\s*[.#:-]?\s*(\d{1,3})(?!\d)/i) || text.match(/\bL(\d{1,3})\b/i);
     if (lecture) return normalizeChapter(lecture[1]);
-    const numbered = text.match(/^(\d{1,3})\.(\d{1,3})(?=[._+\s:、-]|$)/);
+    const chinese = text.match(/第([\d零〇一二两三四五六七八九十百]+)(节|讲|课)/);
+    if (chinese) return normalizeChapter(String(chineseNumber(chinese[1]))) || "0";
+    const numbered = text.match(/^[\[【(]?\s*(\d{1,3})\.(\d{1,3})(?=[._+\s:、\-()\[\]【】]|\p{Script=Han}|$)/u);
     if (numbered) return normalizeChapter(`${numbered[1]}.${numbered[2]}`);
     const chapter = text.match(/^(\d{1,3})[.、](?!\d)/);
     if (chapter) return normalizeChapter(chapter[1]);
-    const chinese = text.match(/(?:^|[\s:·【(])第([\d零〇一二两三四五六七八九十百]+)(章|节|讲|课)/);
-    if (!chinese) return "0";
-    const first = chineseNumber(chinese[1]);
-    const section = chinese[2] === "章" && text.slice(chinese.index + chinese[0].length).match(/^\s*[、:.-]?\s*第([\d零〇一二两三四五六七八九十百]+)节/);
-    const second = section ? chineseNumber(section[1]) : null;
-    return normalizeChapter(String(first) + (second === null ? "" : `.${second}`)) || "0";
+    return "0";
   }
   function chineseNumber(value) {
     if (/^\d+$/.test(value)) return Number(value);
