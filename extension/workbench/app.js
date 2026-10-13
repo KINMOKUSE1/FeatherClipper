@@ -37,7 +37,7 @@
     const connection = createConnectionPage({ send, feedback, navigate, getCatalog: () => catalog });
     const transcription = createTranscriptionPage({ getCatalog: () => catalog, send, feedback, navigate, importAction, previewView });
     catalog = createCatalogPage({ send, feedback, previewView, importAction, connection, transcription });
-    createHistoryPage({ catalog, feedback, navigate });
+    createHistoryPage({ feedback, navigate });
     createNotesPage({ catalog, feedback, navigate, assetBase });
     window.WorkbenchApp.loadCourse = catalog.loadCourse;
     await catalog.init();

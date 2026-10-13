@@ -12,12 +12,12 @@
         <div class="settings-group">
           <div class="settings-row"><label for="builder-environment">AI 使用方式</label><select id="builder-environment"><option value="local">本地 agent</option><option value="web">网页 AI</option></select></div>
           <div class="settings-row"><label for="builder-task">任务类型</label><p id="builder-task-help" class="field-help"></p><select id="builder-task"><option value="notes">整理笔记</option><option value="supplement">补充笔记</option><option value="continue">继续整理</option><option value="translate">翻译字幕</option><option value="review">复习答疑</option></select></div>
-          <div class="settings-row"><span class="builder-material-label">课程素材</span><p class="field-help">使用课程素材页所选课时</p><span id="builder-material-count" class="builder-material-count"></span></div>
+          <div class="settings-row"><span class="builder-material-label">课程素材</span><p id="builder-material-help" class="field-help">使用课程素材页所选课时</p><span id="builder-material-count" class="builder-material-count"></span></div>
           <div id="builder-reference-row" class="settings-row" hidden><label for="builder-reference">已有内容 <span class="builder-reference-requirement"></span></label><p id="builder-reference-help" class="field-help"></p><input id="builder-reference" placeholder="原笔记或进度文件路径"></div>
           <div id="builder-web-reference-row" class="settings-row" hidden><label for="builder-web-reference">已有内容 <span class="builder-reference-requirement"></span></label><p id="builder-web-reference-help" class="field-help"></p><input id="builder-web-reference" type="file" accept=".md,.txt" multiple></div>
           <div id="builder-question-row" class="settings-row settings-row-multiline" hidden><label for="builder-question">本次问题</label><textarea id="builder-question" rows="1" placeholder="希望解释什么？"></textarea></div>
           <div id="builder-paths-row" class="settings-row settings-row-multiline"><label for="builder-paths">补充素材 <span class="builder-field-optional">可选</span></label><p class="field-help">默认使用课程素材页所选课时</p><textarea id="builder-paths" rows="1" placeholder="其他素材路径，每行一个"></textarea></div>
-          <div id="builder-web-materials-row" class="settings-row" hidden><label for="builder-web-materials">补充素材 <span class="builder-field-optional">可选</span></label><p id="builder-web-materials-help" class="field-help">默认使用课程素材页所选课时</p><input id="builder-web-materials" type="file" accept=".md,.txt,.srt,.vtt" multiple></div>
+          <div id="builder-web-materials-row" class="settings-row" hidden><label for="builder-web-materials">字幕文件 <span class="builder-field-optional">可选</span></label><p id="builder-web-materials-help" class="field-help">上传单个视频的字幕，替代课程素材页所选视频</p><input id="builder-web-materials" type="file" accept=".md,.txt,.srt,.vtt"></div>
         </div>
         <div class="settings-group builder-delivery">
           <div class="builder-delivery-row">
@@ -51,7 +51,7 @@
         <div class="settings-group">
           <div class="settings-row"><label for="builder-goal">学习目标</label><p class="field-help">告诉 AI 这份笔记主要用来做什么</p><input id="builder-goal" placeholder="理解原理、准备考试或完成项目"></div>
           <div class="settings-row"><label for="builder-language">笔记语言</label><p class="field-help">正文语言，术语保留必要的原名</p><input id="builder-language" required></div>
-          <div class="settings-row"><label for="builder-granularity">整理粒度</label><p class="field-help">分组采用本次任务或课程清单的结果</p><select id="builder-granularity"><option value="group">每组课时一篇</option><option value="video">每个视频一篇</option></select></div>
+          <div class="settings-row"><label for="builder-granularity">整理粒度</label><p id="builder-granularity-help" class="field-help">分组采用本次任务或课程清单的结果</p><select id="builder-granularity"><option value="group">每组课时一篇</option><option value="video">每个视频一篇</option></select></div>
           <div class="settings-row"><label for="builder-folder">笔记根目录</label><p class="field-help">按课程在此目录下建立文件夹</p><input id="builder-folder" required spellcheck="false"></div>
           <div class="settings-row"><label for="builder-naming">文件命名</label><input id="builder-naming" required spellcheck="false"></div>
         </div>

@@ -44,6 +44,7 @@
     if (youtube) pages[Math.min(3, pages.length - 1)].cid = message.youtubeId;
     const meta = youtube ? { platform: "youtube", videoId: message.youtubeId, playlistId: message.playlistId, bvid: message.playlistId ? `YTPL_${message.playlistId}` : `YT_${message.youtubeId}`, title: single ? "Computer Networking · HTTP requests" : "Computer Networking · from protocols to practice", author: "示例讲师", pages }
       : { bvid: message.bvid, aid: "100001", title: single ? "从地址栏输入网址到页面显示：HTTP 请求与响应的完整过程" : "计算机网络：从原理到实践", author: "示例讲师", pages };
+    meta.thumbnail = new URL(youtube ? "network-en.svg" : "network.svg", previewAssets).href;
     const base = settings.noteFolder;
     const key = `boc-course-v1:${meta.bvid}:${base}`;
     if (!store[key]) {
@@ -158,7 +159,7 @@
       set: async values => {
         Object.assign(store, structuredClone(values));
       },
-      remove: async key => { delete store[key]; }
+      remove: async keys => { for (const key of Array.isArray(keys) ? keys : [keys]) delete store[key]; }
     } }
   };
   window.addEventListener("DOMContentLoaded", async () => {

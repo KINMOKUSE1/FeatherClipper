@@ -110,14 +110,31 @@ test('web supplements preserve uploaded notes and expose unavailable material', 
   const config = builder.defaults(), delivery = { ...builder.deliveryDefaults(), environment: 'web', task: 'supplement' }, ctx = context();
   assert.throws(() => builder.buildWebFiles(config, delivery, ctx, resources), /上传已有笔记/);
   ctx.references = [{ fileName: '已有笔记/1-网络.md', content: '# 网络\n我的批注：先检查接收窗口' }];
-  ctx.materials.push({ label: 'P2 DNS', chapter: '2.3', missing: '字幕读取失败' });
   const merged = builder.combineWebFiles(builder.buildWebFiles(config, delivery, ctx, resources));
   assert.ok(merged.includes('我的批注：先检查接收窗口'));
-  assert.ok(merged.includes('P2 DNS（分组：2.3）：素材缺失：字幕读取失败'));
   ctx.materials = [{ label: 'P2 DNS', chapter: '2.3', missing: '无字幕' }];
   assert.throws(() => builder.buildWebFiles(config, delivery, ctx, resources), /没有可用字幕/);
   delivery.task = 'review'; delivery.question = '解释已有笔记的接收窗口';
   assert.doesNotThrow(() => builder.buildWebFiles(config, delivery, ctx, resources));
+  assert.ok(builder.combineWebFiles(builder.buildWebFiles(config, delivery, ctx, resources)).includes('P2 DNS（分组：2.3）：素材缺失：无字幕'));
+});
+
+test('web task and file generation reject multiple sources, including unavailable videos', () => {
+  const config = builder.defaults(), delivery = { ...builder.deliveryDefaults(), environment: 'web' }, ctx = context();
+  ctx.materials.push({ label: 'P2 DNS', chapter: '2', missing: '无字幕' });
+  assert.throws(() => builder.buildTask(config, delivery, ctx), /每次只能处理一个视频或一个素材文件/);
+  assert.throws(() => builder.buildWebFiles(config, delivery, ctx, resources), /每次只能处理一个视频或一个素材文件/);
+  assert.doesNotThrow(() => builder.buildTask(config, { ...delivery, environment: 'local', ready: true }, ctx));
+});
+
+test('web video granularity applies to the exported task without changing installed preferences', () => {
+  const config = builder.defaults(), delivery = { ...builder.deliveryDefaults(), environment: 'web' };
+  config.granularity = 'group';
+  const snapshot = JSON.stringify(builder.buildFiles(config, resources));
+  const files = builder.buildWebFiles(config, delivery, context(), resources);
+  assert.match(files.find(file => file.path === '规则/preferences.md').content, /每个选中视频单独一篇/);
+  assert.equal(config.granularity, 'group');
+  assert.equal(JSON.stringify(builder.buildFiles(config, resources)), snapshot);
 });
 
 test('configuration edits change install snapshot but delivery choice does not', () => {

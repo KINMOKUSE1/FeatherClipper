@@ -67,6 +67,7 @@
   }
   function validateTask(delivery, context) {
     if (!taskTypes[delivery.task]) throw new Error(ui.taskRequired);
+    if (delivery.environment === "web" && context.materials.length > 1) throw new Error(ui.webSingleSource);
     if (delivery.task === "review" && !delivery.question.trim()) throw new Error(ui.questionRequired);
     const hasReference = delivery.environment === "web" ? context.references?.some(item => item.content.trim()) : Boolean(delivery.reference.trim());
     if (["supplement", "continue"].includes(delivery.task) && !hasReference) throw new Error(delivery.environment === "web" ? ui.webReferenceRequired : ui.localReferenceRequired);
@@ -74,14 +75,18 @@
     if (!available && !(delivery.task === "review" && hasReference)) throw new Error(delivery.environment === "web" ? ui.webMaterialRequired : ui.localMaterialRequired);
   }
   function taskRequest(config, delivery) {
+    const web = delivery.environment === "web";
     const requests = {
-      notes: "按所选粒度、栏目和属性整理本次范围的学习笔记",
+      notes: web ? "本轮只根据当前视频或单个素材文件整理一篇学习笔记，采用所选栏目和属性" : "按所选粒度、栏目和属性整理本次范围的学习笔记",
       supplement: "实际读取已有笔记，将新素材合入对应知识点，保留原有内容和人工批注",
       continue: "先核对已有笔记或进度，只继续本次指定范围中尚未完成的部分",
       translate: `按语义段落翻译为${config.language}，保留原文、时间定位、例题和重要术语`,
       review: "围绕给定问题及实际提供的素材答疑，默认交付回答"
     };
-    return requests[delivery.task];
+    if (delivery.task === "review") return requests.review;
+    if (delivery.task === "translate") return `${requests.translate}\n逐个素材完成翻译，长素材分轮继续，不为一次交付省略原文或译文；未完成时写清停在何处及剩余范围`;
+    return [requests[delivery.task], web ? "本轮只处理当前来源对应的笔记，已有笔记和进度用于补充或接续，不扩展到其他视频" : "逐篇完成并核对后再处理下一篇，不先为所有笔记写短摘要来完成整个任务",
+      "保留讲解过程、例题步骤、推导依据和适用条件；内容过长时分轮继续当前笔记，不为一次交付压缩解释，未完成时写清停在何处及剩余内容"].join("\n");
   }
   function buildTask(config, delivery, context) {
     validateTask(delivery, context);
@@ -90,7 +95,7 @@
       "先读取本次任务说明，再按整理流程、个人偏好、内容模块和属性规则处理实际提供的素材", taskRequest(config, delivery),
       ...(delivery.task === "review" ? [`本次问题：${delivery.question.trim()}`] : []),
       "只处理指定范围，缺失的字幕、板书、公式或原笔记应注明，不假定已经读取未上传的内容",
-      "输出完整 Markdown，支持文件交付时可返回 .md 文件并说明建议文件名；目录仅作保存建议。请把结果交给我保存，不调用本地 skill，不读取本机路径，不声称已更新 Obsidian", ""
+      "用 Markdown 交付本轮实际完成的内容，支持文件交付时可返回 .md 文件并说明建议文件名；目录仅作保存建议。长内容可分轮交付，不把未完成部分标为完成。请把结果交给我保存，不调用本地 skill，不读取本机路径，不声称已更新 Obsidian", ""
     ].join("\n\n");
     if (!delivery.ready) throw new Error(ui.installationRequired);
     return [`请使用 course-notes 执行“${taskTypes[delivery.task]}”`, `课程：${context.course}`,
@@ -102,13 +107,13 @@
   }
   function buildWebFiles(config, delivery, context, resources) {
     validateTask(delivery, context);
-    const rules = buildFiles(config, resources).filter(item => item.path.startsWith("references/")).map(item => ({ path: `规则/${item.path.slice(11)}`, content: item.content }));
+    const rules = buildFiles({ ...config, granularity: "video" }, resources).filter(item => item.path.startsWith("references/")).map(item => ({ path: `规则/${item.path.slice(11)}`, content: item.content }));
     const task = [`# 本次任务：${taskTypes[delivery.task]}`, "", `课程：${context.course}`, "", taskRequest(config, delivery),
       ...(delivery.task === "review" ? ["", `本次问题：${delivery.question.trim()}`] : []), "", "## 指定素材与覆盖范围", "",
       ...context.materials.map(item => `- ${item.label}（分组：${item.chapter}）：${item.content?.trim() ? item.fileName : `素材缺失：${item.missing || "未提供"}`}`),
       ...(context.references?.length ? ["", "## 已有笔记或进度", "", ...context.references.map(item => `- ${item.fileName}`)] : []), "",
       "只读取本包实际提供的内容。遵循规则/workflow.md、规则/preferences.md、规则/modules.md、规则/properties.md，并读取规则/tasks.md 中本次任务的对应部分", "",
-      "本地路径不作为素材入口，不执行本机文件操作或写入 Obsidian。输出完整 Markdown 或可下载 .md 文件供用户保存；更新已有笔记时返回完整修订版", ""].join("\n");
+      "本地路径不作为素材入口，不执行本机文件操作或写入 Obsidian。用 Markdown 或可下载 .md 文件交付本轮实际完成的内容；更新已有笔记时保留原有内容，长篇修订可分轮交付，全部完成后返回完整修订版，不提前宣告完成", ""].join("\n");
     return [{ path: "本次任务.md", content: task }, ...rules,
       ...context.materials.filter(item => item.content?.trim()).map(item => ({ path: item.fileName, content: item.content })),
       ...(context.references || []).map(item => ({ path: item.fileName, content: item.content }))];

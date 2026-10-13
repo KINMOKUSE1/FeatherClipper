@@ -19,7 +19,7 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
   const { element, action, decorateSelect, positionSelectMenu, resizeTextareas } = createNoteControls(form);
   const { settings: showSettingsFeedback } = feedback;
   function read() {
-    for (const name of fields) model.config[name] = get(`builder-${name}`).value;
+    for (const name of fields) if (name !== "granularity" || !get("builder-granularity").disabled) model.config[name] = get(`builder-${name}`).value;
     for (const name of toggles) model.config[name] = get(`builder-${name}`).checked;
     for (const name of deliveryFields) model.delivery[name] = get(`builder-${name}`).value;
     return model.config;
@@ -33,10 +33,12 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
   function pendingInstallation() { try { return !ready() && model.exportedSkillSnapshot === skillSnapshot(); } catch { return false; } }
   function taskIssue() {
     const web = model.delivery.environment === "web", task = model.delivery.task, validation = UiText.validation;
+    if (web && model.uploadedMaterials.length > 1) return validation.webSingleFile;
+    if (web && !model.uploadedMaterials.length && catalog.getState().pages.filter(page => page.selected).length > 1) return validation.webSingleVideo;
     const reference = web ? model.uploadedReferences.some(item => item.content.trim()) : model.delivery.reference.trim();
     if (["supplement", "continue"].includes(task) && !reference) return web ? validation.webReferenceRequired : validation.localReferenceRequired;
     if (task === "review" && !model.delivery.question.trim()) return validation.questionRequired;
-    const materials = catalog.getState().pages.some(page => page.selected) || (web ? model.uploadedMaterials.some(item => item.content.trim()) : model.delivery.paths.trim());
+    const materials = web && model.uploadedMaterials.length ? model.uploadedMaterials.some(item => item.content.trim()) : catalog.getState().pages.some(page => page.selected) || (!web && model.delivery.paths.trim());
     return !materials && !(task === "review" && reference) ? ui.materialRequired : "";
   }
   function updateDelivery() {
@@ -51,6 +53,10 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
     get("builder-question").disabled = model.delivery.task !== "review"; get("builder-question").required = model.delivery.task === "review";
     get("builder-web-materials-row").hidden = !web; get("builder-web-materials").disabled = !web || !!model.readingFiles;
     get("builder-format").disabled = !web;
+    get("builder-granularity").disabled = web;
+    get("builder-granularity").value = web ? "video" : model.config.granularity;
+    get("builder-granularity-help").textContent = web ? ui.webGranularityHelp : ui.localGranularityHelp;
+    get("builder-material-help").textContent = web ? ui.webCourseMaterialsHelp : ui.courseMaterialsHelp;
     get("builder-web-reference-row").hidden = !web || !reference;
     get("builder-web-reference").disabled = !web || !reference || !!model.readingFiles;
     get("builder-web-reference").required = web && requiredReference && !model.uploadedReferences.length;
@@ -81,7 +87,7 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
     get("builder-action-icon").className = `icon ${web || isReady ? "icon-copy" : "icon-save"}`;
     get("builder-action-icon").hidden = !web && pending;
     get("builder-preview-task").textContent = ui.previewTask;
-    get("builder-preview-task").disabled = busy || !!configIssue;
+    get("builder-preview-task").disabled = busy || !!configIssue || (web && !!issue);
     get("builder-delivery-more").disabled = busy;
     get("builder-delivery-name").textContent = web ? ui.webMaterials : "course-notes";
     get("builder-delivery-guide").hidden = !web;
@@ -92,7 +98,7 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
     state.dataset.state = isReady ? "ready" : pending ? "pending" : model.installedSnapshot || model.exportedSkillSnapshot ? "dirty" : "missing";
     state.textContent = isReady ? model.installationMethod === "synced" ? ui.syncReady : ui.installed : pending ? ui.pending : state.dataset.state === "dirty" ? ui.dirty : ui.missing;
     const selected = catalog.getState().pages.filter(page => page.selected).length;
-    get("builder-material-count").textContent = selected ? format(ui.materialCount, { count: selected }) : ui.noMaterials;
+    get("builder-material-count").textContent = web && model.uploadedMaterials.length ? ui.uploadedMaterial : selected ? format(ui.materialCount, { count: selected }) : ui.noMaterials;
   }
   function renderFileList(files, selected = previewPath) {
     previewFiles = files; previewPath = files.some(file => file.path === selected) ? selected : files[0].path;

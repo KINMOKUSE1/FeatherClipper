@@ -60,6 +60,7 @@ window.createNotesDelivery = function ({ model, catalog, feedback, element, read
       if (!reference) get(`${id}-help`).textContent = ui.materialsHelp;
       updateDelivery();
       try {
+        if (!reference && selected.length > 1) { input.value = ""; throw new Error(UiText.validation.webSingleFile); }
         const files = await Promise.all(selected.map(async (file, index) => ({ fileName: `${reference ? "已有笔记" : "素材"}/${index + 1}-${CourseCore.safeName(file.name)}`, content: await file.text() })));
         if (reference) model.uploadedReferences = files; else model.uploadedMaterials = files;
         if (!reference) get(`${id}-help`).textContent = files.length ? format(ui.filesRead, { count: files.length }) : ui.materialsHelp;

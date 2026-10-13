@@ -5,12 +5,14 @@ const vm = require('node:vm');
 const generator = require('../extension/workbench/notes/generator.js');
 const files = require('../extension/workbench/notes/files.js');
 const copy = require('../extension/shared/ui-text.js');
+const course = require('../extension/shared/course.js');
+const collectMaterials = require('../extension/workbench/notes/materials.js');
 
 function boot(environment = 'web', directoryPicker = false) {
   const nodes = new Map(), downloads = [], clipboard = [], messages = [], blobs = new Map(), storage = new Map(), previews = [], written = new Map();
-  const control = { clipboardError: null, beforeClipboard: null, beforeMaterial: null, directoryCalls: 0, writeError: null };
+  const control = { clipboardError: null, beforeClipboard: null, beforeMaterial: null, directoryCalls: 0, writeError: null, extraMaterials: [] };
   function element() {
-    return { hidden: true, disabled: false, handlers: {},
+    return { hidden: true, disabled: false, handlers: {}, dataset: {},
       addEventListener(event, handler) { this.handlers[event] = handler; },
       setAttribute() {}, remove() {}, click() { downloads.push({ name: this.download, blob: blobs.get(this.href) }); } };
   }
@@ -31,7 +33,8 @@ function boot(environment = 'web', directoryPicker = false) {
   }
   const window = { NoteGenerator: generator, NoteFiles: files,
     parent: directoryPicker ? {showDirectoryPicker: async () => {control.directoryCalls++;return directory();}} : {},
-    collectNoteMaterials: async ({ delivery }) => { materialReads++; control.beforeMaterial?.(); return { course: '网络', materials: [{ ...material }], references: ['supplement','continue','review'].includes(delivery.task) ? model.uploadedReferences : [] }; } };
+    collectNoteMaterials: async args => { materialReads++; control.beforeMaterial?.(); if (control.catalog) return collectMaterials({ ...args, core: course, catalog: control.catalog });
+      return { course: '网络', materials: [{ ...material }, ...control.extraMaterials], references: ['supplement','continue','review'].includes(args.delivery.task) ? model.uploadedReferences : [] }; } };
   const context = vm.createContext({ window, UiText: copy, CourseCore: { safeName: value => value },
     document: { getElementById: get, body: { append() {} } }, structuredClone, Blob,
     navigator: { clipboard: { writeText: async value => {if (control.clipboardError) throw control.clipboardError; control.beforeClipboard?.();clipboard.push(value);} } },
@@ -186,4 +189,91 @@ test('a failed replacement upload cannot reuse the previous reference content', 
   assert.match(h.messages.at(-1),/文件读取失败.*read denied/);
   await h.get('copy-study-prompt').handlers.click();
   assert.equal(h.clipboard.length,0); assert.equal(h.downloads.length,0);
+});
+
+test('multiple sources cannot be copied, exported or previewed', async () => {
+  const h = boot();
+  h.control.extraMaterials = [{ label: 'P2 UDP', chapter: '2', content: '第二个视频字幕', fileName: '素材/P02.md' }];
+  for (const id of ['copy-study-prompt', 'builder-export-web', 'builder-preview-task']) {
+    await h.get(id).handlers.click();
+    assert.match(h.messages.at(-1), /每次只能处理一个视频或一个素材文件/);
+  }
+  assert.equal(h.clipboard.length, 0); assert.equal(h.downloads.length, 0); assert.equal(h.previews.length, 0);
+});
+
+test('multiple uploaded source files are rejected before their contents are read', async () => {
+  const h = boot(); let reads = 0;
+  const input = { files: ['第一讲.md', '第二讲.md'].map(name => ({ name, text: async () => { reads++; return '字幕'; } })) };
+  await h.get('builder-web-materials').handlers.change({ target: input });
+  assert.equal(reads, 0); assert.equal(h.model.uploadedMaterials.length, 0);
+  assert.match(h.messages.at(-1), /每次只能使用一个素材文件/);
+});
+
+test('web material collection rejects multiple selected videos before requesting subtitles', async () => {
+  let requests = 0;
+  const pages = [1, 2].map(page => ({ page, cid: page, part: `视频${page}`, chapter: String(page), selected: true }));
+  const catalog = { getState: () => ({ meta: { title: '课程' }, pages }), request: async () => { requests++; } };
+  await assert.rejects(collectMaterials({ catalog, core: course, delivery: { environment: 'web', task: 'notes' } }), /每次只能处理一个视频/);
+  assert.equal(requests, 0); assert.equal(pages.filter(page => page.selected).length, 2);
+});
+
+test('uploaded source replaces selected videos while all reference notes remain available', async () => {
+  let requests = 0;
+  const catalog = { getState: () => ({ meta: { title: '不应使用的课程' }, pages: [1, 2].map(page => ({ page, selected: true })) }),
+    request: async () => { requests++; throw new Error('不应读取视频字幕'); } };
+  const uploadedMaterials = [{ fileName: '素材/一讲.md', content: '用户自己的字幕' }];
+  const uploadedReferences = [{ fileName: '已有笔记/笔记.md', content: '保留批注' }, { fileName: '已有笔记/进度.md', content: '前半段已完成' }];
+  const delivery = { ...generator.deliveryDefaults(), environment: 'web', task: 'continue' };
+  const context = await collectMaterials({ catalog, core: course, delivery, uploadedMaterials, uploadedReferences });
+  assert.equal(requests, 0); assert.equal(context.materials.length, 1);
+  assert.equal(context.course, copy.materials.manualCourse);
+  const resources = Object.fromEntries([['entry','SKILL.md'],['agent','openai.yaml'],['workflow','workflow.md'],['tasks','tasks.md'],['mermaid','mermaid.md']].map(([key,file]) => [key,fs.readFileSync(require.resolve(`../extension/workbench/notes/rules/${file}`),'utf8')]));
+  const exported = generator.buildWebFiles(generator.defaults(), delivery, context, resources);
+  assert.equal(exported.filter(file => file.path.startsWith('素材/')).length, 1);
+  assert.equal(exported.filter(file => file.path.startsWith('已有笔记/')).length, 2);
+  assert.match(generator.combineWebFiles(exported), /用户自己的字幕/);
+  const empty = await collectMaterials({ catalog, core: course, delivery, uploadedMaterials: [{ ...uploadedMaterials[0], content: '' }] });
+  assert.throws(() => generator.buildTask(generator.defaults(), delivery, { ...empty, references: uploadedReferences }), /没有可用字幕/);
+  assert.equal(requests, 0, 'an empty upload never falls back to selected videos');
+  await assert.rejects(collectMaterials({ catalog, core: course, delivery, uploadedMaterials: [...uploadedMaterials, ...uploadedMaterials] }), /每次只能使用一个素材文件/);
+});
+
+test('web copy and export deliver only the selected video subtitle', async () => {
+  const h = boot(); let requests = 0;
+  const page = { page: 1, cid: '456', part: '当前视频', chapter: '1', selected: true };
+  const catalog = { getState: () => ({ meta: { bvid: 'BV1ps4y1d73V', title: '课程' }, pages: [page, { ...page, page: 2, selected: false }] }),
+    request: async () => { requests++; return { body: [{ from: 0, to: 5, content: '当前视频的真实字幕' }], track: {} }; } };
+  h.control.catalog = catalog;
+  await h.get('copy-study-prompt').handlers.click();
+  assert.equal(requests, 1);
+  assert.match(await h.downloads[0].blob.text(), /当前视频的真实字幕/);
+  assert.match(h.clipboard[0], /不为一次交付压缩解释/);
+});
+
+test('notes UI blocks multiple videos and restores local granularity after switching environments', () => {
+  const h = boot(), model = h.model;
+  model.delivery.environment = 'local'; model.config.granularity = 'group';
+  const pages = [{ selected: true }, { selected: true }];
+  const fields = ['goal', 'language', 'granularity', 'folder', 'naming', 'links', 'instructions'];
+  const deliveryFields = ['environment', 'task', 'reference', 'question', 'paths', 'format'];
+  const toggles = ['external', 'progress'];
+  for (const name of fields) h.get(`builder-${name}`).value = model.config[name];
+  for (const name of deliveryFields) h.get(`builder-${name}`).value = model.delivery[name];
+  for (const name of toggles) h.get(`builder-${name}`).checked = model.config[name];
+  const source = fs.readFileSync(require.resolve('../extension/workbench/notes/page.js'), 'utf8');
+  const context = vm.createContext({ model, core: generator, ui: copy.notes, UiText: copy, format: copy.format, get: h.get,
+    catalog: { getState: () => ({ pages }) }, fields, deliveryFields, toggles, form: { querySelectorAll: () => [] }, window: { parent: {} } });
+  const view = vm.runInContext(source.slice(source.indexOf('  function read()'), source.indexOf('  function renderFileList')) + '\n({ read, updateDelivery })', context);
+  view.updateDelivery();
+  h.get('builder-environment').value = 'web'; view.read(); view.updateDelivery();
+  assert.match(h.get('builder-delivery-next').textContent, /每次只能处理一个视频/);
+  for (const id of ['copy-study-prompt', 'builder-export-web', 'builder-preview-task']) assert.equal(h.get(id).disabled, true);
+  assert.equal(h.get('builder-granularity').value, 'video'); assert.equal(h.get('builder-granularity').disabled, true);
+  model.uploadedMaterials = [{ fileName: '素材/一讲.md', content: '字幕' }]; view.updateDelivery();
+  for (const id of ['copy-study-prompt', 'builder-export-web', 'builder-preview-task']) assert.equal(h.get(id).disabled, false);
+  assert.equal(h.get('builder-material-count').textContent, copy.notes.uploadedMaterial);
+  view.read(); assert.equal(model.config.granularity, 'group');
+  h.get('builder-environment').value = 'local'; view.read(); view.updateDelivery();
+  assert.equal(h.get('builder-granularity').value, 'group'); assert.equal(h.get('builder-granularity').disabled, false);
+  assert.equal(model.config.granularity, 'group');
 });
