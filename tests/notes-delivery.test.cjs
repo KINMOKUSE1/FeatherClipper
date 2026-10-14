@@ -17,7 +17,7 @@ function boot(environment = 'web', directoryPicker = false) {
       setAttribute() {}, remove() {}, click() { downloads.push({ name: this.download, blob: blobs.get(this.href) }); } };
   }
   const get = id => { if (!nodes.has(id)) nodes.set(id, element()); return nodes.get(id); };
-  const resources = Object.fromEntries([['entry','SKILL.md'],['agent','openai.yaml'],['workflow','workflow.md'],['tasks','tasks.md'],['mermaid','mermaid.md']].map(([key,file]) => [key,fs.readFileSync(require.resolve(`../extension/workbench/notes/rules/${file}`),'utf8')]));
+  const resources = Object.fromEntries([['entry','SKILL.md'],['agent','openai.yaml'],['workflow','workflow.md'],['tasks','tasks.md'],['mermaid','mermaid.md'],['markdown','markdown.md']].map(([key,file]) => [key,fs.readFileSync(require.resolve(`../extension/workbench/notes/rules/${file}`),'utf8')]));
   const model = { config: generator.defaults(), delivery: { ...generator.deliveryDefaults(), environment }, resources,
     installedSnapshot: null, exportedSkillSnapshot: null, installationKey: 'test-install', installationMethodKey: 'test-method', exportedSkillKey: 'test-export',
     busy: false, readingFiles: 0, uploadedMaterials: [], uploadedReferences: [] };
@@ -54,6 +54,7 @@ test('web copy exports current material and pairs it with the current task witho
   assert.equal(h.downloads.length,1);
   assert.equal(h.downloads[0].name,'课程任务材料.md');
   assert.match(await h.downloads[0].blob.text(),/第一份实际字幕/);
+  assert.ok((await h.downloads[0].blob.text()).includes(fs.readFileSync(require.resolve('../extension/workbench/notes/rules/markdown.md'),'utf8')));
   assert.match(h.clipboard[0],/整理笔记/);
   assert.equal(h.messages.at(-1),copy.notes.copiedWeb);
 
@@ -98,6 +99,7 @@ test('local installation exports files and installation command, confirms, then 
   assert.equal(h.control.directoryCalls,0,'primary installation does not force a directory picker');
   const bundle = Buffer.from(await h.downloads[0].blob.arrayBuffer());
   assert.ok(bundle.includes(Buffer.from('course-notes/references/mermaid.md')));
+  assert.ok(bundle.includes(Buffer.from('course-notes/references/markdown.md')));
   await h.get('copy-study-prompt').handlers.click();
   assert.equal(h.ready(),true); assert.equal(h.model.installationMethod,'confirmed');
   assert.equal(h.storage.has(h.model.exportedSkillKey),false);
@@ -133,6 +135,7 @@ test('installation preview is available before installation and reads no course 
   assert.equal(h.previews[0].task.path,'安装指令.txt');
   assert.equal(h.previews[0].task.text,copy.notes.installPrompt);
   assert.ok(h.previews[0].files.some(file=>file.path==='references/mermaid.md'));
+  assert.equal(h.previews[0].files.find(file=>file.path==='references/markdown.md').content,fs.readFileSync(require.resolve('../extension/workbench/notes/rules/markdown.md'),'utf8'));
   assert.equal(h.reads(),0); assert.equal(h.downloads.length,0); assert.equal(h.clipboard.length,0);
 });
 
@@ -140,7 +143,8 @@ test('directory synchronization records verified files separately from installat
   const h = boot('local', true);
   await h.get('builder-sync').handlers.click();
   assert.equal(h.ready(),true); assert.equal(h.model.installationMethod,'synced');
-  assert.equal(h.written.size,8); assert.equal(h.control.directoryCalls,1);
+  assert.equal(h.written.size,9); assert.equal(h.control.directoryCalls,1);
+  assert.equal(h.written.get('course-notes/references/markdown.md'),fs.readFileSync(require.resolve('../extension/workbench/notes/rules/markdown.md'),'utf8'));
   assert.equal(h.downloads.length,0); assert.equal(h.clipboard.length,0);
   h.model.config.goal='准备考试'; h.control.writeError=new Error('write denied');
   await h.get('builder-sync').handlers.click();
@@ -227,7 +231,7 @@ test('uploaded source replaces selected videos while all reference notes remain 
   const context = await collectMaterials({ catalog, core: course, delivery, uploadedMaterials, uploadedReferences });
   assert.equal(requests, 0); assert.equal(context.materials.length, 1);
   assert.equal(context.course, copy.materials.manualCourse);
-  const resources = Object.fromEntries([['entry','SKILL.md'],['agent','openai.yaml'],['workflow','workflow.md'],['tasks','tasks.md'],['mermaid','mermaid.md']].map(([key,file]) => [key,fs.readFileSync(require.resolve(`../extension/workbench/notes/rules/${file}`),'utf8')]));
+  const resources = Object.fromEntries([['entry','SKILL.md'],['agent','openai.yaml'],['workflow','workflow.md'],['tasks','tasks.md'],['mermaid','mermaid.md'],['markdown','markdown.md']].map(([key,file]) => [key,fs.readFileSync(require.resolve(`../extension/workbench/notes/rules/${file}`),'utf8')]));
   const exported = generator.buildWebFiles(generator.defaults(), delivery, context, resources);
   assert.equal(exported.filter(file => file.path.startsWith('素材/')).length, 1);
   assert.equal(exported.filter(file => file.path.startsWith('已有笔记/')).length, 2);
@@ -247,7 +251,7 @@ test('web copy and export deliver only the selected video subtitle', async () =>
   await h.get('copy-study-prompt').handlers.click();
   assert.equal(requests, 1);
   assert.match(await h.downloads[0].blob.text(), /当前视频的真实字幕/);
-  assert.match(h.clipboard[0], /不为一次交付压缩解释/);
+  assert.match(h.clipboard[0], /课程任务材料\.md/);
 });
 
 test('notes UI blocks multiple videos and restores local granularity after switching environments', () => {

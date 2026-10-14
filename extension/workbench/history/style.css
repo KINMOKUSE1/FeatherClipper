@@ -27,7 +27,11 @@
 .history-page #history-back { min-height: 32px; padding: 0 4px; border: 0; background: transparent; color: var(--muted); font: 14px/1.5 var(--font-controls); }
 .history-page #history-back:hover { color: var(--ink); background: var(--hover); }
 .history-detail-heading { display: flex; align-items: center; gap: 20px; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+.history-detail-heading .history-content { flex: 1; }
+.history-detail-title-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 12px 20px; }
 #history-detail-title { margin: 0; color: var(--ink); font: 500 24px/1.5 var(--font-body); overflow-wrap: anywhere; }
+.history-detail-title-row h2 { flex: 1 1 240px; min-width: 0; }
+.history-page #history-detail-open { flex: none; min-height: 34px; margin-left: auto; padding: 6px 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 14px/20px var(--font-controls); white-space: nowrap; }
 .history-detail-row { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 16px; padding: 18px 6px; border-bottom: 1px solid var(--line); }
 .history-detail-row:last-child { border-bottom: 0; }
 .history-video-number { padding-top: 3px; color: var(--muted); font: 13px/1.5 "Geist", var(--font-controls); font-variant-numeric: tabular-nums; }

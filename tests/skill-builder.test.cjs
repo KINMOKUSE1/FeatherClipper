@@ -8,7 +8,8 @@ const resources = {
   agent: fs.readFileSync(require.resolve('../extension/workbench/notes/rules/openai.yaml'), 'utf8'),
   workflow: fs.readFileSync(require.resolve('../extension/workbench/notes/rules/workflow.md'), 'utf8'),
   tasks: fs.readFileSync(require.resolve('../extension/workbench/notes/rules/tasks.md'), 'utf8'),
-  mermaid: fs.readFileSync(require.resolve('../extension/workbench/notes/rules/mermaid.md'), 'utf8')
+  mermaid: fs.readFileSync(require.resolve('../extension/workbench/notes/rules/mermaid.md'), 'utf8'),
+  markdown: fs.readFileSync(require.resolve('../extension/workbench/notes/rules/markdown.md'), 'utf8')
 };
 const configFiles = config => Object.fromEntries(builder.buildFiles(config, resources).map(file => [file.path, file.content]));
 const context = () => ({ course: '网络', index: '素材/清单.md', materials: [{ label: 'P1 TCP', chapter: '2.2', path: '素材/当前路径.md', fileName: '素材/P01-TCP.md', content: '00:00 教师用窗口大小 4 举例，接收方已经确认序号 3' }], references: [] });
@@ -21,13 +22,14 @@ test('bundle separates workflow, recipes and properties and resolves all entry r
   config.modules = [questions, ...config.modules.filter(item => item !== questions)];
   config.modules.push({ id: 'custom', enabled: true, title: '实验记录', writing: '记录实验步骤与实际结果' });
   const files = configFiles(config), entry = files['SKILL.md'], recipes = files['references/modules.md'];
-  assert.equal(Object.keys(files).length, 8);
+  assert.equal(Object.keys(files).length, 9);
   assert.match(entry, /^---\r?\nname: course-notes\r?\n/);
   for (const match of entry.matchAll(/\]\(([^)]+)\)/g)) assert.ok(files[match[1]], match[1]);
   assert.ok(!entry.includes('只生成应用题'));
   assert.equal(files['references/workflow.md'], resources.workflow);
   assert.equal(files['references/tasks.md'], resources.tasks);
   assert.equal(files['references/mermaid.md'], resources.mermaid);
+  assert.equal(files['references/markdown.md'], resources.markdown);
   for (const [path, content] of Object.entries(files)) {
     for (const match of content.matchAll(/\]\(([^)]+)\)/g)) {
       const target = require('node:path').posix.join(require('node:path').posix.dirname(path), match[1]);
@@ -75,16 +77,30 @@ test('web prompt and uploads carry actual content without local source paths', (
   const task = builder.buildTask(config, delivery, ctx), files = builder.buildWebFiles(config, delivery, ctx, resources);
   const merged = builder.combineWebFiles(files);
   assert.ok(task.includes('课程任务材料.md'));
-  assert.ok(task.includes('不调用本地 skill'));
-  assert.ok(task.includes('不声称已更新 Obsidian'));
+  assert.ok(task.includes('以上传材料为本轮输入'));
+  assert.ok(task.includes('由我保存到建议位置'));
   assert.ok(!task.includes('素材/当前路径.md'));
   assert.ok(!merged.includes('素材/当前路径.md'));
   assert.ok(merged.includes('窗口大小 4'));
   assert.ok(files.some(file => file.path === '规则/workflow.md'));
   assert.ok(files.some(file => file.path === '规则/tasks.md'));
   assert.equal(files.find(file => file.path === '规则/mermaid.md').content, resources.mermaid);
+  assert.equal(files.find(file => file.path === '规则/markdown.md').content, resources.markdown);
   delivery.format = 'zip';
   assert.ok(builder.buildTask(config, delivery, ctx).includes('course-web-task.zip'));
+});
+
+test('Markdown guidance is required and travels intact in both skill and web bundles', () => {
+  const config = builder.defaults();
+  assert.throws(() => builder.buildFiles(config, { ...resources, markdown: '' }), /整理规则/);
+  const skill = builder.buildFiles(config, resources);
+  const web = builder.buildWebFiles(config, { ...builder.deliveryDefaults(), environment: 'web' }, context(), resources);
+  const merged = builder.combineWebFiles(web);
+  assert.ok(merged.includes(`# 文件：规则/markdown.md\n\n${resources.markdown}`));
+  const bundle = Buffer.from(filesIO.zip(skill));
+  assert.ok(bundle.includes(Buffer.from('references/markdown.md')));
+  assert.ok(bundle.includes(Buffer.from(resources.markdown)));
+  assert.equal(bundle.readUInt16LE(bundle.length - 22 + 10), skill.length);
 });
 
 test('task types require real inputs and omit hidden inputs from previous tasks', () => {

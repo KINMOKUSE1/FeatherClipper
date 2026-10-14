@@ -1,16 +1,22 @@
 /* 导入记录：课程汇总、已导入视频详情、筛选和移除记录。 */
-window.createHistoryPage = function ({ feedback, navigate }) {
+window.createHistoryPage = function ({ catalog, feedback, navigate }) {
   const ui = UiText.history, format = UiText.format;
   const get = id => document.getElementById(id);
   const storage = chrome.storage.local;
   const menu = get("history-menu");
-  let records = [], activeRecord = null, activeButton = null, detailTrigger = null;
+  let records = [], activeRecord = null, activeButton = null, detailRecord = null, detailTrigger = null;
   function button(text, className, activate) {
     const node = document.createElement("button");
     node.type = "button"; node.className = className; node.textContent = text;
     node.addEventListener("click", activate); return node;
   }
   function report(text) { feedback.settings("history-status", text); }
+  async function openMaterials(record) {
+    closeMenu();
+    navigate("catalog-page");
+    try { await catalog.loadCourse({ source: record.sourceUrl, base: record.base, preview: !record.isSeries }); }
+    catch (error) { feedback.status(error.message, true); }
+  }
   function link(text, className, href) {
     const node = document.createElement("a");
     node.className = className; node.textContent = text;
@@ -35,12 +41,13 @@ window.createHistoryPage = function ({ feedback, navigate }) {
   }
   function showOverview(restoreFocus = false) {
     closeMenu();
+    detailRecord = null;
     get("history-detail").hidden = true;
     get("history-overview").hidden = false;
     if (restoreFocus) detailTrigger?.focus({ preventScroll: true });
   }
   function openDetail(record, trigger) {
-    closeMenu(); detailTrigger = trigger;
+    closeMenu(); detailRecord = record; detailTrigger = trigger;
     get("history-overview").hidden = true;
     get("history-detail").hidden = false;
     get("history-detail-title").textContent = record.title;
@@ -69,6 +76,7 @@ window.createHistoryPage = function ({ feedback, navigate }) {
     activeRecord = record; activeButton = trigger;
     get("history-original").href = record.sourceUrl;
     get("history-original").textContent = record.isSeries ? ui.originalCourse : ui.originalVideo;
+    get("history-open").hidden = record.isSeries;
     get("history-copy").textContent = record.isSeries ? ui.copyCourse : ui.copyVideo;
     get("history-copy").disabled = !record.sourcePath;
     menu.showPopover();
@@ -117,6 +125,9 @@ window.createHistoryPage = function ({ feedback, navigate }) {
   });
   get("history-search").addEventListener("input", render);
   get("history-back").addEventListener("click", () => showOverview(true));
+  for (const id of ["history-detail-open", "history-open"]) get(id).textContent = ui.enterCatalog;
+  get("history-detail-open").addEventListener("click", () => openMaterials(detailRecord));
+  get("history-open").addEventListener("click", () => openMaterials(activeRecord));
   get("history-source").addEventListener("change", render);
   get("history-sort").addEventListener("change", render);
   get("history-copy").addEventListener("click", async () => {
@@ -132,7 +143,7 @@ window.createHistoryPage = function ({ feedback, navigate }) {
   get("history-original").addEventListener("click", () => closeMenu(true));
   menu.addEventListener("toggle", event => activeButton?.setAttribute("aria-expanded", String(event.newState === "open")));
   menu.addEventListener("keydown", event => {
-    const items = [...menu.querySelectorAll('[role="menuitem"]')].filter(item => !item.disabled);
+    const items = [...menu.querySelectorAll('[role="menuitem"]')].filter(item => !item.disabled && !item.hidden);
     const index = items.indexOf(document.activeElement);
     if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
       event.preventDefault();

@@ -6,7 +6,7 @@ const core = require('../extension/shared/course.js');
 const collectMaterials = require('../extension/workbench/notes/materials.js');
 const source = fs.readFileSync(require.resolve('../extension/workbench/catalog/page.js'), 'utf8');
 
-function boot(search, unavailable = false, missingSubtitle = false) {
+function boot(search, unavailable = false, missingSubtitle = false, snapshots = {}) {
   const calls = [], elements = new Map();
   function element() {
     return { value: '', hidden: false, open: false, children: [], classList: { toggle() {} },
@@ -20,7 +20,7 @@ function boot(search, unavailable = false, missingSubtitle = false) {
   const context = vm.createContext({ UiText: require('../extension/shared/ui-text.js'), window, URLSearchParams, location: { search }, CourseCore: core,
     document: { getElementById: get, createElement: element, createTextNode: text => text,
       addEventListener() {}, querySelector: () => element(), querySelectorAll: () => [] },
-    chrome: { storage: { local: { get: async () => ({}), set: async () => {} } } }
+    chrome: { storage: { local: { get: async () => snapshots, set: async () => {} } } }
   });
   vm.runInContext(source, context);
   const catalog = window.createCatalogPage({
@@ -66,6 +66,21 @@ test('YouTube handoff preserves video and playlist identifiers', async () => {
   const request = h.calls.find(call => call[0] === 'meta')[1];
   assert.equal(request.youtubeId, 'demoVideo01');
   assert.equal(request.playlistId, 'PLdemo123');
+});
+
+test('history handoff restores all lessons and their saved states in the recorded destination', async () => {
+  const statuses = ['saved', 'exists', 'missing', 'pending'];
+  const snapshots = {
+    'boc-course-base:BV1234567890': 'Other/Folder',
+    'boc-course-v1:BV1234567890:History/Bilibili': { pages: statuses.map((status, index) => ({ cid: String(index + 1), status })) }
+  };
+  const h = boot('', false, false, snapshots);
+  await h.catalog.loadCourse({ source: 'https://www.bilibili.com/video/BV1234567890/?p=1', base: 'History/Bilibili', preview: false });
+  const state = h.catalog.getState();
+  assert.equal(state.folder, 'History/Bilibili');
+  assert.equal(state.pages.length, 4);
+  assert.deepEqual(Array.from(state.pages, page => page.status), statuses);
+  assert.equal(h.calls.some(call => call[0] === 'preview'), false);
 });
 
 test('ASR handoff keeps the loaded preview open and transfers the current missing lesson', async () => {

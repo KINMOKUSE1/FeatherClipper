@@ -34,7 +34,7 @@
   }
   function buildFiles(config, resources) {
     validate(config);
-    if (!resources?.entry?.trim() || !resources?.agent?.trim() || !resources?.workflow?.trim() || !resources?.tasks?.trim() || !resources?.mermaid?.trim()) throw new Error(ui.rulesRequired);
+    if (!resources?.entry?.trim() || !resources?.agent?.trim() || !resources?.workflow?.trim() || !resources?.tasks?.trim() || !resources?.mermaid?.trim() || !resources?.markdown?.trim()) throw new Error(ui.rulesRequired);
     const links = { heading: "视频回看入口放在对应知识点标题旁，正文和例题共用该入口，跨视频补充可添加必要链接", paragraph: "视频回看入口放在对应内容段落末尾，同一来源的相邻内容共用入口，避免逐句重复标注", sources: "视频回看入口集中放在已选的“来源与待核实项”模块，注明对应知识点和时间" };
     const enabled = config.modules.filter(item => item.enabled);
     const attrs = config.properties.filter(item => item.enabled).map(item => {
@@ -59,6 +59,7 @@
       { path: "references/workflow.md", content: resources.workflow },
       { path: "references/tasks.md", content: resources.tasks },
       { path: "references/mermaid.md", content: resources.mermaid },
+      { path: "references/markdown.md", content: resources.markdown },
       { path: "references/preferences.md", content: preferences },
       { path: "references/modules.md", content: moduleText },
       { path: "references/properties.md", content: propertyText },
@@ -84,18 +85,17 @@
       review: "围绕给定问题及实际提供的素材答疑，默认交付回答"
     };
     if (delivery.task === "review") return requests.review;
-    if (delivery.task === "translate") return `${requests.translate}\n逐个素材完成翻译，长素材分轮继续，不为一次交付省略原文或译文；未完成时写清停在何处及剩余范围`;
-    return [requests[delivery.task], web ? "本轮只处理当前来源对应的笔记，已有笔记和进度用于补充或接续，不扩展到其他视频" : "逐篇完成并核对后再处理下一篇，不先为所有笔记写短摘要来完成整个任务",
-      "保留讲解过程、例题步骤、推导依据和适用条件；内容过长时分轮继续当前笔记，不为一次交付压缩解释，未完成时写清停在何处及剩余内容"].join("\n");
+    if (delivery.task === "translate") return requests.translate;
+    return [requests[delivery.task], ...(web ? ["本轮处理当前来源对应的笔记，已有笔记和进度用于补充或接续"] : [])].join("\n");
   }
   function buildTask(config, delivery, context) {
     validateTask(delivery, context);
     if (delivery.environment === "web") return [
       `请根据我上传的${delivery.format === "zip" ? " course-web-task.zip 中的文件" : "《课程任务材料.md》"}执行“${taskTypes[delivery.task]}”`,
-      "先读取本次任务说明，再按整理流程、个人偏好、内容模块和属性规则处理实际提供的素材", taskRequest(config, delivery),
+      "先读取本次任务说明，再按整理流程、个人偏好、内容模块、属性和 Markdown 写作规则处理实际提供的素材", taskRequest(config, delivery),
       ...(delivery.task === "review" ? [`本次问题：${delivery.question.trim()}`] : []),
-      "只处理指定范围，缺失的字幕、板书、公式或原笔记应注明，不假定已经读取未上传的内容",
-      "用 Markdown 交付本轮实际完成的内容，支持文件交付时可返回 .md 文件并说明建议文件名；目录仅作保存建议。长内容可分轮交付，不把未完成部分标为完成。请把结果交给我保存，不调用本地 skill，不读取本机路径，不声称已更新 Obsidian", ""
+      "处理指定范围，注明缺失的字幕、板书、公式或原笔记",
+      "以上传材料为本轮输入，用 Markdown 或可下载 .md 文件交付实际完成的内容，由我保存到建议位置；长篇按整理流程分轮继续，并报告已完成范围和剩余内容", ""
     ].join("\n\n");
     if (!delivery.ready) throw new Error(ui.installationRequired);
     return [`请使用 course-notes 执行“${taskTypes[delivery.task]}”`, `课程：${context.course}`,
@@ -112,8 +112,8 @@
       ...(delivery.task === "review" ? ["", `本次问题：${delivery.question.trim()}`] : []), "", "## 指定素材与覆盖范围", "",
       ...context.materials.map(item => `- ${item.label}（分组：${item.chapter}）：${item.content?.trim() ? item.fileName : `素材缺失：${item.missing || "未提供"}`}`),
       ...(context.references?.length ? ["", "## 已有笔记或进度", "", ...context.references.map(item => `- ${item.fileName}`)] : []), "",
-      "只读取本包实际提供的内容。遵循规则/workflow.md、规则/preferences.md、规则/modules.md、规则/properties.md，并读取规则/tasks.md 中本次任务的对应部分", "",
-      "本地路径不作为素材入口，不执行本机文件操作或写入 Obsidian。用 Markdown 或可下载 .md 文件交付本轮实际完成的内容；更新已有笔记时保留原有内容，长篇修订可分轮交付，全部完成后返回完整修订版，不提前宣告完成", ""].join("\n");
+      "以本包实际提供的内容为材料。遵循规则/workflow.md、规则/preferences.md、规则/modules.md、规则/properties.md、规则/markdown.md，并读取规则/tasks.md 中本次任务的对应部分", "",
+      "按整理流程用 Markdown 或可下载 .md 文件交付本轮实际完成的内容，由用户保存到建议位置；更新已有笔记时保留原有内容，全部完成后返回完整修订版", ""].join("\n");
     return [{ path: "本次任务.md", content: task }, ...rules,
       ...context.materials.filter(item => item.content?.trim()).map(item => ({ path: item.fileName, content: item.content })),
       ...(context.references || []).map(item => ({ path: item.fileName, content: item.content }))];

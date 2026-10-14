@@ -11,7 +11,7 @@
     <div class="history-detail-navigation"><button id="history-back" type="button">← 导入记录</button></div>
     <header class="history-detail-heading">
       <div id="history-detail-cover" class="history-cover"></div>
-      <div class="history-content"><h2 id="history-detail-title" tabindex="-1"></h2><p id="history-detail-meta" class="history-meta"></p></div>
+      <div class="history-content"><div class="history-detail-title-row"><h2 id="history-detail-title" tabindex="-1"></h2><button id="history-detail-open" type="button">进入课程素材</button></div><p id="history-detail-meta" class="history-meta"></p></div>
     </header>
     <div class="history-scroll"><div id="history-detail-list" role="list" aria-label="按课程顺序排列的已导入视频"></div></div>
   </section>
@@ -19,6 +19,7 @@
 </section>
 <div id="history-menu" class="history-menu" popover="auto" role="menu" aria-label="记录操作">
   <a id="history-original" role="menuitem" target="_blank" rel="noopener">打开原视频 ↗</a>
+  <button id="history-open" type="button" role="menuitem" hidden>进入课程素材</button>
   <button id="history-copy" type="button" role="menuitem">复制素材路径</button>
   <button id="history-remove" type="button" role="menuitem">移除记录</button>
 </div>
