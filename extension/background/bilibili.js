@@ -1,5 +1,5 @@
-// B站目录和字幕读取；字幕接口选择源自 MIT 项目 Bilibili-Obsidian-Clipper。
-async function courseBiliJson(url) {
+// B站目录和字幕读取；字幕只使用带 WBI 签名且归属匹配的接口响应。
+async function courseBiliJson(url, allowLoggedOut = false) {
   const response = await fetch(url, { credentials: "include", cache: "no-store", referrer: "https://www.bilibili.com/", signal: AbortSignal.timeout(20000) });
   if (!response.ok) {
     const error = new Error(`B站请求失败 HTTP ${response.status}`);
@@ -7,9 +7,9 @@ async function courseBiliJson(url) {
     throw error;
   }
   const payload = await response.json();
-  if (payload.code !== undefined && payload.code !== 0) {
+  if (payload.code !== undefined && payload.code !== 0 && !(allowLoggedOut && payload.code === -101)) {
     const error = new Error(`B站接口 ${payload.code}：${payload.message || "请求失败"}`);
-    error.fatal = [-101, -352, -412, -799].includes(payload.code);
+    error.fatal = [-101, -352, -403, -412, -799].includes(payload.code);
     throw error;
   }
   return payload;
@@ -18,12 +18,30 @@ function formatLocalDate(value = Date.now()) {
   const date = new Date(value);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
-function buildSubtitleInfoRequests({ bvid, cid, aid }) {
-  const query = new URLSearchParams({ bvid, cid, ...(aid ? { aid } : {}) }).toString();
-  return [...(aid ? [{ url: `https://api.bilibili.com/x/player/wbi/v2?${query}` }] : []), { url: `https://api.bilibili.com/x/player/v2?${query}` }];
+async function courseBiliSubtitleTracks(meta, page) {
+  if (!/^\d+$/.test(meta.aid || "") || !meta.pages?.some(item => String(item.cid) === String(page.cid))) throw new Error("视频信息不完整，请重新读取目录");
+  // 每次刷新重新获取签名信息和登录状态，不缓存字幕列表或正文。
+  const nav = await courseBiliJson("https://api.bilibili.com/x/web-interface/nav", true);
+  const keyOf = value => String(value || "").split("?")[0].split("/").pop().replace(/\.[^.]+$/, "");
+  const query = courseWbiQuery({ bvid: meta.bvid, aid: meta.aid, cid: page.cid }, keyOf(nav.data?.wbi_img?.img_url), keyOf(nav.data?.wbi_img?.sub_url));
+  const payload = await courseBiliJson(`https://api.bilibili.com/x/player/wbi/v2?${query}`);
+  const data = payload.data;
+  if (!data || String(data.cid) !== String(page.cid) || (data.aid !== undefined && String(data.aid) !== String(meta.aid))
+    || [data.bvid, data.bv_id].some(value => value !== undefined && value !== meta.bvid)) throw new Error("字幕信息与当前视频不一致，请重新读取");
+  if (data.need_login_subtitle) throw courseBiliLoginError();
+  if (!Array.isArray(data.subtitle?.subtitles)) throw new Error("B站字幕列表响应无效，请重试");
+  const tracks = normalizeSubtitleTracks(mapSubtitleTracks(data.subtitle.subtitles));
+  if (!tracks.length && nav.data?.isLogin !== true) throw courseBiliLoginError();
+  if (!tracks.length && data.subtitle.subtitles.length) throw new Error("字幕轨暂不可用，请稍后重试");
+  return tracks;
+}
+function courseBiliLoginError() {
+  const error = new Error("请先在浏览器登录 B站，再读取字幕");
+  error.fatal = true;
+  return error;
 }
 function mapSubtitleTracks(subtitles) {
-  return subtitles.map(item => ({ id: String(item.id || item.lan || ""), lan: item.lan || "", lanDoc: item.lan_doc || "", subtitleUrl: String(item.subtitle_url || "").replace(/^\/\//, "https://") })).filter(item => item.subtitleUrl);
+  return subtitles.map(item => ({ id: String(item.id_str || item.id || item.lan || ""), lan: item.lan || "", lanDoc: item.lan_doc || "", subtitleUrl: String(item.subtitle_url || "").replace(/^\/\//, "https://") })).filter(item => item.subtitleUrl);
 }
 function normalizeSubtitleTracks(tracks) {
   const priority = track => {
@@ -35,52 +53,30 @@ function normalizeSubtitleTracks(tracks) {
   };
   return [...tracks].sort((a, b) => priority(a) - priority(b));
 }
-function courseTrackLanguage(track) {
-  const code = track.lan.toLowerCase();
-  if (code.includes("zh") || track.lanDoc.includes("中文")) return "zh";
-  if (/^(?:ai-)?en(?:-|$)/.test(code) || /英文|英语|English/i.test(track.lanDoc)) return "en";
-  return "other";
+async function courseReadBiliSubtitle(tracks, page, trackId = "") {
+  const selected = trackId ? tracks.filter(track => track.id === trackId) : tracks;
+  if (trackId && !selected.length) throw new Error("所选字幕暂不可用，请重新读取视频或选择其他语言");
+  let trackError;
+  for (const track of selected) {
+    try {
+      const url = new URL(track.subtitleUrl);
+      if (url.protocol !== "https:" || !(url.hostname === "hdslb.com" || url.hostname.endsWith(".hdslb.com") || url.hostname.endsWith(".bilibili.com"))) throw new Error("字幕地址不属于 B站字幕服务");
+      const subtitle = await courseBiliJson(url.href);
+      if (!Array.isArray(subtitle.body) || subtitle.body.some(item => !Number.isFinite(item.from) || item.from < 0 || typeof item.content !== "string"
+        || (item.to !== undefined && (!Number.isFinite(item.to) || item.to < item.from)))) throw new Error("B站字幕内容响应无效，请重试");
+      const body = subtitle.body.filter(item => item.content.trim());
+      if (!body.length) continue;
+      if (page.duration > 0 && body.some(item => (item.to ?? item.from) > page.duration + 15)) throw new Error("字幕超出该 P 的时长，请核对字幕轨");
+      return { track, body };
+    } catch (error) { if (error.fatal) throw error; trackError = error; }
+  }
+  if (trackError) throw trackError;
+  return null;
 }
 async function courseSubtitle(meta, page, purpose = "read", activate = false, trackId = "") {
   if (meta.platform === "youtube") {
     const result = await youtubeRead(page.cid, true, false, "", purpose, activate);
     return result.missing ? null : result;
   }
-  const requests = buildSubtitleInfoRequests({ bvid: meta.bvid, aid: meta.aid, cid: page.cid });
-  let lastError, trackError, fallback = null;
-  const available = new Map();
-  for (const request of requests) {
-    let payload;
-    try { payload = await courseBiliJson(request.url); }
-    catch (error) { if (error.fatal) throw error; lastError = error; continue; }
-    if (payload.data?.need_login_subtitle) {
-      const error = new Error("字幕需要登录 B站，请在 Edge 登录后重试。");
-      error.fatal = true;
-      throw error;
-    }
-    const tracks = normalizeSubtitleTracks(mapSubtitleTracks(payload.data?.subtitle?.subtitles || []));
-    if (purpose === "tracks") {
-      for (const track of tracks) available.set(track.id, track);
-      continue;
-    }
-    if (!tracks.length) continue;
-    for (const track of trackId ? tracks.filter(item => item.id === trackId) : tracks) {
-      try {
-        const url = new URL(track.subtitleUrl);
-        if (url.protocol !== "https:" || !(url.hostname === "hdslb.com" || url.hostname.endsWith(".hdslb.com") || url.hostname.endsWith(".bilibili.com"))) throw new Error("字幕地址不属于 B站字幕服务。");
-        const subtitle = await courseBiliJson(url.href);
-        const body = (Array.isArray(subtitle.body) ? subtitle.body : []).filter(item => Number.isFinite(item.from) && item.from >= 0 && typeof item.content === "string" && item.content.trim());
-        if (!body.length) continue;
-        if (page.duration > 0 && body.some(item => Number(item.to || item.from) > page.duration + 15)) throw new Error("字幕超出该 P 的时长，已停止保存，请核对字幕轨。");
-        if (trackId || courseTrackLanguage(track) === "zh") return { track, body };
-        if (!fallback || (courseTrackLanguage(track) === "en" && courseTrackLanguage(fallback.track) !== "en")) fallback = { track, body };
-      } catch (error) { if (error.fatal) throw error; trackError = error; }
-    }
-  }
-  if (purpose === "tracks" && available.size) return normalizeSubtitleTracks([...available.values()]).map(({ id, lan, lanDoc }) => ({ id, lan, lanDoc }));
-  if (fallback) return fallback;
-  if (trackError || lastError) throw trackError || lastError;
-  if (purpose === "tracks") return [];
-  if (trackId) throw new Error("所选字幕暂不可用，请重新读取视频或选择其他语言");
-  return null;
+  return courseReadBiliSubtitle(await courseBiliSubtitleTracks(meta, page), page, trackId);
 }

@@ -3,21 +3,18 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const test = require('node:test');
 const core = require('../extension/shared/course.js');
-const background = ['bilibili.js', 'obsidian.js', 'history.js', 'courses.js'].map(file => fs.readFileSync(require('node:path').join(__dirname, '../extension/background', file), 'utf8')).join('\n');
+const background = ['wbi.js', 'bilibili.js', 'obsidian.js', 'history.js', 'courses.js'].map(file => fs.readFileSync(require('node:path').join(__dirname, '../extension/background', file), 'utf8')).join('\n');
 const meta = { bvid: 'BV1ps4y1d73V', aid: '123', title: '计算机组成原理', author: '讲师', pages: [{ cid: '456' }] };
 const page = { cid: '456', page: 10, part: '2.1.1_进位计数制', duration: 60, chapter: '2', status: 'saved' };
 function harness({ existing = null, rawFiles = [], tracks = true, needLogin = false, biliCode = 0, body = [{ from: 0, to: 3, content: '示例' }], secondExists = false, localStatus, asrJob } = {}) {
   const calls = [], writes = [], stored = {};
   let getCount = 0;
-  const context = vm.createContext({ CourseCore: core, URL, URLSearchParams, AbortSignal, console,
+  const context = vm.createContext({ CourseCore: core, URL, URLSearchParams, AbortSignal, TextEncoder, console,
     getMergedSettings: async () => ({ obsidianApiBaseUrl: 'http://127.0.0.1:27123', obsidianApiKey: 'test-key' }),
     normalizeConnection: settings => settings,
     asrStart: async () => ({ id: 'a'.repeat(32), status: 'queued' }),
     asrPoll: async () => asrJob || ({ bvid: meta.bvid, cid: page.cid, status: 'done', language: 'zh', body: [{ from: 2, to: 4, content: '本地识别文本' }] }),
     asrCancel: async () => ({ status: 'stopping' }),
-    buildSubtitleInfoRequests: () => [{ url: 'https://api.bilibili.com/player' }],
-    mapSubtitleTracks: list => list,
-    normalizeSubtitleTracks: list => list,
     chrome: { runtime: { id: 'test', getURL: name => `chrome-extension://test/${name}`, onMessage: { addListener() {} } },
       storage: { local: { get: async key => ({ [key]: stored[key] }), set: async data => Object.assign(stored, data) } } },
     fetch: async (url, options = {}) => {
@@ -35,7 +32,8 @@ function harness({ existing = null, rawFiles = [], tracks = true, needLogin = fa
         const value = secondExists && getCount > 1 ? 'new user content' : existing;
         return value === null ? { ok: false, status: 404 } : { ok: true, status: 200, text: async () => value };
       }
-      if (url.includes('api.bilibili.com')) return { ok: true, status: 200, json: async () => ({ code: biliCode, message: 'test', data: { need_login_subtitle: needLogin, subtitle: { subtitles: tracks ? [{ id: 1, subtitle_url: 'https://aisubtitle.hdslb.com/test', lan: 'ai-zh', lan_doc: '中文（自动生成）' }] : [] } } }) };
+      if (url.includes('/x/web-interface/nav')) return { ok: true, json: async () => ({ code: 0, data: { isLogin: true, wbi_img: { img_url: 'https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png', sub_url: 'https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png' } } }) };
+      if (url.includes('api.bilibili.com')) return { ok: true, status: 200, json: async () => ({ code: biliCode, message: 'test', data: { cid: 456, aid: 123, need_login_subtitle: needLogin, subtitle: { subtitles: tracks ? [{ id: 1, subtitle_url: 'https://aisubtitle.hdslb.com/test', lan: 'ai-zh', lan_doc: '中文（自动生成）' }] : [] } } }) };
       return { ok: true, status: 200, json: async () => ({ body }) };
     }
   });
@@ -194,6 +192,29 @@ test('empty local ASR result does not create a note', async () => {
   const h = harness({ tracks: false, asrJob: { bvid: meta.bvid, cid: page.cid, status: 'done', body: [] } });
   await assert.rejects(h.run('asr-finish', { jobId: 'a'.repeat(32) }));
   assert.equal(h.writes.length, 0);
+});
+
+test('SiliconFlow saves a plain transcript with provenance and no fabricated timestamp links', async () => {
+  const h = harness({ tracks: false, asrJob: { bvid: meta.bvid, cid: page.cid, status: 'done', provider: 'siliconflow',
+    timestamps: false, language: 'en', body: [{ content: 'Original wording.' }, { content: 'Second original paragraph.' }] } });
+  const result = await h.run('asr-finish', { jobId: 'a'.repeat(32) });
+  assert.equal(result.status, 'saved');
+  assert.equal(result.track.timestamps, false);
+  const text = h.writes[0].body;
+  assert.match(text, /subtitle_source: "siliconflow-asr"/);
+  assert.match(text, /transcription_model: "FunAudioLLM\/SenseVoiceSmall"/);
+  assert.match(text, /transcription_timestamps: false/);
+  assert.match(text, /## 转录稿\n\nOriginal wording\.\n\nSecond original paragraph\./);
+  assert.doesNotMatch(text, /\?p=10&t=|\[00:/);
+});
+
+test('Groq transcription preserves precise video time links and model identity', async () => {
+  const h = harness({ tracks: false, asrJob: { bvid: meta.bvid, cid: page.cid, status: 'done', provider: 'groq',
+    timestamps: true, language: 'en', body: [{ from: 121.5, to: 125, content: 'Lecture content.' }] } });
+  await h.run('asr-finish', { jobId: 'a'.repeat(32) });
+  assert.match(h.writes[0].body, /subtitle_source: "groq-asr"/);
+  assert.match(h.writes[0].body, /transcription_model: "whisper-large-v3-turbo"/);
+  assert.match(h.writes[0].body, /\[00:02:01\]\(https:\/\/www.bilibili.com\/video\/BV1ps4y1d73V\/\?p=10&t=121\)/);
 });
 test('login requirement and rate-limit stop the queue instead of marking no subtitle', async () => {
   for (const options of [{ needLogin: true }, { biliCode: -352 }]) { const h = harness(options); await assert.rejects(h.run('import'), e => e.fatal === true); assert.equal(h.writes.length, 0); }

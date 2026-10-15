@@ -1,34 +1,47 @@
-/* 本地转写的连接页面、配对操作和转写队列。 */
+/* 音频转写的引擎设置、组件配对和共用转写队列。 */
 window.createTranscriptionPage = function ({ getCatalog, send, feedback, navigate, importAction, previewView }) {
   const ui = UiText.transcription;
   const $ = id => document.getElementById(id);
   const { status, settings: showSettingsFeedback } = feedback;
-  let activeAsrJob = "", pendingAsrPages = [];
+  let activeAsrJob = "", settings = { provider: "local", hasApiKeys: {} };
+  const controls = createNoteControls($("asr-page"));
+  function renderSettings() {
+    const provider = $("asr-provider").value, online = provider !== "local";
+    $("asr-key-row").hidden = !online;
+    $("asr-clear-key").hidden = !online || !settings.hasApiKeys?.[provider];
+    $("asr-api-key").placeholder = settings.hasApiKeys?.[provider] ? ui.savedKey : ui.keyPlaceholder;
+    $("asr-provider-help").textContent = online ? ui.onlineHelp : ui.localHelp;
+    $("asr-model").textContent = ui.models[provider];
+    $("asr-policy").textContent = ui.policies[provider];
+    controls.decorateSelect($("asr-provider"));
+  }
+  function showConnection(result) {
+    $("asr-pair-fields").hidden = Boolean(result.paired && !result.needsPairing);
+    const connected = result.componentConnected ?? result.connected;
+    $("asr-state").textContent = connected ? ui.connected : ui.disconnected;
+    $("asr-state").classList.toggle("is-ready", connected);
+  }
   function reportImportResult(label, counts, remaining, error = null, detail = "") {
     return importAction.result(label, counts, remaining, error, detail, getCatalog().getState().stopping);
   }
   async function refresh() {
     const result = await send({ type: "asr-status" });
+    settings = result.settings || settings;
     $("asr-current").textContent = result.connected ? ui.current : result.paired ? ui.check : ui.setup;
+    $("asr-engine-label").textContent = ui.engines[result.provider || "local"];
+    $("asr-selected").title = ui.engines[result.provider || "local"];
     return result;
   }
   async function open(result = null) {
     result ||= await refresh();
-    $("asr-pair-fields").hidden = !result.needsPairing;
-    $("asr-connect").hidden = !result.needsPairing;
-    $("asr-state").textContent = result.connected ? ui.connected : ui.disconnected;
-    $("asr-state").classList.toggle("is-ready", result.connected);
-    showSettingsFeedback("asr-settings-status", result.error || (result.connected
+    $("asr-provider").value = settings.provider;
+    $("asr-api-key").value = "";
+    renderSettings(); showConnection(result);
+    showSettingsFeedback("asr-settings-status", result.error || (result.connected && (result.provider || "local") === "local"
       ? result.gpuNotice || (result.device === "cuda" ? ui.gpuConnected : result.gpuEnabled ? ui.gpuPending : ui.cpuConnected)
-      : result.needsPairing ? "" : ui.startService));
+      : result.componentConnected || result.needsPairing ? "" : ui.startService));
     navigate("asr-page");
     return result;
-  }
-  async function continuePendingAsr() {
-    const selected = pendingAsrPages;
-    pendingAsrPages = [];
-    if (selected.length) { navigate("catalog-page"); await run(selected); }
-    else await open();
   }
   async function run(selected) {
     const catalog = getCatalog(), state = catalog.getState(), { meta } = state;
@@ -39,13 +52,9 @@ window.createTranscriptionPage = function ({ getCatalog, send, feedback, navigat
       return;
     }
     if (!connection.connected) {
-      if (connection.installed && connection.paired && !connection.needsPairing) {
-        status(connection.error || ui.unavailable, true);
-        return;
-      }
-      pendingAsrPages = selected; await open(connection); return;
+      await open(connection); return;
     }
-    pendingAsrPages = [];
+    const provider = connection.provider || "local";
     try { CourseCore.normalizeFolder($("folder").value); } catch (error) { status(error.message, true); return; }
     await navigator.locks.request(`boc-course:${meta.bvid}`, { ifAvailable: true }, async lock => {
       if (!lock) { status(ui.locked, true); return; }
@@ -58,7 +67,7 @@ window.createTranscriptionPage = function ({ getCatalog, send, feedback, navigat
           if (catalog.getState().stopping) break;
           page.status = "running"; page.error = ""; catalog.render();
           try {
-            const started = await catalog.request("asr-start", { page });
+            const started = await catalog.request("asr-start", { page, provider });
             if (started.status === "exists") { page.status = "exists"; }
             else if (started.status === "subtitle-available") {
               const result = await catalog.request("import", { page });
@@ -70,14 +79,24 @@ window.createTranscriptionPage = function ({ getCatalog, send, feedback, navigat
                 const job = await catalog.request("asr-poll", { page, jobId: activeAsrJob });
                 if (catalog.getState().stopping) break;
                 if (job.status === "done") {
-                  runtimeNote = job.gpu_notice || (job.device === "cuda" ? ui.gpuResult : ui.cpuResult);
+                  runtimeNote = provider === "local" ? job.gpu_notice || (job.device === "cuda" ? ui.gpuResult : ui.cpuResult)
+                    : `${ui.engines[provider]} · ${job.timestamps === false ? ui.plainText : ui.timestamped}`;
                   const result = await catalog.request("asr-finish", { page, jobId: activeAsrJob });
-                  page.status = result.status; break;
+                  page.status = result.status;
+                  if (result.body && catalog.getState().activeAsrPage?.cid === page.cid) {
+                    previewView.transcript(meta, page, result.body, result.track.timestamps !== false);
+                  }
+                  break;
                 }
                 if (job.status === "failed" || job.status === "canceled") throw new Error(job.detail || ui.jobStopped);
+                importAction.progress(done, selected.length, ui.stages[job.status] || ui.phase);
                 await new Promise(resolve => setTimeout(resolve, 2000));
               }
-              if (catalog.getState().stopping) { await catalog.request("asr-cancel", { page, jobId: activeAsrJob }).catch(() => {}); page.status = "missing"; }
+              if (catalog.getState().stopping) {
+                await catalog.request("asr-cancel", { page, jobId: activeAsrJob }).catch(() => {});
+                if (provider !== "local") runtimeNote = ui.cancelCloud;
+                page.status = "missing";
+              }
             }
           } catch (error) {
             page.status = catalog.getState().stopping ? "missing" : "failed";
@@ -86,7 +105,7 @@ window.createTranscriptionPage = function ({ getCatalog, send, feedback, navigat
           finally { activeAsrJob = ""; }
           if (["saved", "exists"].includes(page.status) && catalog.getState().activeAsrPage?.cid === page.cid) {
             $("asr-panel").hidden = true;
-            previewView.message(page.status === "saved" ? ui.saved : ui.exists);
+            if (page.status === "exists") previewView.message(ui.exists);
           }
           counts[page.status] = (counts[page.status] || 0) + 1; done++; importAction.progress(done, selected.length, ui.phase);
           await catalog.persist(); catalog.render(); await catalog.updateIndex();
@@ -103,19 +122,34 @@ window.createTranscriptionPage = function ({ getCatalog, send, feedback, navigat
   $("asr-connect").addEventListener("click", async () => {
     $("asr-connect").disabled = true;
     try {
-      await send({ type: "asr-pair", token: $("asr-token").value });
+      if ($("asr-token").value.trim()) await send({ type: "asr-pair", token: $("asr-token").value });
       $("asr-token").value = "";
-      if ((await refresh()).connected) await continuePendingAsr();
-      else await open();
+      const result = await send({ type: "asr-settings-save", settings: { provider: $("asr-provider").value, apiKey: $("asr-api-key").value } });
+      settings = result.settings;
+      $("asr-api-key").value = "";
+      renderSettings(); showConnection(await refresh());
+      showSettingsFeedback("asr-settings-status", settings.provider === "local" ? ui.localSettingsSaved : ui.settingsSaved);
     } catch (error) { showSettingsFeedback("asr-settings-status", error.message); }
     finally { $("asr-connect").disabled = false; }
   });
   $("asr-refresh").addEventListener("click", async () => {
     $("asr-refresh").disabled = true;
     try {
-      if ((await open()).connected) await continuePendingAsr();
+      const result = await refresh();
+      showConnection(result);
+      showSettingsFeedback("asr-settings-status", result.error || ui.connected);
     } catch (error) { showSettingsFeedback("asr-settings-status", error.message); }
     finally { $("asr-refresh").disabled = false; }
+  });
+  $("asr-provider").addEventListener("change", () => { $("asr-api-key").value = ""; renderSettings(); });
+  $("asr-clear-key").addEventListener("click", async () => {
+    $("asr-clear-key").disabled = true;
+    try {
+      const result = await send({ type: "asr-settings-save", settings: { provider: $("asr-provider").value, clearKey: true } });
+      settings = result.settings; $("asr-api-key").value = "";
+      renderSettings(); await refresh(); showSettingsFeedback("asr-settings-status", ui.keyCleared);
+    } catch (error) { showSettingsFeedback("asr-settings-status", error.message); }
+    finally { $("asr-clear-key").disabled = false; }
   });
   $("local-asr-settings").addEventListener("click", () => open().catch(error => status(error.message, true)));
   return { refresh, open, run };

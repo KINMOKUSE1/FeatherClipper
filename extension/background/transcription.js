@@ -1,12 +1,35 @@
-/* Optional local transcription stays separate from the ordinary subtitle path. */
+/* 转写配置与本地任务服务；在线 Key 只在后台读取并随任务传给本机组件。 */
 const ASR_BASE = "http://127.0.0.1:27347";
+
+async function asrSettings() {
+  const stored = (await chrome.storage.local.get("asrSettings")).asrSettings || {};
+  return { provider: ["local", "groq", "siliconflow"].includes(stored.provider) ? stored.provider : "local", keys: stored.keys || {} };
+}
+function asrPublicSettings(settings) {
+  return { provider: settings.provider, hasApiKeys: { groq: Boolean(settings.keys.groq), siliconflow: Boolean(settings.keys.siliconflow) } };
+}
+async function asrSaveSettings(draft) {
+  if (!["local", "groq", "siliconflow"].includes(draft?.provider)) throw new Error("请选择有效的转写引擎");
+  const saved = await asrSettings();
+  const settings = { provider: draft.clearKey ? saved.provider : draft.provider, keys: { ...saved.keys } };
+  if (draft.provider !== "local") {
+    const key = String(draft.apiKey || "").trim();
+    if (draft.clearKey) delete settings.keys[draft.provider];
+    else if (key) {
+      if (key.length > 512 || /\s/.test(key)) throw new Error("API Key 格式无效");
+      settings.keys[draft.provider] = key;
+    }
+  }
+  await chrome.storage.local.set({ asrSettings: settings });
+  return { settings: asrPublicSettings(settings) };
+}
 
 async function asrRequest(path, method = "GET", body, token = "") {
   let response;
   try {
     response = await fetch(`${ASR_BASE}${path}`, {
       method,
-      headers: { ...(body ? { "Content-Type": "application/json" } : {}), ...(token ? { "X-Course-Cove-Token": token } : {}) },
+      headers: { ...(body ? { "Content-Type": "application/json" } : {}), ...(token ? { "X-Vid2Notes-Token": token } : {}) },
       body: body ? JSON.stringify(body) : undefined,
       signal: AbortSignal.timeout(15000),
     });
@@ -27,12 +50,26 @@ async function asrToken() {
 }
 
 async function asrStatus() {
+  const settings = await asrSettings();
+  const config = asrPublicSettings(settings);
+  const result = await asrComponentStatus();
+  let error = result.error;
+  if (result.connected) {
+    if (settings.provider === "local" && !result.modelReady) error = "本地模型尚未准备好，可安装模型或选择在线引擎";
+    else if (settings.provider !== "local" && !result.providers?.includes(settings.provider)) error = "当前组件不支持在线转写，请更新组件源码并重启";
+    else if (settings.provider !== "local" && !settings.keys[settings.provider]) error = "请填写并保存所选服务商的 API Key";
+  }
+  return { ...result, settings: config, provider: settings.provider, componentConnected: result.connected,
+    connected: result.connected && !error, error };
+}
+
+async function asrComponentStatus() {
   const token = await asrToken();
   const paired = Boolean(token);
   let health;
   try { health = await asrRequest("/health"); }
   catch { return { installed: false, connected: false, paired, error: "本地转写服务未启动。启动后点击“重新检测”。" }; }
-  if (health.service !== "course-cove-asr" || health.version !== 1 || !health.model_ready) {
+  if (health.service !== "vid2notes-asr" || health.version !== 1) {
     return { installed: true, connected: false, paired, error: "本地转写组件或模型尚未准备好。" };
   }
   if (health.audio_backups !== true) {
@@ -42,6 +79,7 @@ async function asrStatus() {
   try {
     await asrRequest("/pair", "GET", null, token);
     return { installed: true, connected: true, paired: true,
+      modelReady: health.model_ready === true, providers: health.providers,
       device: health.device, gpuEnabled: health.gpu_enabled, gpuNotice: health.gpu_notice, youtubeAudio: health.youtube_audio === true };
   }
   catch (error) {
@@ -79,11 +117,16 @@ async function asrAudioUrls(meta, page) {
   }))].slice(0, 4);
 }
 
-async function asrStart(meta, page) {
+async function asrStart(meta, page, provider) {
+  const settings = await asrSettings();
+  provider ||= settings.provider;
+  if (provider !== settings.provider) throw new Error("转写引擎已修改，请重新开始本次任务");
+  if (provider !== "local" && !settings.keys[provider]) throw new Error("请先保存服务商 API Key");
   const token = await asrToken();
   if (!token) throw new Error("先安装并连接本地转写组件。");
   const audioUrls = await asrAudioUrls(meta, page);
-  return asrRequest("/jobs", "POST", { bvid: meta.bvid, cid: page.cid, audio_url: audioUrls[0], audio_urls: audioUrls }, token);
+  return asrRequest("/jobs", "POST", { bvid: meta.bvid, cid: page.cid, audio_url: audioUrls[0], audio_urls: audioUrls,
+    provider, ...(provider !== "local" ? { api_key: settings.keys[provider] } : {}) }, token);
 }
 
 async function asrPoll(jobId) {
@@ -101,12 +144,13 @@ async function asrCancel(jobId) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (!["asr-status", "asr-pair"].includes(message?.type)) return false;
+  if (!["asr-status", "asr-pair", "asr-settings-save"].includes(message?.type)) return false;
   if (sender.id !== chrome.runtime.id || !["workbench/index.html", "popup/index.html"].some(file => String(sender.url || "").split(/[?#]/)[0] === chrome.runtime.getURL(file))) {
     sendResponse({ ok: false, error: "请从扩展页面连接本地转写组件。" });
     return false;
   }
-  Promise.resolve().then(() => message.type === "asr-status" ? asrStatus() : asrPair(message.token))
+  Promise.resolve().then(() => message.type === "asr-status" ? asrStatus()
+    : message.type === "asr-pair" ? asrPair(message.token) : asrSaveSettings(message.settings))
     .then(data => sendResponse({ ok: true, ...data }))
     .catch(error => sendResponse({ ok: false, error: error.message }));
   return true;

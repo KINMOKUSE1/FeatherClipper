@@ -57,5 +57,20 @@ window.createSubtitlePreview = function () {
     message.textContent = text;
     document.getElementById("preview-body").replaceChildren(message);
   }
-  return { isOpen: () => previewOpen, open: setPreviewOpen, close: closePreview, message: previewMessage };
+  function transcript(meta, page, body, timestamps = true) {
+    const container = document.getElementById("preview-body");
+    container.replaceChildren();
+    const groups = timestamps ? CourseCore.groupSubtitles(body, meta.platform) : body;
+    for (const item of groups.slice(0, 100)) {
+      const paragraph = document.createElement("p");
+      if (timestamps) {
+        const time = document.createElement("a");
+        time.textContent = new Date(Math.floor(item.from) * 1000).toISOString().slice(11, 19);
+        time.href = CourseCore.timestampUrl(meta, page, item.from); time.target = "_blank"; time.rel = "noopener";
+        paragraph.append(time);
+      }
+      paragraph.append(document.createTextNode(item.content)); container.append(paragraph);
+    }
+  }
+  return { isOpen: () => previewOpen, open: setPreviewOpen, close: closePreview, message: previewMessage, transcript };
 };

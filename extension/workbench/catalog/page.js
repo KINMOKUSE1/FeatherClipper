@@ -213,14 +213,7 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
         if (run !== previewRun) return;
         render();
       }
-      $("preview-body").replaceChildren();
-      const groups = CourseCore.groupSubtitles(result.body, meta.platform);
-      for (const item of groups.slice(0, 100)) {
-        const paragraph = document.createElement("p"), time = document.createElement("a");
-        time.textContent = new Date(Math.floor(item.from) * 1000).toISOString().slice(11, 19);
-        time.href = CourseCore.timestampUrl(meta, page, item.from); time.target = "_blank"; time.rel = "noopener";
-        paragraph.append(time, document.createTextNode(item.content)); $("preview-body").append(paragraph);
-      }
+      previewView.transcript(meta, page, result.body);
     } catch (error) { if (run === previewRun) previewView.message(error.message, true); }
     finally { if (run === previewRun) { previewLoading = false; syncControls(); } }
   }

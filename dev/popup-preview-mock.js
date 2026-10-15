@@ -42,14 +42,13 @@
     }
     if (message.type === "course-request") {
       if (message.action === "meta") return { ok: true, meta, folder: settings.noteFolder };
-      if (message.action === "tracks") return { ok: true, tracks: scenario === "missing" ? [] : [{ id: "zh", lan: "zh", lanDoc: "中文" }, { id: "en", lan: "en", lanDoc: "English" }] };
       if (message.action === "preview") {
         if (scenario === "loading") return new Promise(() => {});
         if (scenario === "error") return { ok: false, error: "字幕读取失败，请登录视频平台后重试。（示例）" };
-        if (scenario === "missing") return { ok: true, body: [], missing: true };
+        if (scenario === "missing") return { ok: true, tracks: [], body: [], missing: true };
         const english = message.trackId === "en";
         const lines = english ? ["We begin with a URL entered in the browser and follow the entire request.", "The browser finds the server address, establishes a connection, and sends an HTTP request.", "The server returns a response. The browser parses HTML to build the page structure.", "CSS controls layout and appearance. JavaScript changes the page and responds to user actions.", "Structure, style, and behavior determine the page you see."] : chinese;
-        return { ok: true, track: { id: english ? "en" : "zh", lan: english ? "en" : "zh", lanDoc: english ? "English" : "中文" }, body: lines.map((content, i) => ({ from: i * 35, to: i * 35 + 12, content })) };
+        return { ok: true, tracks: [{ id: "zh", lan: "zh", lanDoc: "中文" }, { id: "en", lan: "en", lanDoc: "English" }], track: { id: english ? "en" : "zh", lan: english ? "en" : "zh", lanDoc: english ? "English" : "中文" }, body: lines.map((content, i) => ({ from: i * 35, to: i * 35 + 12, content })) };
       }
     }
     return { ok: false, error: "开发预览未模拟此操作。" };
@@ -76,7 +75,7 @@
       query: async () => [{ url: scenario === "empty" ? "https://example.org/" : "https://www.bilibili.com/video/BV1ps4y1d73V/" }],
       create: async ({ url }) => {
         const target = new URL(url);
-        const text = target.searchParams.get("asr") === "1" ? "预览：正式扩展会打开本地转写工作台。"
+        const text = target.searchParams.get("asr") === "1" ? "预览：正式扩展会打开音频转写工作台。"
           : target.searchParams.get("scope") === "all" ? "预览：正式扩展会打开工作台并选中整门课程。"
           : "预览：正式扩展会打开工作台，供你选择章节。";
         window.parent.postMessage({ type: "preview-navigation", text }, new URL(document.baseURI).origin);

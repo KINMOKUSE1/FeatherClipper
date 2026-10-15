@@ -1,11 +1,15 @@
-<section id="asr-page" class="configuration-page" aria-labelledby="asr-title" hidden>
+<section id="asr-page" class="configuration-page asr-settings" aria-labelledby="asr-title" hidden>
   <div class="settings-scroll">
-  <header class="preferences-heading"><h1 id="asr-title">本地转写</h1><p class="section-description">连接本地组件，为没有字幕的课程转写音频。</p></header>
+  <header class="preferences-heading"><h1 id="asr-title">音频转写</h1><p class="section-description">为没有字幕的课程转写音频，使用本地模型或在线服务。</p></header>
   <div class="configuration-fields settings-group">
-    <div class="configuration-intro"><span>转写组件</span><span id="asr-state" class="configuration-state">未连接</span></div>
+    <div class="settings-row"><label for="asr-provider">转写引擎</label><select id="asr-provider"><option value="local">本地模型</option><option value="groq">Groq</option><option value="siliconflow">硅基流动</option></select><p id="asr-provider-help" class="field-help">音频在本机处理</p></div>
+    <div class="configuration-intro"><span>音频处理组件</span><span id="asr-state" class="configuration-state">未连接</span></div>
     <div id="asr-pair-fields" class="configuration-field settings-row"><label for="asr-token">连接码</label><input id="asr-token" type="password" autocomplete="off" placeholder="粘贴组件提供的连接码"><p class="field-help">首次连接时填写，之后可直接检测服务。</p></div>
+    <div id="asr-key-row" class="settings-row" hidden><label for="asr-api-key">API Key</label><input id="asr-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="粘贴服务商 API Key"><p class="field-help">仅保存在本机，实际转写时验证</p></div>
+    <div class="settings-row"><label>模型</label><p id="asr-model" class="asr-setting-value">faster-whisper-small</p></div>
+    <div class="settings-row"><label>用量</label><p id="asr-policy" class="asr-setting-value">使用本机 CPU / GPU</p></div>
   </div>
-  <section class="configuration-guide" aria-labelledby="asr-guide-title"><h2 id="asr-guide-title" class="preference-group-title">安装与启动</h2><ol class="setup-steps settings-group"><li><a href="../vid2notes-asr-setup.exe" download="vid2notes-asr-setup.exe">下载安装程序</a>，双击后选择目录与 CPU / GPU 环境。</li><li>在完成页复制连接码，并启动本地转写组件。</li><li>在上方填写连接码，点击“连接组件”。以后可从开始菜单启动本地转写。</li></ol></section>
+  <section class="configuration-guide" aria-labelledby="asr-guide-title"><h2 id="asr-guide-title" class="preference-group-title">安装与启动</h2><ol class="setup-steps settings-group"><li><a href="../vid2notes-asr-setup.exe" download="vid2notes-asr-setup.exe">下载安装程序</a>，选择 CPU、GPU 或“仅在线转写”环境。</li><li>复制连接码并启动组件，在线引擎也通过组件下载和切分音频。</li><li>填写连接码与所选引擎的配置，点击“保存配置”，回到课程素材页开始转写。</li></ol></section>
   </div>
-  <footer class="configuration-footer"><div class="settings-footer-info"><div class="settings-feedback" hidden><p id="asr-settings-status" role="status" aria-live="polite"></p><button class="settings-feedback-close" type="button" aria-label="关闭提示">×</button></div></div><div class="configuration-actions"><button id="asr-refresh" class="text-button" type="button"><span class="icon icon-retry" aria-hidden="true"></span>重新检测</button><button id="asr-connect" type="button">连接组件</button></div></footer>
+  <footer class="configuration-footer"><div class="settings-footer-info"><div class="settings-feedback" hidden><p id="asr-settings-status" role="status" aria-live="polite"></p><button class="settings-feedback-close" type="button" aria-label="关闭提示">×</button></div></div><div class="configuration-actions"><button id="asr-clear-key" class="text-button" type="button" hidden>清除 Key</button><button id="asr-refresh" class="text-button" type="button"><span class="icon icon-retry" aria-hidden="true"></span>检测组件</button><button id="asr-connect" type="button">保存配置</button></div></footer>
 </section>

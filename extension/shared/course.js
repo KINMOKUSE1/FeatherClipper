@@ -112,14 +112,18 @@
   }
   function buildRaw(meta, page, track, body) {
     const q = JSON.stringify;
+    const timestamps = track.timestamps !== false;
+    const transcribed = Boolean(track.source?.endsWith("-asr"));
     const partTitle = String(page.part || "").replace(/\r?\n/g, " ").trim() || `P${page.page}`;
     return ["---", `title: ${q(partTitle)}`, `course: ${q(meta.title)}`,
       `url: ${q(videoUrl(meta, page))}`, ...(meta.platform === "youtube" ? [`platform: youtube`, `youtube_id: ${q(page.cid)}`] : [`bvid: ${q(meta.bvid)}`, `cid: ${q(page.cid)}`]),
       `page: ${page.page}`, `chapter: ${q(page.chapter)}`, `author: ${q(meta.author)}`,
-      `subtitle_lang: ${q(track.lanDoc || track.lan)}`, ...(track.source ? [`subtitle_source: ${q(track.source)}`] : []), `created: ${q(new Date().toISOString())}`,
+      `subtitle_lang: ${q(track.lanDoc || track.lan)}`, ...(track.source ? [`subtitle_source: ${q(track.source)}`] : []),
+      ...(track.model ? [`transcription_model: ${q(track.model)}`, `transcription_timestamps: ${timestamps}`] : []), `created: ${q(new Date().toISOString())}`,
       `tags: [clippings, ${meta.platform === "youtube" ? "youtube" : "bilibili"}, course-source]`, "---", "", `# ${partTitle}`, "",
-      track.source === "local-asr" ? "> 本地模型转写的原始素材，可能有错词。请结合视频核对；板书、图表和公式仍需回看。" : "> 原始字幕素材。章节归属以课程导入清单为准；字幕不能完整替代视频中的板书、图表和公式。", "", "## 字幕", "",
-      ...groupSubtitles(body, meta.platform).map(item => `[${timestamp(item.from)}](${timestampUrl(meta, page, item.from)}) ${item.content}\n`), ""].join("\n");
+      transcribed ? `> ${track.lanDoc}生成的原始转录稿${timestamps ? "，带分段时间戳" : "，没有时间戳"}。` : "> 原始字幕素材。章节归属以课程导入清单为准；字幕不能完整替代视频中的板书、图表和公式。", "", timestamps ? "## 字幕" : "## 转录稿", "",
+      ...(timestamps ? groupSubtitles(body, meta.platform).map(item => `[${timestamp(item.from)}](${timestampUrl(meta, page, item.from)}) ${item.content}\n`)
+        : body.map(item => `${item.content}\n`)), ""].join("\n");
   }
   function tableText(value) { return String(value || "").replace(/\|/g, "\\|").replace(/[\r\n]/g, " "); }
   function buildIndex(meta, pages, base) {

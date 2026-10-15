@@ -3,6 +3,7 @@ importScripts(
   "../shared/course.js",
   "../shared/import-history.js",
   "settings.js",
+  "wbi.js",
   "bilibili.js",
   "youtube.js",
   "video-navigation.js",

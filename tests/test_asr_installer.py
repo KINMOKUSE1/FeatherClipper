@@ -103,6 +103,17 @@ class InstallerWorkerTests(unittest.TestCase):
         self.assertEqual(code.read_text(), "existing-test-code")
         self.assertNotIn(b"existing-test-code", result.stdout + result.stderr)
 
+    def test_online_install_skips_model_and_gpu_downloads(self):
+        home = self.prepare("online-only")
+        result, code = self.run_worker(home, "online")
+        self.assertEqual(result.returncode, 0, result.stdout.decode("utf-8", errors="replace"))
+        self.assertFalse((home / "model/model.bin").exists())
+        self.assertFalse((home / ".venv/Lib/site-packages/nvidia").exists())
+        self.assertTrue(code.exists())
+        config = json.loads((home / "config.json").read_text())
+        self.assertFalse(config["gpu_enabled"])
+        self.assertNotIn(config["token"].encode(), result.stdout + result.stderr)
+
     def test_unrelated_nonempty_directory_is_not_modified(self):
         home = self.root / "unrelated"
         home.mkdir()
@@ -123,7 +134,7 @@ class InstallerWorkerTests(unittest.TestCase):
             self.skipTest("Inno Setup compiler is required for the EXE integration test")
         payload = self.root / "native-setup"
         payload.mkdir()
-        for name in ("installer.iss", "setup-runtime.ps1", "download_model.py", "server.py", "start-local-asr.cmd", "README.md"):
+        for name in ("installer.iss", "setup-runtime.ps1", "download_model.py", "server.py", "online.py", "start-local-asr.cmd", "README.md"):
             shutil.copy2(ROOT / "asr" / name, payload / name)
         shutil.copytree(ROOT / "asr/languages", payload / "languages")
         # Keep the real wizard and worker, but isolate install registration and shortcuts.

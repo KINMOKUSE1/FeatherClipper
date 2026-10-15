@@ -390,7 +390,7 @@ async function youtubeTab(videoId, playlistId, activate = false) {
   if (tab && activate && !tab.active) tab = await chrome.tabs.update(tab.id, { active: true });
   if (tab?.status === "complete") return tab;
   if (!tab) {
-    const key = "course-cove-youtube-tab";
+    const key = "vid2notes-youtube-tab";
     const saved = (await chrome.storage.session.get(key))[key];
     const helper = saved && await chrome.tabs.get(saved.id).catch(() => null);
     const url = `https://www.youtube.com/watch?v=${videoId}${playlistId ? `&list=${playlistId}` : ""}`;

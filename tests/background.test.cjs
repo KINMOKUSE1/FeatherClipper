@@ -26,7 +26,7 @@ function boot({ authenticated = true, existing = null, beforeSubtitle, missing =
         ...(args[1] ? { track: { lan: 'en', lanDoc: 'English' }, body: [{ from: 3, to: 5, content: 'First lesson' }] } : {}) } }];
     } }
   };
-  context = vm.createContext({ chrome, console, URL, URLSearchParams, AbortSignal, setInterval, clearInterval, setTimeout, clearTimeout,
+  context = vm.createContext({ chrome, console, URL, URLSearchParams, AbortSignal, TextEncoder, setInterval, clearInterval, setTimeout, clearTimeout,
     navigator: { locks: { request: async (name, options, run) => {
       if (locks.has(name)) return run(null);
       locks.add(name); try { return await run({ name }); } finally { locks.delete(name); }
@@ -44,13 +44,14 @@ function boot({ authenticated = true, existing = null, beforeSubtitle, missing =
         if (vault.has(url)) return { ok: true, text: async () => vault.get(url) };
         return existing === null ? { ok: false, status: 404 } : { ok: true, status: 200, text: async () => existing };
       }
+      if (url.includes('/x/web-interface/nav')) return { ok: true, json: async () => ({ code: 0, data: { isLogin: true, wbi_img: { img_url: 'https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png', sub_url: 'https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png' } } }) };
       if (url.includes('/x/web-interface/view')) return { ok: true, json: async () => ({ code: 0, data: { bvid: 'BVexample', aid: 1, title: 'Course', owner: { name: 'Author' }, pages: [{ cid: 2, page: 1, part: '1.1 Intro', duration: 100 }] } }) };
-      if (url.includes('/x/player/') && missing) return { ok: true, json: async () => ({ code: 0, data: { subtitle: { subtitles: [] } } }) };
+      if (url.includes('/x/player/') && missing) return { ok: true, json: async () => ({ code: 0, data: { cid: new URL(url).searchParams.get('cid'), aid: new URL(url).searchParams.get('aid'), subtitle: { subtitles: [] } } }) };
       if (url.includes('/x/player/') && subtitleLists) {
         const list = url.includes('/wbi/') ? subtitleLists.wbi : subtitleLists.v2;
-        return { ok: true, json: async () => ({ code: 0, data: { subtitle: { subtitles: list || [] } } }) };
+        return { ok: true, json: async () => ({ code: 0, data: { cid: new URL(url).searchParams.get('cid'), aid: new URL(url).searchParams.get('aid'), subtitle: { subtitles: list || [] } } }) };
       }
-      if (url.includes('/x/player/')) return { ok: true, json: async () => ({ code: 0, data: { subtitle: { subtitles: [
+      if (url.includes('/x/player/')) return { ok: true, json: async () => ({ code: 0, data: { cid: new URL(url).searchParams.get('cid'), aid: new URL(url).searchParams.get('aid'), subtitle: { subtitles: [
         { id: 1, lan: 'en', lan_doc: 'English', subtitle_url: '//aisubtitle.hdslb.com/en' },
         { id: 2, lan: 'ai-zh', lan_doc: '中文（自动生成）', subtitle_url: '//aisubtitle.hdslb.com/zh' }
       ] } } }) };
@@ -112,8 +113,8 @@ test('automatic preview and import preserve the actual subtitle language', async
 
 test('automatic Bilibili retrieval imports the only available language', async () => {
   const h = boot({ subtitleLists: {
-    wbi: [],
-    v2: [{ id: 12, lan: 'ja', lan_doc: '日本語', subtitle_url: '//aisubtitle.hdslb.com/ja' }]
+    wbi: [{ id: 12, lan: 'ja', lan_doc: '日本語', subtitle_url: '//aisubtitle.hdslb.com/ja' }],
+    v2: []
   } });
   const preview = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0] }, popupSender);
   assert.equal(preview.track.lan, 'ja');
@@ -122,14 +123,18 @@ test('automatic Bilibili retrieval imports the only available language', async (
   assert.match(h.writes.find(write => decodeURIComponent(write.url).endsWith('1.1 Intro [CID-2].md')).content, /subtitle_lang: "日本語"/);
 });
 
-test('popup lists Bilibili tracks without fetching bodies or exposing subtitle URLs', async () => {
+test('Bilibili preview returns languages and body from one signed discovery without exposing URLs', async () => {
   const h = boot();
-  const result = await h.message({ type: 'course-request', action: 'tracks', meta: quickMeta, page: quickMeta.pages[0] }, popupSender);
+  const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0] }, popupSender);
   assert.equal(result.ok, true);
   assert.equal(result.tracks.length, 2);
   assert.equal(result.tracks[0].id, '2');
   assert.ok(result.tracks.every(track => !('subtitleUrl' in track)));
-  assert.ok(h.fetched.every(url => url.includes('/x/player/')));
+  assert.equal(result.track.id, result.tracks[0].id);
+  assert.equal(h.fetched.filter(url => url.includes('/x/player/')).length, 1);
+  const query = new URL(h.fetched.find(url => url.includes('/x/player/'))).searchParams;
+  assert.match(query.get('w_rid'), /^[a-f0-9]{32}$/);
+  assert.match(query.get('wts'), /^\d+$/);
   assert.equal(h.writes.length, 0);
 });
 
@@ -151,38 +156,45 @@ test('an unavailable selected Bilibili track cannot silently fall back to anothe
   const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0], trackId: 'not-present' }, popupSender);
   assert.equal(result.ok, false);
   assert.match(result.error, /所选字幕暂不可用/);
-  assert.ok(h.fetched.every(url => url.includes('/x/player/')));
+  assert.ok(h.fetched.every(url => url.includes('/x/player/') || url.includes('/x/web-interface/nav')));
 });
-test('an empty first subtitle list falls through to the second endpoint', async () => {
-  const h = boot({ subtitleLists: { wbi: [], v2: [{ id: 1, lan: 'en', lan_doc: 'English', subtitle_url: '//aisubtitle.hdslb.com/en' }] } });
+test('an empty signed list never falls through to unrelated legacy subtitles', async () => {
+  const h = boot({ subtitleLists: { wbi: [], v2: [{ id: 1, lan: 'en', lan_doc: 'English', subtitle_url: '//aisubtitle.hdslb.com/foreign' }] } });
   const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0] });
-  assert.equal(result.track.lan, 'en');
+  assert.equal(result.ok, true);
+  assert.equal(result.missing, true);
+  assert.equal(result.tracks.length, 0);
   assert.ok(h.fetched.some(url => url.includes('/x/player/wbi/v2')));
-  assert.ok(h.fetched.some(url => url.includes('/x/player/v2')));
+  assert.ok(!h.fetched.some(url => url.includes('/x/player/v2') || url.endsWith('/foreign')));
 });
-test('automatic language selection still prefers Chinese across endpoints', async () => {
+
+test('automatic language selection uses only the signed response', async () => {
   const h = boot({ subtitleLists: {
     wbi: [{ id: 1, lan: 'en', lan_doc: 'English', subtitle_url: '//aisubtitle.hdslb.com/en' }],
     v2: [{ id: 2, lan: 'ai-zh', lan_doc: '中文（自动生成）', subtitle_url: '//aisubtitle.hdslb.com/zh' }]
   } });
   const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0] });
-  assert.equal(result.track.lan, 'ai-zh');
+  assert.equal(result.track.lan, 'en');
+  assert.ok(!h.fetched.some(url => url.endsWith('/zh')));
 });
+
 test('an available Chinese subtitle does not require a language selection', async () => {
   const h = boot({ subtitleLists: { wbi: [{ id: 1, lan: 'ai-zh', lan_doc: '中文（自动生成）', subtitle_url: '//aisubtitle.hdslb.com/zh' }], v2: [] } });
   const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0] });
   assert.equal(result.ok, true);
   assert.equal(result.track.lan, 'ai-zh');
 });
-test('an empty subtitle body falls through to the second endpoint', async () => {
+test('an empty signed body does not use a body from the legacy endpoint', async () => {
   const h = boot({ subtitleLists: {
-    wbi: [{ id: 1, lan: 'en', lan_doc: 'English', subtitle_url: '//aisubtitle.hdslb.com/wrong' }],
-    v2: [{ id: 2, lan: 'en', lan_doc: 'English', subtitle_url: '//aisubtitle.hdslb.com/correct' }]
-  }, beforeSubtitle: url => url.endsWith('/wrong') ? [] : [{ from: 1, to: 3, content: 'Welcome to the operating systems course' }] });
+    wbi: [{ id: 1, lan: 'en', lan_doc: 'English', subtitle_url: '//aisubtitle.hdslb.com/empty' }],
+    v2: [{ id: 2, lan: 'en', lan_doc: 'English', subtitle_url: '//aisubtitle.hdslb.com/foreign' }]
+  }, beforeSubtitle: () => [] });
   const result = await h.message({ type: 'course-request', action: 'preview', meta: quickMeta, page: quickMeta.pages[0] });
-  assert.equal(result.track.lan, 'en');
-  assert.equal(result.body[0].content, 'Welcome to the operating systems course');
+  assert.equal(result.ok, true);
+  assert.equal(result.missing, true);
+  assert.ok(!h.fetched.some(url => url.includes('/x/player/v2') || url.endsWith('/foreign')));
 });
+
 test('removed workflow install action cannot fetch or write documents', async () => {
   const h = boot();
   const result = await h.message({ type: 'course-request', action: 'workflow', meta: quickMeta, base: 'Study' });

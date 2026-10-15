@@ -56,7 +56,6 @@ test('popup keeps single-video saves separate from explicit whole-course handoff
         if (message.type === 'settings-get') return { ok: true, settings: { hasApiKey: true } };
         if (message.type === 'quick-status') return { ok: true, key: 'job' };
         if (message.type === 'quick-import') return { ok: true, status: 'saved' };
-        if (message.action === 'tracks') return { ok: true, tracks: [] };
         if (message.action === 'meta') return { ok: true, folder: 'Study', meta: {
           bvid: message.bvid, title: 'A long course title',
           pages: Array.from({ length: count }, (_, i) => ({ cid: String(i + 1), page: i + 1, part: `Lesson ${i + 1}` }))
@@ -131,13 +130,12 @@ async function exportHarness({ languages = false } = {}) {
         if (message.type === 'settings-get') return { ok: true, settings: { hasApiKey: languages } };
         if (message.type === 'quick-status') return { ok: true, key: 'job' };
         if (message.type === 'quick-import') return { ok: true, status: 'saved' };
-        if (message.action === 'tracks') return { ok: true, tracks: languages ? [{ id: 'zh', lan: 'zh', lanDoc: '中文' }, { id: 'en', lan: 'en', lanDoc: 'English' }] : [] };
         if (message.action === 'meta') return { ok: true, folder: 'Study', meta: {
           bvid: message.bvid, title: 'Export course', author: 'Teacher',
           pages: [{ cid: '1', page: 1, part: '1. Export: Lesson' }, { cid: '2', page: 2, part: '2. Other' }]
         } };
         if (message.action === 'preview' && context.trackFail) return { ok: false, error: 'Selected subtitle unavailable' };
-        if (message.action === 'preview') return { ok: true, track: languages && message.trackId !== 'en' ? { id: 'zh', lan: 'zh', lanDoc: '中文' } : { id: 'en', lan: 'en', lanDoc: 'English' },
+        if (message.action === 'preview') return { ok: true, tracks: context.missing ? [] : languages ? [{ id: 'zh', lan: 'zh', lanDoc: '中文' }, { id: 'en', lan: 'en', lanDoc: 'English' }] : [], track: languages && message.trackId !== 'en' ? { id: 'zh', lan: 'zh', lanDoc: '中文' } : { id: 'en', lan: 'en', lanDoc: 'English' },
           missing: context.missing, body: context.missing ? [] : Array.from({ length: 20 }, (_, i) => ({ from: i * 40, to: i * 40 + 1, content: `Line ${i + 1}.` })) };
         throw new Error('Unexpected request');
       } }
@@ -198,6 +196,8 @@ test('Bilibili language selection drives preview, export and import and blocks s
   assert.equal(h.get('subtitle-track').hidden, true);
   assert.equal(h.get('subtitle-language-label').textContent, '中文');
   assert.equal(menu.children.length, 3);
+  assert.equal(h.messages.filter(message => message.action === 'preview').length, 1);
+  assert.ok(h.messages.every(message => message.action !== 'tracks'));
   let stopped = false;
   trigger.listeners.click({ stopPropagation() { stopped = true; } });
   assert.equal(stopped, true);
@@ -220,4 +220,20 @@ test('Bilibili language selection drives preview, export and import and blocks s
   assert.equal(h.get('copy-subtitle').disabled, true);
   assert.equal(h.get('import').disabled, true);
   assert.match(h.get('subtitles').textContent, /Selected subtitle unavailable/);
+});
+
+
+test('Bilibili refresh replaces stale languages with the current empty preview in one request', async () => {
+  const h = await exportHarness({ languages: true });
+  assert.equal(h.get('subtitle-language-switch').hidden, false);
+  const previous = h.messages.filter(message => message.action === 'preview').length;
+  h.context.missing = true;
+  await h.context.loadVideo();
+  assert.equal(h.messages.filter(message => message.action === 'preview').length, previous + 1);
+  assert.ok(h.messages.every(message => message.action !== 'tracks'));
+  assert.equal(h.get('subtitle-language-switch').hidden, true);
+  assert.equal(h.get('subtitle-language-menu').children.length, 1);
+  assert.equal(h.get('subtitles').children.length, 0);
+  assert.equal(h.get('copy-subtitle').disabled, true);
+  assert.equal(h.get('asr-open').hidden, false);
 });

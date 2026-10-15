@@ -35,7 +35,7 @@ function boot(search, unavailable = false, missingSubtitle = false, snapshots = 
       throw new Error('Unexpected request');
     },
     feedback: { status: (...args) => calls.push(['status', ...args]) },
-    previewView: { isOpen: () => panelOpen, open: value => { panelOpen = value; }, close() { panelOpen = false; }, message() {} },
+    previewView: { isOpen: () => panelOpen, open: value => { panelOpen = value; }, close() { panelOpen = false; }, message() {}, transcript() {} },
     importAction: { render() {}, reset() {} },
     connection: { refresh: async () => calls.push(['settings']) },
     transcription: { refresh: async () => ({}), run: async pages => calls.push(['asr', pages[0].cid]) }

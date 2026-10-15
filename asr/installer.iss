@@ -31,14 +31,15 @@ UninstallDisplayName=Vid2Notes 本地转写
 Name: "zhcn"; MessagesFile: "languages\ChineseSimplified.isl"
 
 [Messages]
-WelcomeLabel2=此向导将在所选目录中安装 Vid2Notes 本地转写组件。%n%n安装时联网下载 Python、转写依赖和 small 模型，模型约 461 MiB。选择 GPU 时还会下载约 1.3 GiB 的运行库。%n%n更新已有组件时，请先关闭原来的服务窗口，并选择原安装目录。
-FinishedLabel=本地转写组件已安装完成。%n%n复制下方连接码，在工作台“本地转写”页面连接组件。以后可从开始菜单启动本地转写。
+WelcomeLabel2=此向导将在所选目录中安装 Vid2Notes 音频处理组件。%n%n本地 CPU / GPU 模式下载 small 模型，约 461 MiB；GPU 额外下载约 1.3 GiB 运行库。仅在线转写模式只安装 Python 与音频处理依赖。%n%n更新已有组件时，请先关闭原来的服务窗口，并选择原安装目录。
+FinishedLabel=音频处理组件已安装完成。%n%n复制下方连接码，在工作台“音频转写”页面连接组件。以后可从开始菜单启动组件。
 
 [Tasks]
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "快捷方式："; Flags: unchecked
 
 [Files]
 Source: "server.py"; DestDir: "{app}"; Flags: ignoreversion
+Source: "online.py"; DestDir: "{app}"; Flags: ignoreversion
 Source: "start-local-asr.cmd"; DestDir: "{app}"; DestName: "启动本地转写.cmd"; Flags: ignoreversion
 Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "setup-runtime.ps1"; Flags: dontcopy
@@ -98,16 +99,19 @@ end;
 function SelectedMode: String;
 begin
   if ModePage.SelectedValueIndex = 1 then Result := 'gpu'
+  else if ModePage.SelectedValueIndex = 2 then Result := 'online'
   else Result := 'cpu';
 end;
 
 procedure InitializeWizard;
 begin
   ModePage := CreateInputOptionPage(wpSelectDir, '选择运行方式',
-    '选择 CPU 或 NVIDIA GPU', '所有运行环境、模型和缓存都放在所选安装目录中', True, False);
+    '选择本地模型或仅在线转写', '运行环境和缓存都放在所选安装目录中', True, False);
   ModePage.Add('CPU：无需独立显卡，建议预留 3 GB 磁盘空间');
   ModePage.Add('NVIDIA GPU：额外下载约 1.3 GiB，建议预留 8 GB 磁盘空间');
+  ModePage.Add('仅在线转写：下载与切分音频，不安装本地模型；需服务商 API Key');
   if GetPreviousData('RuntimeMode', 'cpu') = 'gpu' then ModePage.SelectedValueIndex := 1
+  else if GetPreviousData('RuntimeMode', 'cpu') = 'online' then ModePage.SelectedValueIndex := 2
   else ModePage.SelectedValueIndex := 0;
   ProgressPage := CreateOutputProgressPage('安装运行环境与模型', '安装过程中请保持此窗口打开');
   DetailButton := TNewButton.Create(WizardForm);
@@ -159,6 +163,7 @@ function UpdateReadyMemo(Space, NewLine, MemoUserInfoInfo, MemoDirInfo, MemoType
 begin
   Result := MemoDirInfo + NewLine + NewLine + '运行方式：' + NewLine;
   if SelectedMode = 'gpu' then Result := Result + Space + 'NVIDIA GPU'
+  else if SelectedMode = 'online' then Result := Result + Space + '仅在线转写'
   else Result := Result + Space + 'CPU';
   Result := Result + NewLine + NewLine + MemoTasksInfo;
 end;
@@ -173,8 +178,10 @@ begin
       1: StepName := '下载运行环境安装工具';
       2: StepName := '安装独立 Python 3.12';
       3: StepName := '安装转写依赖';
-      4: StepName := '下载 small 转写模型';
+      4: if SelectedMode = 'online' then StepName := '在线模式无需下载本地模型'
+         else StepName := '下载 small 转写模型';
       5: if SelectedMode = 'gpu' then StepName := '安装 NVIDIA GPU 运行库'
+         else if SelectedMode = 'online' then StepName := '配置在线音频处理'
          else StepName := '配置 CPU 转写';
       6: StepName := '检查运行环境并生成连接配置';
     end;

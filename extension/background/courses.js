@@ -25,7 +25,8 @@ async function handleCourseMessage(message) {
     if (!(meta.platform === "youtube" ? /^[\w-]{11}$/.test(page?.cid || "") : /^\d+$/.test(page?.cid || "")) || !meta.pages?.some(item => item.cid === page.cid)) throw new Error("视频信息无效。");
     if (action === "asr-poll") {
       const job = await asrPoll(message.jobId);
-      return { status: job.status, detail: job.detail, progress: job.progress };
+      return { status: job.status, detail: job.detail, progress: job.progress, provider: job.provider,
+        timestamps: job.timestamps, device: job.device, gpu_notice: job.gpu_notice };
     }
     if (action === "asr-cancel") return asrCancel(message.jobId);
     const path = CourseCore.rawPath(meta, page, base);
@@ -34,25 +35,36 @@ async function handleCourseMessage(message) {
     if (action === "asr-start") {
       const subtitle = await courseSubtitle(meta, page);
       if (subtitle) return { status: "subtitle-available" };
-      return asrStart(meta, page);
+      return asrStart(meta, page, message.provider);
     }
     const job = await asrPoll(message.jobId);
     if (job.bvid !== meta.bvid || String(job.cid) !== page.cid) throw new Error("转写结果与所选分 P 不一致，未保存到 Obsidian。");
     if (job.status !== "done") return { status: job.status, detail: job.detail, progress: job.progress };
-    if (!Array.isArray(job.body) || !job.body.length || job.body.some(item => !Number.isFinite(item.from) || typeof item.content !== "string")) {
-      throw new Error("本地转写结果无效，未保存到 Obsidian。");
+    const provider = job.provider || "local", timestamps = job.timestamps !== false;
+    if (!["local", "groq", "siliconflow"].includes(provider)
+      || (provider === "siliconflow" && timestamps)
+      || !Array.isArray(job.body) || !job.body.length
+      || job.body.some(item => !item || typeof item.content !== "string" || !item.content.trim()
+        || (timestamps && (!Number.isFinite(item.from) || item.from < 0)))) {
+      throw new Error("转写结果无效，未保存到 Obsidian。");
     }
     const appearedPath = existingRawPath(meta, page, base, await courseRawFiles(meta, base));
     if (appearedPath) return rememberCourseImport(meta, page, base, { status: "exists", path: appearedPath });
-    const track = { lan: job.language || "auto", lanDoc: `本地转写（faster-whisper-small · ${job.language || "自动识别"}）`, source: "local-asr" };
+    const models = { local: "faster-whisper-small", groq: "whisper-large-v3-turbo", siliconflow: "FunAudioLLM/SenseVoiceSmall" };
+    const names = { local: "本地转写", groq: "Groq 转写", siliconflow: "硅基流动转写" };
+    const track = { lan: job.language || "unknown", lanDoc: `${names[provider]}（${models[provider]}）`,
+      source: provider === "local" ? "local-asr" : `${provider}-asr`, model: models[provider], timestamps };
     await courseLocalRequest(path, "PUT", CourseCore.buildRaw(meta, page, track, job.body));
-    return rememberCourseImport(meta, page, base, { status: "saved", path }, track);
+    const result = await rememberCourseImport(meta, page, base, { status: "saved", path }, track);
+    return { ...result, body: job.body, track };
   }
-  if (["preview", "tracks"].includes(action)) {
-    if (!(meta.platform === "youtube" ? /^[\w-]{11}$/.test(page?.cid || "") && meta.pages?.some(item => item.cid === page.cid) : /^\d+$/.test(page?.cid || ""))) throw new Error("视频信息无效。");
-    if (action === "tracks") return { tracks: meta.platform === "youtube" ? [] : await courseSubtitle(meta, page, action) };
-    const subtitle = await courseSubtitle(meta, page, action, false, message.trackId || "");
-    return subtitle ? { track: { id: subtitle.track.id, lan: subtitle.track.lan, lanDoc: subtitle.track.lanDoc }, body: subtitle.body } : { body: [], missing: true };
+  if (action === "preview") {
+    if (!(meta.platform === "youtube" ? /^[\w-]{11}$/.test(page?.cid || "") : /^\d+$/.test(page?.cid || "")) || !meta.pages?.some(item => item.cid === page.cid)) throw new Error("视频信息无效。");
+    const tracks = meta.platform === "youtube" ? [] : await courseBiliSubtitleTracks(meta, page);
+    const subtitle = meta.platform === "youtube" ? await courseSubtitle(meta, page, action) : await courseReadBiliSubtitle(tracks, page, message.trackId || "");
+    return { tracks: tracks.map(({ id, lan, lanDoc }) => ({ id, lan, lanDoc })), ...(subtitle
+      ? { track: { id: subtitle.track.id, lan: subtitle.track.lan, lanDoc: subtitle.track.lanDoc }, body: subtitle.body }
+      : { body: [], missing: true }) };
   }
   const folder = CourseCore.courseFolder(meta, base);
   if (action === "index") {
@@ -85,7 +97,7 @@ async function handleCourseMessage(message) {
 }
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type !== "course-request") return false;
-  if (sender.id !== chrome.runtime.id || !(String(sender.url || "").split(/[?#]/)[0] === chrome.runtime.getURL("workbench/index.html") || (["meta", "preview", "tracks"].includes(message.action) && String(sender.url || "").split(/[?#]/)[0] === chrome.runtime.getURL("popup/index.html")))) {
+  if (sender.id !== chrome.runtime.id || !(String(sender.url || "").split(/[?#]/)[0] === chrome.runtime.getURL("workbench/index.html") || (["meta", "preview"].includes(message.action) && String(sender.url || "").split(/[?#]/)[0] === chrome.runtime.getURL("popup/index.html")))) {
     sendResponse({ ok: false, error: "请从扩展的课程导入页面操作。" });
     return false;
   }

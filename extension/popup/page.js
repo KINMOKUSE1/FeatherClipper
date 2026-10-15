@@ -177,7 +177,7 @@ $("subtitle-language-menu").addEventListener("keydown", event => {
   }
 });
 document.addEventListener("scroll", event => { if (event.target !== $("subtitle-language-menu")) closeLanguageMenu(); }, true);
-async function preview(loadTracks = false) {
+async function preview() {
   previewing = true;
   hasSubtitle = false;
   subtitle = null;
@@ -188,13 +188,10 @@ async function preview(loadTracks = false) {
   $("subtitle-track").textContent = "";
   $("preview-label").textContent = ui.readingSubtitles;
   try {
-    if (loadTracks && meta.platform !== "youtube") {
-      const { tracks = [] } = await send({ type: "course-request", action: "tracks", meta, page });
-      subtitleTracks = tracks;
-      $("subtitle-language-switch").hidden = tracks.length < 2;
-    }
     const result = await send({ type: "course-request", action: "preview", meta, page, ...(meta.platform !== "youtube" ? { trackId: selectedTrackId } : {}) });
     if (meta.platform !== "youtube") {
+      subtitleTracks = result.tracks || [];
+      $("subtitle-language-switch").hidden = subtitleTracks.length < 2;
       if (result.track?.id) selectedTrackId = result.track.id;
       $("subtitle-language-label").textContent = result.track?.lanDoc || result.track?.lan || ui.automatic;
       renderLanguageMenu();
@@ -259,7 +256,7 @@ async function loadVideo() {
     if (run !== videoRun) return;
     jobKey = job.key; showJob(job.state);
     reading = false;
-    await preview(true);
+    await preview();
     if (run !== videoRun) return;
   } catch (error) {
     if (run === videoRun) {

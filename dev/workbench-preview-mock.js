@@ -6,6 +6,7 @@
   const store = {}, files = new Map(), jobs = new Map();
   const settings = { hasApiKey: scenario !== "unconfigured", obsidianApiBaseUrl: "http://127.0.0.1:27123", noteFolder: scenario === "youtube" ? "Clippings/YouTube" : "Clippings/Bilibili" };
   let paired = false;
+  const asrSettings = { provider: "local", hasApiKeys: { groq: false, siliconflow: false } };
   const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
   const titles = [
     "课程导览：从一个网页请求开始", "1. 网络分层与协议", "1. TCP/IP 的四层结构",
@@ -82,7 +83,18 @@
       if (message.type === "settings-save") Object.assign(settings, { hasApiKey: settings.hasApiKey || Boolean(message.settings.obsidianApiKey?.trim()), obsidianApiBaseUrl: url.origin, noteFolder: folder });
       return { ok: true, settings: { ...settings }, connected: true };
     }
-    if (message.type === "asr-status") return { ok: true, connected: paired, paired, installed: paired, needsPairing: !paired, device: "cpu", youtubeAudio: true };
+    if (message.type === "asr-status") return { ok: true, connected: paired && (asrSettings.provider === "local" || asrSettings.hasApiKeys[asrSettings.provider]),
+      componentConnected: paired, settings: structuredClone(asrSettings), provider: asrSettings.provider,
+      paired, installed: paired, needsPairing: !paired, device: "cpu", youtubeAudio: true };
+    if (message.type === "asr-settings-save") {
+      const draft = message.settings;
+      if (draft.provider !== "local") {
+        if (draft.clearKey) asrSettings.hasApiKeys[draft.provider] = false;
+        else if (draft.apiKey?.trim()) asrSettings.hasApiKeys[draft.provider] = true;
+      }
+      if (!draft.clearKey) asrSettings.provider = draft.provider;
+      return { ok: true, settings: structuredClone(asrSettings) };
+    }
     if (message.type === "asr-pair") {
       if (!message.token?.trim()) return { ok: false, error: "预览中可填入任意示例连接码。" };
       paired = true; return { ok: true, connected: true };
@@ -120,12 +132,15 @@
       if (files.has(path)) return { ok: true, status: "exists", path };
       if (!subtitleMissing(page, meta)) return { ok: true, status: "subtitle-available" };
       const id = `preview-asr-${page.cid}`;
-      jobs.set(id, { page, canceled: false });
+      jobs.set(id, { page, provider: message.provider || asrSettings.provider, polls: 0, canceled: false });
       return { ok: true, id };
     }
     if (message.action === "asr-poll") {
       await delay(600);
-      return { ok: true, status: jobs.get(message.jobId)?.canceled ? "canceled" : "done", device: "cpu" };
+      const job = jobs.get(message.jobId);
+      const stages = job.provider === "local" ? ["downloading", "transcribing", "done"] : ["downloading", "uploading", "done"];
+      return { ok: true, status: job.canceled ? "canceled" : stages[Math.min(job.polls++, stages.length - 1)],
+        provider: job.provider, timestamps: job.provider !== "siliconflow", device: job.provider === "local" ? "cpu" : undefined };
     }
     if (message.action === "asr-cancel") {
       const job = jobs.get(message.jobId);
@@ -134,8 +149,12 @@
     }
     if (message.action === "asr-finish") {
       if (files.has(path)) return { ok: true, status: "exists", path };
-      files.set(path, CourseCore.buildRaw(meta, page, { lan: "zh", lanDoc: "本地转写（示例）", source: "local-asr" }, transcript(page, meta.platform)));
-      return { ok: true, status: "saved", path };
+      const provider = jobs.get(message.jobId).provider;
+      const track = { lan: "zh", lanDoc: `${UiText.transcription.engines[provider]}转写（示例）`,
+        model: UiText.transcription.models[provider], timestamps: provider !== "siliconflow", source: provider === "local" ? "local-asr" : `${provider}-asr` };
+      const body = track.timestamps ? transcript(page, meta.platform) : transcript(page, meta.platform).map(({ content }) => ({ content }));
+      files.set(path, CourseCore.buildRaw(meta, page, track, body));
+      return { ok: true, status: "saved", path, body, track };
     }
     return { ok: false, error: "此课程操作未在开发预览中模拟。" };
   }
@@ -145,7 +164,7 @@
         const result = await sendMessage(message);
         if (message.type === "course-request" && ["import", "asr-start", "asr-finish"].includes(message.action) && ["saved", "exists"].includes(result.status)) {
           await ImportHistory.save(window.chrome.storage.local, message.meta, message.page, message.base, { ...result,
-            track: { lanDoc: message.action.startsWith("asr-") ? "本地转写" : message.meta.platform === "youtube" ? "English" : "中文" } });
+            track: result.track || { lanDoc: message.action.startsWith("asr-") ? UiText.transcription.engines[asrSettings.provider] : message.meta.platform === "youtube" ? "English" : "中文" } });
         }
         return result;
       }
@@ -166,7 +185,7 @@
     await window.WorkbenchApp.ready;
     if (scenario === "empty") {
       const page = window.frameElement.dataset.page;
-      if (["notes", "history"].includes(page)) document.getElementById(`${page}-nav`).click();
+      if (["notes", "history", "asr"].includes(page)) document.getElementById(page === "asr" ? "local-asr-settings" : `${page}-nav`).click();
       return;
     }
     document.getElementById("url").value = scenario === "youtube"
@@ -174,6 +193,6 @@
       : `https://www.bilibili.com/video/BV1ps4y1d73V/?p=${scenario === "single" ? 1 : 4}`;
     await window.WorkbenchApp.loadCourse();
     const page = window.frameElement.dataset.page;
-    if (["notes", "history"].includes(page)) document.getElementById(`${page}-nav`).click();
+    if (["notes", "history", "asr"].includes(page)) document.getElementById(page === "asr" ? "local-asr-settings" : `${page}-nav`).click();
   });
 })();

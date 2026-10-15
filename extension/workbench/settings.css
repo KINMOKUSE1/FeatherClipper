@@ -25,6 +25,7 @@
 .configuration-state { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--warning); }
 .configuration-state::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .configuration-state.is-ready { color: var(--success); }
+.asr-setting-value { grid-column: 2; grid-row: 1 / span 2; align-self: center; text-align: right; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
 .configuration-actions { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 12px; }
 .configuration-actions button, .note-preferences button.text-button { font-family: var(--font-controls); font-size: 14px; font-weight: 400; line-height: 20px; }
 .configuration-actions button { border: 0; border-radius: 8px; min-height: 42px; padding: 10px 18px; }
@@ -33,6 +34,7 @@
 .settings-footer-info { display: flex; align-items: center; flex: 1; min-width: 0; min-height: 42px; }
 .settings-feedback { display: flex; align-items: center; gap: 2px; max-width: 100%; padding: 7px 9px 7px 12px; border-radius: 8px; background: var(--accent); color: var(--on-accent); animation: settings-feedback-in 180ms ease-out; }
 .settings-feedback [role="status"] { flex: none; min-width: 0; max-width: 860px; margin: 0; font-size: 14px; line-height: 1.45; font-weight: 400; color: inherit; overflow-wrap: anywhere; }
+.asr-settings .settings-feedback [role="status"] { flex: 1; max-width: 100%; }
 .settings-feedback .settings-feedback-close { flex: none; width: 28px; min-height: 28px; height: 28px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: inherit; font-size: 20px; line-height: 1; font-weight: 400; }
 .settings-feedback .settings-feedback-close:hover { background: var(--accent-hover); border-color: transparent; }
 .settings-feedback .settings-feedback-close:focus-visible { outline-color: var(--on-accent); outline-offset: 0; }
@@ -53,6 +55,7 @@
   .settings-row > label { grid-column: 1; grid-row: 1; }
   .settings-row > .field-help { grid-column: 1; grid-row: 2; }
   .settings-row > input, .settings-row > select, .settings-row > textarea { grid-column: 1; grid-row: 3; margin-top: 3px; }
+  .asr-setting-value { grid-column: 1; grid-row: 2; text-align: left; }
   .settings-row:has(.settings-toggle) { grid-template-columns: minmax(0, 1fr) 36px; }
   .settings-row > .settings-toggle { grid-column: 2; grid-row: 1 / span 2; margin-top: 0; }
   .preferences-heading { margin-bottom: 22px; }
