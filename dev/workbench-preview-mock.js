@@ -83,9 +83,10 @@
       if (message.type === "settings-save") Object.assign(settings, { hasApiKey: settings.hasApiKey || Boolean(message.settings.obsidianApiKey?.trim()), obsidianApiBaseUrl: url.origin, noteFolder: folder });
       return { ok: true, settings: { ...settings }, connected: true };
     }
-    if (message.type === "asr-status") return { ok: true, connected: paired && (asrSettings.provider === "local" || asrSettings.hasApiKeys[asrSettings.provider]),
+    if (message.type === "asr-status") return { ok: true, connected: asrSettings.provider === "local" ? paired : asrSettings.hasApiKeys[asrSettings.provider],
       componentConnected: paired, settings: structuredClone(asrSettings), provider: asrSettings.provider,
       paired, installed: paired, needsPairing: !paired, device: "cpu", youtubeAudio: true };
+    if (message.type === "asr-component-status") return { ok: true, connected: paired, paired, modelReady: paired, needsPairing: !paired };
     if (message.type === "asr-settings-save") {
       const draft = message.settings;
       if (draft.provider !== "local") {

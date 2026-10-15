@@ -11,7 +11,7 @@ function normalizeConnection(settings) {
   if (!["http:", "https:"].includes(url.protocol) || !["127.0.0.1", "localhost"].includes(url.hostname) || url.username || url.password || url.search || url.hash || url.pathname !== "/") {
     throw new Error("请输入本机 Local REST API 地址，例如 http://127.0.0.1:27123。");
   }
-  return { noteFolder: CourseCore.normalizeFolder(settings.noteFolder), obsidianApiBaseUrl: url.origin, obsidianApiKey: String(settings.obsidianApiKey || "").trim() };
+  return { noteFolder: CourseCore.normalizeFolder(settings.noteFolder), obsidianApiBaseUrl: url.origin, obsidianApiKey: String(settings.obsidianApiKey || "").trim().replace(/^Bearer\s+/i, "").trim() };
 }
 async function connectionFromDraft(draft) {
   const saved = await getMergedSettings();

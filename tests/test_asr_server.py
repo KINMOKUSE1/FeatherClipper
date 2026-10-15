@@ -14,14 +14,13 @@ from unittest.mock import patch
 import sys
 
 SOURCE = Path(__file__).resolve().parents[1] / "asr/server.py"
-sys.path.insert(0, str(SOURCE.parent))
 spec = importlib.util.spec_from_file_location("vid2notes_asr", SOURCE)
 server_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(server_module)
 
 
 class LocalServiceTests(unittest.TestCase):
-    def test_online_job_does_not_load_a_model_or_return_its_key(self):
+    def test_local_service_rejects_online_credentials(self):
         with tempfile.TemporaryDirectory() as temp:
             home = Path(temp)
             service = ThreadingHTTPServer(("127.0.0.1", 0), server_module.make_handler(home, "test-token"))
@@ -30,44 +29,20 @@ class LocalServiceTests(unittest.TestCase):
             base = f"http://127.0.0.1:{service.server_port}"
             headers = {"X-Vid2Notes-Token": "test-token"}
             try:
-                health = json.load(urllib.request.urlopen(base + "/health"))
-                self.assertFalse(health["model_ready"])
-                self.assertEqual(health["providers"], ["local", "groq", "siliconflow"])
-                def submit(provider):
-                    request = urllib.request.Request(base + "/jobs", data=json.dumps({
-                        "bvid": "BVonline123", "cid": "999", "audio_url": "https://example.bilivideo.com/audio",
-                        "provider": provider, "api_key": "private-provider-key",
-                    }).encode(), headers=headers)
-                    return json.load(urllib.request.urlopen(request))
+                request = urllib.request.Request(base + "/jobs", data=json.dumps({
+                    "bvid": "BVonline123", "cid": "999", "audio_url": "https://example.bilivideo.com/audio",
+                    "provider": "groq", "api_key": "private-provider-key",
+                }).encode(), headers=headers)
                 with patch.object(server_module, "run_job") as run:
-                    groq = submit("groq")
-                    repeated = submit("groq")
-                    silicon = submit("siliconflow")
-                    self.assertEqual(groq["id"], repeated["id"])
-                    self.assertNotEqual(groq["id"], silicon["id"])
-                    self.assertEqual(run.call_count, 2)
-                    self.assertEqual(run.call_args.args[2], "private-provider-key")
-                    urllib.request.urlopen(urllib.request.Request(base + "/jobs/" + groq["id"], method="DELETE", headers=headers)).close()
-                    restarted = submit("groq")
-                    self.assertNotEqual(restarted["id"], groq["id"])
-                    self.assertEqual(run.call_count, 3)
-                result = json.load(urllib.request.urlopen(urllib.request.Request(base + "/jobs/" + groq["id"], headers=headers)))
-                self.assertNotIn("private-provider-key", json.dumps(result))
-                self.assertNotIn("api_key", server_module.JOBS[groq["id"]])
-                with patch.object(server_module, "download_audio"), patch.object(server_module, "transcribe_file") as local, \
-                        patch.object(server_module, "transcribe_online", return_value=([{"content": "original"}], "unknown")):
-                    job = server_module.JOBS[silicon["id"]]
-                    server_module.run_job(home, job, "private-provider-key")
-                    local.assert_not_called()
-                    self.assertEqual(job["status"], "done")
-                    self.assertEqual(job["body"], [{"content": "original"}])
+                    with self.assertRaises(urllib.error.HTTPError) as rejected:
+                        urllib.request.urlopen(request)
+                    self.assertEqual(rejected.exception.code, 400)
+                    self.assertNotIn("private-provider-key", rejected.exception.read().decode())
+                    run.assert_not_called()
             finally:
                 service.shutdown()
                 service.server_close()
                 thread.join(timeout=2)
-                with server_module.JOBS_LOCK:
-                    for key in [key for key, job in server_module.JOBS.items() if job["bvid"] == "BVonline123"]:
-                        del server_module.JOBS[key]
 
     def test_gpu_preflight_uses_cuda_when_available_and_cpu_when_runtime_missing(self):
         class FakeModel:

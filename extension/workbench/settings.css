@@ -8,11 +8,11 @@
 .note-preferences { padding-bottom: 18px; }
 .preference-group-title { margin-bottom: 20px; font-size: 16px; line-height: 1.4; font-weight: 500; }
 .settings-group { padding: 4px 18px; border: 1px solid var(--line); border-radius: 14px; background: #fafafa; box-shadow: 0 2px 6px #35405208, 0 8px 20px #3540520a; }
-.note-preferences label, .configuration-fields label { display: block; font-size: 14px; line-height: 1.45; font-weight: 500; margin: 0; }
+.note-preferences label, .configuration-fields label, .settings-row-title { display: block; font-size: 14px; line-height: 1.45; font-weight: 500; margin: 0; }
 .settings-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 320px); column-gap: 24px; row-gap: 4px; align-items: start; padding: 14px 0; border-bottom: 1px solid var(--line); }
 .settings-row:last-child { border-bottom: 0; }
-.settings-row > label { grid-column: 1; grid-row: 1 / span 2; align-self: center; }
-.settings-row:has(> .field-help:not(:empty):not([hidden])) > label { grid-row: 1; align-self: start; }
+.settings-row > label, .settings-row > .settings-row-title { grid-column: 1; grid-row: 1 / span 2; align-self: center; }
+.settings-row:has(> .field-help:not(:empty):not([hidden])) > label, .settings-row:has(> .field-help:not(:empty):not([hidden])) > .settings-row-title { grid-row: 1; align-self: start; }
 .settings-row > input, .settings-row > select, .settings-row > textarea { grid-column: 2; grid-row: 1 / span 2; align-self: center; min-width: 0; }
 .settings-row > .field-help { grid-column: 1; grid-row: 2; margin: 0; }
 .settings-row-multiline { grid-template-rows: 22px auto; }
@@ -26,6 +26,8 @@
 .configuration-state::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .configuration-state.is-ready { color: var(--success); }
 .asr-setting-value { grid-column: 2; grid-row: 1 / span 2; align-self: center; text-align: right; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.asr-policy { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#asr-key-link { white-space: nowrap; }
 .configuration-actions { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 12px; }
 .configuration-actions button, .note-preferences button.text-button { font-family: var(--font-controls); font-size: 14px; font-weight: 400; line-height: 20px; }
 .configuration-actions button { border: 0; border-radius: 8px; min-height: 42px; padding: 10px 18px; }
@@ -52,7 +54,7 @@
 @media (max-width: 620px) {
   .settings-group { padding-inline: 12px; border-radius: 12px; }
   .settings-row { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; row-gap: 5px; padding: 12px 0; }
-  .settings-row > label { grid-column: 1; grid-row: 1; }
+  .settings-row > label, .settings-row > .settings-row-title { grid-column: 1; grid-row: 1; }
   .settings-row > .field-help { grid-column: 1; grid-row: 2; }
   .settings-row > input, .settings-row > select, .settings-row > textarea { grid-column: 1; grid-row: 3; margin-top: 3px; }
   .asr-setting-value { grid-column: 1; grid-row: 2; text-align: left; }

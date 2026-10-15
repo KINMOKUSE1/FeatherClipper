@@ -7,7 +7,7 @@ const extension = path.join(__dirname, '../extension');
 function boot({ authenticated = true, existing = null, beforeSubtitle, missing = false, subtitleLists, onStored, initial = {}, youtubeVideo, youtubePlaylist = '' } = {}) {
   const local = { noteFolder: 'Clippings/Bilibili', obsidianApiBaseUrl: 'http://127.0.0.1:27123', obsidianApiKey: 'test-only-key' };
   Object.assign(local, initial);
-  const listeners = [], opened = [], writes = [], fetched = [], youtubeCalls = [];
+  const listeners = [], opened = [], writes = [], fetched = [], youtubeCalls = [], requests = [];
   const locks = new Set(), vault = new Map(), tabs = new Map(), session = {};
   let click, context;
   const chrome = {
@@ -33,7 +33,7 @@ function boot({ authenticated = true, existing = null, beforeSubtitle, missing =
     } } },
     importScripts: (...files) => files.forEach(file => vm.runInContext(fs.readFileSync(path.join(extension, 'background', file), 'utf8'), context)),
     fetch: async (url, options = {}) => {
-      fetched.push(url);
+      fetched.push(url); requests.push({ url, options });
       if (url === 'http://127.0.0.1:27123/') return { ok: true, json: async () => ({ authenticated }) };
       if (url.startsWith('http://127.0.0.1:27123/vault/')) {
         if (options.method === 'PUT') { writes.push({ url, content: options.body }); vault.set(url, options.body); return { ok: true }; }
@@ -67,7 +67,7 @@ function boot({ authenticated = true, existing = null, beforeSubtitle, missing =
       if (!accepted) setImmediate(() => resolve({ ok: false, error: 'not handled' }));
     });
   }
-  return { context, local, writes, fetched, youtubeCalls, message, locks, listeners, click: (...args) => click(...args), opened };
+  return { context, local, writes, fetched, youtubeCalls, requests, message, locks, listeners, click: (...args) => click(...args), opened };
 }
 test('settings read hides stored Key; blank save preserves it', async () => {
   const h = boot();
@@ -76,6 +76,33 @@ test('settings read hides stored Key; blank save preserves it', async () => {
   await h.message({ type: 'settings-save', settings: { noteFolder: 'Study/Sources', obsidianApiKey: '' } });
   assert.equal(h.local.obsidianApiKey, 'test-only-key'); assert.equal(h.local.noteFolder, 'Study/Sources');
 });
+test('Obsidian accepts plain and Bearer-prefixed Keys for connection tests, saves and file writes', async () => {
+  for (const input of ['AbC123-demo', ' Bearer AbC123-demo  ', 'bearer AbC123-demo', 'BEARER\tAbC123-demo']) {
+    const h = boot();
+    const tested = await h.message({ type: 'settings-test', settings: { obsidianApiKey: input } });
+    assert.equal(tested.ok, true);
+    assert.equal(h.requests[0].options.headers.Authorization, 'Bearer AbC123-demo');
+    assert.equal(h.local.obsidianApiKey, 'test-only-key', 'testing does not save the draft');
+    const saved = await h.message({ type: 'settings-save', settings: { obsidianApiKey: input } });
+    assert.equal(saved.ok, true);
+    assert.equal(saved.settings.obsidianApiKey, undefined);
+    assert.equal(h.local.obsidianApiKey, 'AbC123-demo');
+    await h.context.courseLocalRequest('example.md', 'PUT', 'Example');
+    assert.equal(h.requests.at(-1).options.headers.Authorization, 'Bearer AbC123-demo');
+  }
+});
+
+test('already-stored Bearer prefixes are normalized on use and blank saves preserve the Key', async () => {
+  const h = boot({ initial: { obsidianApiKey: ' bearer  AbC123-demo  ' } });
+  const result = await h.message({ type: 'settings-test', settings: { obsidianApiKey: '' } });
+  assert.equal(result.ok, true);
+  assert.equal(h.requests[0].options.headers.Authorization, 'Bearer AbC123-demo');
+  await h.context.courseLocalRequest('example.md', 'PUT', 'Example');
+  assert.equal(h.requests.at(-1).options.headers.Authorization, 'Bearer AbC123-demo');
+  await h.message({ type: 'settings-save', settings: { obsidianApiKey: '' } });
+  assert.equal(h.local.obsidianApiKey, 'AbC123-demo');
+});
+
 test('connection rejects non-local endpoints without sending the Key', async () => {
   const h = boot();
   const result = await h.message({ type: 'settings-test', settings: { obsidianApiBaseUrl: 'https://example.com' } });
@@ -210,7 +237,7 @@ test('extension messages from an unrelated page are rejected', async () => {
 });
 test('manifest opens the popup and grants YouTube page reading', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(extension, 'manifest.json')));
-  assert.deepEqual(manifest.permissions, ['storage', 'activeTab', 'scripting', 'downloads']);
+  assert.deepEqual(manifest.permissions, ['storage', 'activeTab', 'scripting', 'downloads', 'offscreen', 'declarativeNetRequestWithHostAccess']);
   assert.equal(manifest.action.default_popup, 'popup/index.html'); assert.equal(manifest.side_panel, undefined); assert.equal(manifest.content_scripts, undefined);
   assert.ok(manifest.host_permissions.includes('https://www.youtube.com/*')); assert.ok(!manifest.host_permissions.includes('https://*/*')); assert.equal(manifest.options_page, 'workbench/index.html');
 });

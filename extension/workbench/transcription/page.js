@@ -3,23 +3,31 @@ window.createTranscriptionPage = function ({ getCatalog, send, feedback, navigat
   const ui = UiText.transcription;
   const $ = id => document.getElementById(id);
   const { status, settings: showSettingsFeedback } = feedback;
-  let activeAsrJob = "", settings = { provider: "local", hasApiKeys: {} };
+  let activeAsrJob = "", settings = { provider: "local", hasApiKeys: {} }, localConnection = null;
   const controls = createNoteControls($("asr-page"));
   function renderSettings() {
     const provider = $("asr-provider").value, online = provider !== "local";
     $("asr-key-row").hidden = !online;
+    $("asr-local-fields").hidden = online;
+    $("asr-refresh").hidden = online;
+    $("asr-install-guide").hidden = online || Boolean(localConnection?.connected);
     $("asr-clear-key").hidden = !online || !settings.hasApiKeys?.[provider];
     $("asr-api-key").placeholder = settings.hasApiKeys?.[provider] ? ui.savedKey : ui.keyPlaceholder;
+    if (online) $("asr-key-link").href = ui.keyUrls[provider];
     $("asr-provider-help").textContent = online ? ui.onlineHelp : ui.localHelp;
     $("asr-model").textContent = ui.models[provider];
     $("asr-policy").textContent = ui.policies[provider];
+    $("asr-policy").title = ui.policyDetails[provider] || ui.policies[provider];
     controls.decorateSelect($("asr-provider"));
   }
   function showConnection(result) {
+    if (result.provider && result.provider !== "local") { renderSettings(); return; }
+    localConnection = result;
     $("asr-pair-fields").hidden = Boolean(result.paired && !result.needsPairing);
     const connected = result.componentConnected ?? result.connected;
     $("asr-state").textContent = connected ? ui.connected : ui.disconnected;
     $("asr-state").classList.toggle("is-ready", connected);
+    renderSettings();
   }
   function reportImportResult(label, counts, remaining, error = null, detail = "") {
     return importAction.result(label, counts, remaining, error, detail, getCatalog().getState().stopping);
@@ -39,7 +47,7 @@ window.createTranscriptionPage = function ({ getCatalog, send, feedback, navigat
     renderSettings(); showConnection(result);
     showSettingsFeedback("asr-settings-status", result.error || (result.connected && (result.provider || "local") === "local"
       ? result.gpuNotice || (result.device === "cuda" ? ui.gpuConnected : result.gpuEnabled ? ui.gpuPending : ui.cpuConnected)
-      : result.componentConnected || result.needsPairing ? "" : ui.startService));
+      : result.provider !== "local" || result.componentConnected || result.needsPairing ? "" : ui.startService));
     navigate("asr-page");
     return result;
   }
@@ -122,7 +130,7 @@ window.createTranscriptionPage = function ({ getCatalog, send, feedback, navigat
   $("asr-connect").addEventListener("click", async () => {
     $("asr-connect").disabled = true;
     try {
-      if ($("asr-token").value.trim()) await send({ type: "asr-pair", token: $("asr-token").value });
+      if ($("asr-provider").value === "local" && $("asr-token").value.trim()) await send({ type: "asr-pair", token: $("asr-token").value });
       $("asr-token").value = "";
       const result = await send({ type: "asr-settings-save", settings: { provider: $("asr-provider").value, apiKey: $("asr-api-key").value } });
       settings = result.settings;
@@ -135,9 +143,9 @@ window.createTranscriptionPage = function ({ getCatalog, send, feedback, navigat
   $("asr-refresh").addEventListener("click", async () => {
     $("asr-refresh").disabled = true;
     try {
-      const result = await refresh();
-      showConnection(result);
-      showSettingsFeedback("asr-settings-status", result.error || ui.connected);
+      const result = await send({ type: "asr-component-status" });
+      showConnection({ ...result, componentConnected: result.connected, connected: result.connected && result.modelReady });
+      showSettingsFeedback("asr-settings-status", result.error || (result.needsPairing ? ui.pairRequired : result.modelReady ? ui.connected : ui.modelRequired));
     } catch (error) { showSettingsFeedback("asr-settings-status", error.message); }
     finally { $("asr-refresh").disabled = false; }
   });

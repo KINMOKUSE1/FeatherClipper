@@ -1,6 +1,6 @@
 ﻿param(
     [Parameter(Mandatory = $true)][string]$InstallDir,
-    [ValidateSet('cpu', 'gpu', 'online')][string]$Mode = 'cpu',
+    [ValidateSet('cpu', 'gpu')][string]$Mode = 'cpu',
     [Parameter(Mandatory = $true)][string]$ResultFile
 )
 # Inno Setup supplies the directory and mode; this worker has no interactive prompts.
@@ -65,14 +65,11 @@ try {
     $python = Join-Path $installRoot '.venv\Scripts\python.exe'
     if (-not (Test-Path -LiteralPath $python)) { Run $uv @('venv', (Join-Path $installRoot '.venv'), '--python', '3.12') }
     Step 3
-    if ($Mode -eq 'online') { Run $uv @('pip', 'install', '--python', $python, 'av>=11,<20') }
-    else { Run $uv @('pip', 'install', '--python', $python, 'faster-whisper==1.2.1', 'huggingface-hub>=0.25,<2') }
+    Run $uv @('pip', 'install', '--python', $python, 'faster-whisper==1.2.1', 'huggingface-hub>=0.25,<2')
     Step 4
-    if ($Mode -ne 'online') {
-        Run $python @((Join-Path $PSScriptRoot 'download_model.py'), (Join-Path $installRoot 'model'))
-        foreach ($name in @('config.json', 'model.bin', 'tokenizer.json', 'vocabulary.txt')) {
-            if (-not (Test-Path -LiteralPath (Join-Path $installRoot "model\$name"))) { throw "模型文件不完整：$name" }
-        }
+    Run $python @((Join-Path $PSScriptRoot 'download_model.py'), (Join-Path $installRoot 'model'))
+    foreach ($name in @('config.json', 'model.bin', 'tokenizer.json', 'vocabulary.txt')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $installRoot "model\$name"))) { throw "模型文件不完整：$name" }
     }
     Step 5
     if ($Mode -eq 'gpu') {
@@ -85,8 +82,7 @@ try {
         }
     }
     Step 6
-    if ($Mode -eq 'online') { Run $python @('-c', 'import av') }
-    else { Run $python @('-c', 'import faster_whisper, huggingface_hub') }
+    Run $python @('-c', 'import faster_whisper, huggingface_hub')
     if (-not $config) { $config = [PSCustomObject]@{ token = '' } }
     if ([string]::IsNullOrWhiteSpace($config.token)) {
         $bytes = New-Object byte[] 32

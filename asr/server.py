@@ -14,8 +14,6 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from online import PROVIDERS, transcribe_online
-
 
 PORT = 27347
 MAX_AUDIO_BYTES = 1024 * 1024 * 1024
@@ -234,7 +232,7 @@ def transcribe_file(path, home, job):
     return result, language or "unknown"
 
 
-def run_job(home, job, api_key=""):
+def run_job(home, job):
     # The model runs one course part at a time to avoid competing jobs.
     with MODEL_RUN_LOCK:
         if job["cancel"].is_set():
@@ -245,11 +243,8 @@ def run_job(home, job, api_key=""):
         try:
             job.update(status="downloading", detail="正在获取音频")
             download_audio(job["audio_urls"], target, job["bvid"], job["cancel"], job["cid"])
-            if job["provider"] == "local":
-                job.update(status="transcribing", detail="正在加载模型", model="faster-whisper-small", timestamps=True)
-                body, language = transcribe_file(target, home, job)
-            else:
-                body, language = transcribe_online(target, job["provider"], api_key, job)
+            job.update(status="transcribing", detail="正在加载模型", model="faster-whisper-small", timestamps=True)
+            body, language = transcribe_file(target, home, job)
             if job["cancel"].is_set():
                 raise InterruptedError("已停止转写")
             job.update(status="done", detail="转写完成",
@@ -312,7 +307,6 @@ def make_handler(home, token):
             if self.path == "/health":
                 self.send_json(200, {"service": "vid2notes-asr", "version": 1,
                                      "audio_backups": True, "youtube_audio": True,
-                                     "providers": ["local", *PROVIDERS],
                                      "gpu_enabled": gpu_requested(home) if (home / "config.json").is_file() else False,
                                      "device": MODEL_DEVICE if MODEL else "pending",
                                      "gpu_notice": GPU_NOTICE,
@@ -342,13 +336,8 @@ def make_handler(home, token):
                 if length < 1 or length > 16384:
                     raise ValueError("请求内容长度无效。")
                 data = json.loads(self.rfile.read(length))
-                provider = data.get("provider", "local")
-                if provider not in ("local", *PROVIDERS):
-                    raise ValueError("转写引擎无效")
-                api_key = data.get("api_key", "")
-                if provider != "local" and (not isinstance(api_key, str) or not api_key.strip()
-                                             or len(api_key) > 512 or any(c.isspace() for c in api_key)):
-                    raise ValueError("请填写有效的服务商 API Key")
+                if data.get("provider", "local") != "local" or "api_key" in data:
+                    raise ValueError("本地组件只接受本地模型转写任务")
                 bvid, cid = data.get("bvid"), data.get("cid")
                 urls = data.get("audio_urls") or [data.get("audio_url")]
                 youtube = isinstance(bvid, str) and bool(re.fullmatch(r"YT_[\w-]{11}|YTPL_[\w-]{8,60}", bvid))
@@ -363,14 +352,13 @@ def make_handler(home, token):
                 return
             with JOBS_LOCK:
                 job = next((item for item in JOBS.values() if item["bvid"] == bvid and item["cid"] == cid
-                            and item.get("provider", "local") == provider
                             and not item["cancel"].is_set()
                             and item["status"] not in ("failed", "canceled")), None)
                 if job is None:
-                    job = {"id": uuid.uuid4().hex, "bvid": bvid, "cid": cid, "audio_urls": urls, "provider": provider,
+                    job = {"id": uuid.uuid4().hex, "bvid": bvid, "cid": cid, "audio_urls": urls,
                            "status": "queued", "progress": 0, "detail": "等待转写", "cancel": threading.Event()}
                     JOBS[job["id"]] = job
-                    threading.Thread(target=run_job, args=(home, job, api_key), daemon=True).start()
+                    threading.Thread(target=run_job, args=(home, job), daemon=True).start()
             self.send_json(202, {"id": job["id"], "status": job["status"]})
 
         def do_DELETE(self):

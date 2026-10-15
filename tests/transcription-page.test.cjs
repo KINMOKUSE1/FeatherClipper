@@ -61,12 +61,30 @@ test('engine selection shows only applicable fields; save never starts a transcr
   h.get('asr-provider').value = 'groq';
   h.get('asr-provider').handlers.change();
   assert.equal(h.get('asr-key-row').hidden, false);
+  assert.equal(h.get('asr-local-fields').hidden, true);
+  assert.equal(h.get('asr-install-guide').hidden, true);
+  assert.equal(h.get('asr-refresh').hidden, true);
+  assert.equal(h.get('asr-key-link').href, 'https://console.groq.com/keys');
+  h.get('asr-provider').value = 'siliconflow';
+  h.get('asr-provider').handlers.change();
+  assert.equal(h.get('asr-key-link').href, 'https://cloud.siliconflow.cn/account/ak');
+  h.get('asr-provider').value = 'groq';
+  h.get('asr-provider').handlers.change();
   assert.match(h.get('asr-provider-help').textContent, /上传/);
   h.get('asr-api-key').value = 'example-key';
   await h.get('asr-connect').handlers.click();
   assert.equal(h.calls.some(([action]) => action === 'asr-start'), false);
   assert.equal(h.get('asr-api-key').value, '');
   assert.match(h.get('asr-api-key').placeholder, /已保存/);
+});
+
+test('local instructions disappear when local transcription is ready', async () => {
+  const h = boot('local', true);
+  await h.controller.open();
+  assert.equal(h.get('asr-install-guide').hidden, true);
+  const missing = boot('local', false);
+  await missing.controller.open();
+  assert.equal(missing.get('asr-install-guide').hidden, false);
 });
 
 test('missing configuration navigates to setup without requesting audio', async () => {

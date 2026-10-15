@@ -1,4 +1,4 @@
-/* 转写配置与本地任务服务；在线 Key 只在后台读取并随任务传给本机组件。 */
+/* 转写配置与引擎路由；在线任务在扩展内运行，本地模型使用本机组件。 */
 const ASR_BASE = "http://127.0.0.1:27347";
 
 async function asrSettings() {
@@ -52,12 +52,15 @@ async function asrToken() {
 async function asrStatus() {
   const settings = await asrSettings();
   const config = asrPublicSettings(settings);
+  if (settings.provider !== "local") {
+    const connected = Boolean(settings.keys[settings.provider]);
+    return { provider: settings.provider, settings: config, connected, youtubeAudio: true,
+      error: connected ? "" : "请填写并保存所选服务商的 API Key" };
+  }
   const result = await asrComponentStatus();
   let error = result.error;
   if (result.connected) {
     if (settings.provider === "local" && !result.modelReady) error = "本地模型尚未准备好，可安装模型或选择在线引擎";
-    else if (settings.provider !== "local" && !result.providers?.includes(settings.provider)) error = "当前组件不支持在线转写，请更新组件源码并重启";
-    else if (settings.provider !== "local" && !settings.keys[settings.provider]) error = "请填写并保存所选服务商的 API Key";
   }
   return { ...result, settings: config, provider: settings.provider, componentConnected: result.connected,
     connected: result.connected && !error, error };
@@ -79,7 +82,7 @@ async function asrComponentStatus() {
   try {
     await asrRequest("/pair", "GET", null, token);
     return { installed: true, connected: true, paired: true,
-      modelReady: health.model_ready === true, providers: health.providers,
+      modelReady: health.model_ready === true,
       device: health.device, gpuEnabled: health.gpu_enabled, gpuNotice: health.gpu_notice, youtubeAudio: health.youtube_audio === true };
   }
   catch (error) {
@@ -107,7 +110,7 @@ async function asrAudioUrls(meta, page) {
     || payload.data?.durl?.[0];
   const backups = entry?.backupUrl || entry?.backup_url || [];
   const urls = [entry?.baseUrl || entry?.base_url || entry?.url, ...(Array.isArray(backups) ? backups : [])].filter(Boolean);
-  if (!urls.length) throw new Error("B站没有返回可下载的音轨，无法进行本地转写。");
+  if (!urls.length) throw new Error("B站没有返回可下载的音轨，无法转写音频。");
   return [...new Set(urls.map(value => {
     const parsed = new URL(value);
     if (parsed.protocol !== "https:" || !["bilivideo.com", "hdslb.com", "bilibili.com"].some(host => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`))) {
@@ -122,14 +125,17 @@ async function asrStart(meta, page, provider) {
   provider ||= settings.provider;
   if (provider !== settings.provider) throw new Error("转写引擎已修改，请重新开始本次任务");
   if (provider !== "local" && !settings.keys[provider]) throw new Error("请先保存服务商 API Key");
+  if (provider !== "local") {
+    return onlineAsrStart(meta, page, provider, settings.keys[provider], await asrAudioUrls(meta, page));
+  }
   const token = await asrToken();
   if (!token) throw new Error("先安装并连接本地转写组件。");
   const audioUrls = await asrAudioUrls(meta, page);
-  return asrRequest("/jobs", "POST", { bvid: meta.bvid, cid: page.cid, audio_url: audioUrls[0], audio_urls: audioUrls,
-    provider, ...(provider !== "local" ? { api_key: settings.keys[provider] } : {}) }, token);
+  return asrRequest("/jobs", "POST", { bvid: meta.bvid, cid: page.cid, audio_url: audioUrls[0], audio_urls: audioUrls }, token);
 }
 
 async function asrPoll(jobId) {
+  if (/^online-[0-9a-f]{32}$/.test(jobId || "")) return onlineAsrRequest("poll", { id: jobId });
   if (!/^[0-9a-f]{32}$/.test(jobId || "")) throw new Error("转写任务编号无效。");
   const token = await asrToken();
   if (!token) throw new Error("先连接本地转写组件。");
@@ -137,6 +143,7 @@ async function asrPoll(jobId) {
 }
 
 async function asrCancel(jobId) {
+  if (/^online-[0-9a-f]{32}$/.test(jobId || "")) return onlineAsrRequest("cancel", { id: jobId });
   if (!/^[0-9a-f]{32}$/.test(jobId || "")) throw new Error("转写任务编号无效。");
   const token = await asrToken();
   if (!token) throw new Error("先连接本地转写组件。");
@@ -144,12 +151,13 @@ async function asrCancel(jobId) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (!["asr-status", "asr-pair", "asr-settings-save"].includes(message?.type)) return false;
+  if (!["asr-status", "asr-component-status", "asr-pair", "asr-settings-save"].includes(message?.type)) return false;
   if (sender.id !== chrome.runtime.id || !["workbench/index.html", "popup/index.html"].some(file => String(sender.url || "").split(/[?#]/)[0] === chrome.runtime.getURL(file))) {
     sendResponse({ ok: false, error: "请从扩展页面连接本地转写组件。" });
     return false;
   }
   Promise.resolve().then(() => message.type === "asr-status" ? asrStatus()
+    : message.type === "asr-component-status" ? asrComponentStatus()
     : message.type === "asr-pair" ? asrPair(message.token) : asrSaveSettings(message.settings))
     .then(data => sendResponse({ ok: true, ...data }))
     .catch(error => sendResponse({ ok: false, error: error.message }));

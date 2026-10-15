@@ -110,9 +110,14 @@ test('only a rejected saved code asks for pairing again', async () => {
 
 function onlineWorker(provider = 'groq', key = 'private-test-key', modelReady = false) {
   const saved = { asrToken: 'a'.repeat(64), asrSettings: { provider, keys: key ? { [provider]: key } : {} } };
-  const requests = [];
-  const context = vm.createContext({ URL, URLSearchParams, AbortSignal,
-    chrome: { runtime: { onMessage: { addListener() {} } }, storage: { local: {
+  const requests = [], messages = [], rules = [];
+  let documentOpen = false, documentCreates = 0;
+  const context = vm.createContext({ URL, URLSearchParams, AbortSignal, crypto: require('node:crypto').webcrypto,
+    chrome: { runtime: { id: 'unit', getURL: file => `chrome-extension://unit/${file}`, onMessage: { addListener() {} },
+      getContexts: async () => documentOpen ? [{}] : [],
+      sendMessage: async message => { messages.push(message); return { ok: true, id: message.id, status: message.action === 'cancel' ? 'canceled' : 'queued', empty: message.action === 'forget' }; },
+    }, offscreen: { createDocument: async () => { documentOpen = true; documentCreates++; }, closeDocument: async () => { documentOpen = false; } },
+    declarativeNetRequest: { updateSessionRules: async value => rules.push(value) }, storage: { local: {
       get: async key => ({ [key]: saved[key] }), set: async values => Object.assign(saved, values),
     } } },
     fetch: async (url, options) => {
@@ -123,17 +128,19 @@ function onlineWorker(provider = 'groq', key = 'private-test-key', modelReady = 
     },
     courseBiliJson: async () => ({ data: { dash: { audio: [{ baseUrl: 'https://first.bilivideo.com/audio' }] } } }),
   });
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../extension/background/online-transcription.js'), 'utf8'), context);
   vm.runInContext(source, context);
-  return { context, saved, requests };
+  return { context, saved, requests, messages, rules, get documentCreates() { return documentCreates; } };
 }
 
 test('online readiness does not require a Whisper model; public settings omit the key', async () => {
   const h = onlineWorker();
   const status = await h.context.asrStatus();
   assert.equal(status.connected, true);
-  assert.equal(status.componentConnected, true);
+  assert.equal(status.componentConnected, undefined);
   assert.equal(status.settings.hasApiKeys.groq, true);
   assert.equal(JSON.stringify(status).includes('private-test-key'), false);
+  assert.equal(h.requests.length, 0, 'online status never checks localhost');
   const local = onlineWorker('local', '', false);
   assert.equal((await local.context.asrStatus()).connected, false);
   assert.equal((await local.context.asrStatus()).componentConnected, true);
@@ -159,15 +166,26 @@ test('a missing API key blocks online jobs before requesting audio', async () =>
   assert.equal(h.requests.length, count);
 });
 
-test('job submission sends only the selected key to the loopback service', async () => {
+test('online jobs need no pairing code and send only the selected key to the extension worker', async () => {
   const h = onlineWorker();
+  delete h.saved.asrToken;
   h.saved.asrSettings.keys.siliconflow = 'other-service-key';
   await h.context.asrStart({ bvid: 'BV123' }, { cid: '456' }, 'groq');
-  const request = h.requests.find(request => request.url.endsWith('/jobs'));
-  const data = JSON.parse(request.options.body);
+  const data = h.messages.find(message => message.action === 'start');
   assert.equal(data.provider, 'groq');
-  assert.equal(data.api_key, 'private-test-key');
-  assert.equal(request.options.body.includes('other-service-key'), false);
-  assert.equal(request.url, 'http://127.0.0.1:27347/jobs');
+  assert.equal(data.apiKey, 'private-test-key');
+  assert.equal(JSON.stringify(data).includes('other-service-key'), false);
+  assert.equal(h.requests.length, 0);
+  assert.equal(h.rules[0].addRules[0].condition.initiatorDomains[0], 'unit');
   await assert.rejects(h.context.asrStart({ bvid: 'BV123' }, { cid: '456' }, 'siliconflow'), /引擎已修改/);
+});
+
+test('online polling and cancellation stay inside the extension; offscreen creation is serialized', async () => {
+  const h = onlineWorker();
+  const jobs = await Promise.all([h.context.asrStart({ bvid: 'BV123' }, { cid: '456' }), h.context.asrStart({ bvid: 'BV123' }, { cid: '789' })]);
+  assert.equal(h.documentCreates, 1);
+  await h.context.asrPoll(jobs[0].id);
+  assert.equal((await h.context.asrCancel(jobs[0].id)).status, 'canceled');
+  assert.equal(h.requests.length, 0);
+  assert.deepEqual(h.messages.slice(-2).map(message => message.action), ['poll', 'cancel']);
 });

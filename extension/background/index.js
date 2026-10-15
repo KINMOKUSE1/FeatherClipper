@@ -8,6 +8,7 @@ importScripts(
   "youtube.js",
   "video-navigation.js",
   "obsidian.js",
+  "online-transcription.js",
   "transcription.js",
   "history.js",
   "courses.js",

@@ -56,6 +56,7 @@ async function handleCourseMessage(message) {
       source: provider === "local" ? "local-asr" : `${provider}-asr`, model: models[provider], timestamps };
     await courseLocalRequest(path, "PUT", CourseCore.buildRaw(meta, page, track, job.body));
     const result = await rememberCourseImport(meta, page, base, { status: "saved", path }, track);
+    if (provider !== "local") await onlineAsrRequest("forget", { id: message.jobId }).catch(() => {});
     return { ...result, body: job.body, track };
   }
   if (action === "preview") {

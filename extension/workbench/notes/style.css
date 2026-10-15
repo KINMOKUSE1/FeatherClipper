@@ -29,7 +29,6 @@
 :is(.skill-builder, .asr-settings) .settings-row > .builder-select { grid-column: 2; grid-row: 1 / span 2; justify-self: end; align-self: center; }
 .skill-builder .settings-row > .settings-toggle { grid-column: 2; grid-row: 1 / span 2; }
 .skill-builder .settings-row-multiline { grid-template-rows: auto; }
-.builder-material-label { grid-column: 1; grid-row: 1; font-weight: 500; }
 .builder-material-count { grid-column: 2; grid-row: 1 / span 2; align-self: center; justify-self: end; font: 14px/1.5 var(--font-controls); color: var(--muted); }
 .skill-builder input:not([type="checkbox"]):not([type="file"]), .skill-builder textarea { min-height: 34px; padding: 6px 10px; border: 1px solid #dfe1e5; border-radius: 6px; background: var(--surface); font: 14px/20px var(--font-controls); color: var(--ink); box-shadow: 0 1px 2px #35405203; transition: border-color 140ms, box-shadow 140ms; }
 .skill-builder input:not([type="checkbox"]):not([type="file"]):hover, .skill-builder textarea:hover { border-color: #c7cbd1; }

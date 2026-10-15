@@ -15,6 +15,7 @@ function harness({ existing = null, rawFiles = [], tracks = true, needLogin = fa
     asrStart: async () => ({ id: 'a'.repeat(32), status: 'queued' }),
     asrPoll: async () => asrJob || ({ bvid: meta.bvid, cid: page.cid, status: 'done', language: 'zh', body: [{ from: 2, to: 4, content: '本地识别文本' }] }),
     asrCancel: async () => ({ status: 'stopping' }),
+    onlineAsrRequest: async () => ({ ok: true }),
     chrome: { runtime: { id: 'test', getURL: name => `chrome-extension://test/${name}`, onMessage: { addListener() {} } },
       storage: { local: { get: async key => ({ [key]: stored[key] }), set: async data => Object.assign(stored, data) } } },
     fetch: async (url, options = {}) => {
