@@ -62,9 +62,12 @@ tr.is-previewing td:first-child { box-shadow: inset 2px 0 var(--accent); }
 .transcript a { display: block; font-family: var(--font-ui); color: var(--faint); font-size: 12px; line-height: 1.4; text-decoration: none; margin-bottom: 3px; font-variant-numeric: tabular-nums; }
 .transcript a:hover { color: var(--ink); }
 .transcript .preview-message { font-family: var(--font-ui); color: var(--muted); }
-.asr-panel { flex: none; margin-bottom: 14px; }
+.asr-panel { display: flex; flex: none; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
 .preview:has(> .asr-panel:not([hidden])) .transcript { flex: none; margin-bottom: 12px; padding-bottom: 0; mask-image: none; }
 .asr-panel button { font-size: 14px; }
+.asr-engine-choice { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-controls); font-size: 13px; line-height: 20px; color: var(--muted); white-space: nowrap; }
+.asr-engine-choice .text-button { min-height: 0; padding: 0; border: 0; background: transparent; font: inherit; color: inherit; }
+.asr-engine-choice .text-button:hover { color: var(--ink); text-decoration: underline; }
 /* 目录和字幕各自滚动，操作栏占据独立空间，不覆盖课时。 */
 .import-bar { flex: none; background: var(--bar-surface); margin-top: 0; padding: 16px 0; }
 .import-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px 18px; }

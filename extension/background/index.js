@@ -6,6 +6,8 @@ importScripts(
   "wbi.js",
   "bilibili.js",
   "youtube.js",
+  "../transcription/sabr/vendor.js",
+  "youtube-audio.js",
   "video-navigation.js",
   "obsidian.js",
   "online-transcription.js",

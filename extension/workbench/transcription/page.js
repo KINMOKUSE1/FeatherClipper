@@ -35,7 +35,7 @@ window.createTranscriptionPage = function ({ getCatalog, send, feedback, navigat
   async function refresh() {
     const result = await send({ type: "asr-status" });
     settings = result.settings || settings;
-    $("asr-current").textContent = result.connected ? ui.current : result.paired ? ui.check : ui.setup;
+    $("asr-current").textContent = ui.current;
     $("asr-engine-label").textContent = ui.engines[result.provider || "local"];
     $("asr-selected").title = ui.engines[result.provider || "local"];
     return result;
@@ -126,6 +126,7 @@ window.createTranscriptionPage = function ({ getCatalog, send, feedback, navigat
   $("asr-current").addEventListener("click", () => {
     if (getCatalog().getState().activeAsrPage) run([getCatalog().getState().activeAsrPage]).catch(error => status(error.message, true));
   });
+  $("asr-change-engine").addEventListener("click", () => open().catch(error => status(error.message, true)));
   $("asr-selected").addEventListener("click", () => run(getCatalog().getState().pages.filter(p => p.selected && p.status === "missing")).catch(error => status(error.message, true)));
   $("asr-connect").addEventListener("click", async () => {
     $("asr-connect").disabled = true;

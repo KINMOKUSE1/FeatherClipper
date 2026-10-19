@@ -5,6 +5,17 @@ let queue = Promise.resolve();
 async function run(job, input, controller) {
   try {
     controller.signal.throwIfAborted();
+    if (input.youtubeVideoId) {
+      job.status = "downloading"; job.detail = "正在准备 YouTube 音频会话";
+      const cancel = () => { chrome.runtime.sendMessage({ target: "youtube-audio-session", action: "cancel", id: job.id }).catch(() => {}); };
+      controller.signal.addEventListener("abort", cancel, { once: true });
+      try {
+        const result = await chrome.runtime.sendMessage({ target: "youtube-audio-session", action: "read", id: job.id, videoId: input.youtubeVideoId });
+        controller.signal.throwIfAborted();
+        if (!result?.ok) throw new Error(result?.error || "YouTube 音频会话准备失败");
+        input = { ...input, ...result.source };
+      } finally { controller.signal.removeEventListener("abort", cancel); }
+    }
     const result = await OnlineAudio.transcribe(input, controller.signal, update => {
       if (!controller.signal.aborted) Object.assign(job, update);
     });
@@ -21,15 +32,16 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
     || (sender.url && sender.url !== chrome.runtime.getURL("background/index.js"))) return false;
   try {
     if (message.action === "start") {
-      const { id, bvid, cid, provider, urls, apiKey } = message;
-      if (!OnlineAudio.providers[provider] || !Array.isArray(urls) || !urls.length || !urls.every(OnlineAudio.allowedAudioUrl)
+      const { id, bvid, cid, provider, urls, apiKey, youtubeVideoId } = message;
+      const youtube = /^[\w-]{11}$/.test(youtubeVideoId || "") && youtubeVideoId === cid;
+      if (!OnlineAudio.providers[provider] || (!youtube && (!Array.isArray(urls) || !urls.length || !urls.every(OnlineAudio.allowedAudioUrl)))
         || !/^online-[0-9a-f]{32}$/.test(id) || typeof apiKey !== "string" || !apiKey) throw new Error("在线转写任务参数无效");
       let job = [...jobs.values()].find(item => item.bvid === bvid && item.cid === cid && item.provider === provider && !["failed", "canceled"].includes(item.status));
       if (!job) {
         job = { id, bvid, cid, provider, status: "queued", progress: 0, detail: "等待转写" };
         jobs.set(id, job);
         const controller = new AbortController(); controllers.set(id, controller);
-        queue = queue.then(() => run(job, { provider, urls, apiKey }, controller));
+        queue = queue.then(() => run(job, { provider, urls, apiKey, youtubeVideoId: youtube ? youtubeVideoId : "" }, controller));
       }
       respond({ ok: true, id: job.id, status: job.status });
     } else {

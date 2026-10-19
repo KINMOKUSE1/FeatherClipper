@@ -22,11 +22,11 @@ async function sendOnlineAsr(action, data) {
   return result;
 }
 
-async function onlineAsrStart(meta, page, provider, apiKey, urls) {
+async function onlineAsrStart(meta, page, provider, apiKey, urls, youtubeVideoId = "") {
   // Only this extension's CDN requests receive the Bilibili media Referer.
   await chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: [7001], addRules: [{ id: 7001, priority: 1,
     action: { type: "modifyHeaders", requestHeaders: [{ header: "referer", operation: "set", value: "https://www.bilibili.com/" }] },
     condition: { initiatorDomains: [chrome.runtime.id], requestDomains: ["bilivideo.com", "hdslb.com"], resourceTypes: ["xmlhttprequest"] }
   }] });
-  return onlineAsrRequest("start", { id: `online-${crypto.randomUUID().replace(/-/g, "")}`, bvid: meta.bvid, cid: page.cid, provider, apiKey, urls });
+  return onlineAsrRequest("start", { id: `online-${crypto.randomUUID().replace(/-/g, "")}`, bvid: meta.bvid, cid: page.cid, provider, apiKey, urls, youtubeVideoId });
 }

@@ -49,13 +49,24 @@
     });
   }
   async function download(urls, signal) {
-    const maxBytes = 128 * 1024 * 1024;
+    const maxBytes = 128 * 1024 * 1024, failures = [];
     for (const url of urls) {
       if (!allowedAudioUrl(url)) throw new Error("音频地址不属于支持的媒体服务");
       signal.throwIfAborted();
       try {
         const response = await fetch(url, { signal: AbortSignal.any([signal, AbortSignal.timeout(120000)]), credentials: "omit" });
-        if (!response.ok || !allowedAudioUrl(response.url)) continue;
+        if (!response.ok) {
+          failures.push(response.status ? `HTTP ${response.status}` : "请求被拒绝");
+          continue;
+        }
+        if (!allowedAudioUrl(response.url)) {
+          failures.push("重定向地址不受支持");
+          continue;
+        }
+        if (!response.body) {
+          failures.push("响应没有音频数据");
+          continue;
+        }
         const reader = response.body.getReader(), blocks = [];
         let length = 0;
         try {
@@ -70,12 +81,15 @@
           }
         } finally { await reader.cancel().catch(() => {}); }
         if (length) return new Blob(blocks).arrayBuffer();
+        failures.push("音频响应为空");
       } catch (error) {
         signal.throwIfAborted();
         if (error instanceof RangeError) throw error;
+        // Fetch error messages can contain signed URLs; expose only the failure category.
+        failures.push(error?.name === "TimeoutError" ? "下载超时" : "网络请求失败");
       }
     }
-    throw new Error("音轨下载失败，请重新读取课程后重试");
+    throw new Error(`音轨下载失败：${[...new Set(failures)].join("；") || "没有可用的音轨地址"}`);
   }
   async function request(provider, key, audio, signal, report) {
     const info = providers[provider];
@@ -107,15 +121,16 @@
       signal.throwIfAborted(); return result;
     }
   }
-  async function transcribe({ provider, apiKey, urls }, signal, report) {
+  async function transcribe({ provider, apiKey, urls, sabr }, signal, report) {
     if (!providers[provider]) throw new Error("在线转写引擎无效");
     report({ status: "downloading", detail: "正在获取音频" });
-    let data = await download(urls, signal);
+    let data = sabr ? await globalThis.SabrAudio.download(sabr, signal) : await download(urls, signal);
     report({ status: "preparing", detail: "正在解码和切分音频" });
     const context = new OfflineAudioContext(1, 1, 16000);
     let audio;
     try { audio = await context.decodeAudioData(data); }
     catch { throw new Error("浏览器无法解码该音轨，可能是格式不支持或可用内存不足"); }
+    if (sabr) globalThis.SabrAudio.assertDuration(audio.duration, sabr.durationMs);
     data = null;
     signal.throwIfAborted();
     const body = [], chunkSamples = 120 * audio.sampleRate;

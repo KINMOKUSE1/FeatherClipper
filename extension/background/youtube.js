@@ -36,12 +36,33 @@ async function youtubePageRead(videoId, includeBody, includeAudio, playlistId) {
   if (player?.videoDetails?.videoId !== videoId) player = inlineJson("ytInitialPlayerResponse");
   const inlinePlayer = player?.videoDetails?.videoId === videoId ? player : null;
   player = inlinePlayer;
+  const audioPlayers = inlinePlayer ? [inlinePlayer] : [];
+  const getAudioUrls = () => {
+    const byBitrate = (a, b) => Number(a.bitrate || 0) - Number(b.bitrate || 0);
+    const audio = audioPlayers.flatMap(data => data.streamingData?.adaptiveFormats || [])
+      .filter(item => String(item.mimeType || "").startsWith("audio/") && item.url).sort(byBitrate);
+    // Progressive MP4 (e.g. itag 18) contains AAC even when adaptive audio is SABR-only.
+    const muxed = audioPlayers.flatMap(data => data.streamingData?.formats || [])
+      .filter(item => /^video\/mp4\b/i.test(item.mimeType || "") && /\bmp4a\./i.test(item.mimeType || "") && item.url).sort(byBitrate);
+    return [...new Set([...audio, ...muxed].map(item => item.url))].filter(value => {
+      try { const url = new URL(value); return url.protocol === "https:" && (url.hostname === "googlevideo.com" || url.hostname.endsWith(".googlevideo.com")); }
+      catch { return false; }
+    }).slice(0, 4);
+  };
   let pageDetails = null;
-  if (!includeBody && !includeAudio) {
-    // Metadata need not wait for captions or a fresh initialization response.
+  if (!includeBody) {
+    // SPA navigation can leave startup globals absent or pointing to the previous video.
+    const element = document.querySelector("#movie_player");
     try {
-      const live = document.querySelector("#movie_player")?.getVideoData?.();
-      if (live?.video_id === videoId && live.title?.trim()) pageDetails = { videoId, title: live.title, author: live.author || "" };
+      const response = element?.getPlayerResponse?.();
+      if (response?.videoDetails?.videoId === videoId) {
+        player = response;
+        audioPlayers.unshift(response);
+      }
+    } catch { /* The player may still be mounting. */ }
+    try {
+      const live = element?.getVideoData?.();
+      if (live?.video_id === videoId && live.title?.trim()) pageDetails = { ...player?.videoDetails, videoId, title: live.title, author: live.author || "" };
     } catch { /* The player may still be mounting. */ }
     if (!pageDetails && !player?.videoDetails?.title?.trim()) {
       const watch = document.querySelector("ytd-watch-flexy");
@@ -53,7 +74,7 @@ async function youtubePageRead(videoId, includeBody, includeAudio, playlistId) {
       if (title || ogTitle) pageDetails = { videoId, title: title || ogTitle, author: "" };
     }
   }
-  if (!includeBody && ((!pageDetails && !player?.videoDetails?.title?.trim()) || (includeAudio && !player?.streamingData?.adaptiveFormats?.some(item => String(item.mimeType || "").startsWith("audio/") && item.url)))) {
+  if (!includeBody && ((!pageDetails && !player?.videoDetails?.title?.trim()) || (includeAudio && !getAudioUrls().length && !player?.streamingData?.serverAbrStreamingUrl))) {
     try {
       const response = await fetch("/youtubei/v1/player?prettyPrint=false", {
         method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
@@ -62,7 +83,10 @@ async function youtubePageRead(videoId, includeBody, includeAudio, playlistId) {
       });
       if (response.ok) {
         const fresh = await response.json();
-        if (fresh?.videoDetails?.videoId === videoId) player = fresh;
+        if (fresh?.videoDetails?.videoId === videoId) {
+          audioPlayers.push(fresh);
+          if (!player?.videoDetails?.title?.trim()) player = fresh;
+        }
       }
     } catch { /* The inline player response may still be usable. */ }
   }
@@ -150,13 +174,10 @@ async function youtubePageRead(videoId, includeBody, includeAudio, playlistId) {
     meta.pages = [...new Map(playlist.videos.map(item => [item.cid, item])).values()].map((item, index) => ({ ...item, page: index + 1 }));
   }
   if (includeAudio) {
-    const formats = (player.streamingData?.adaptiveFormats || inlinePlayer?.streamingData?.adaptiveFormats || []).filter(item => String(item.mimeType || "").startsWith("audio/") && item.url);
-    const audioUrls = formats.sort((a, b) => Number(a.bitrate || 0) - Number(b.bitrate || 0)).map(item => item.url).filter(value => {
-      try { const url = new URL(value); return url.protocol === "https:" && (url.hostname === "googlevideo.com" || url.hostname.endsWith(".googlevideo.com")); }
-      catch { return false; }
-    }).slice(0, 4);
-    if (!audioUrls.length) throw new Error("YouTube 没有提供可用的音轨地址，暂时无法启动本地转写。");
-    return { meta, audioUrls };
+    const audioUrls = getAudioUrls();
+    const sabr = Boolean(player?.streamingData?.serverAbrStreamingUrl);
+    if (!audioUrls.length && !sabr) throw new Error("YouTube 没有提供可用的音轨地址，无法启动音频转写");
+    return { meta, audioUrls, sabr };
   }
   if (!includeBody) return { meta };
   const getTracks = data => data?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];

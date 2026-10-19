@@ -102,7 +102,11 @@ async function asrPair(value) {
 }
 
 async function asrAudioUrls(meta, page) {
-  if (meta.platform === "youtube") return (await youtubeRead(page.cid, false, true)).audioUrls;
+  if (meta.platform === "youtube") {
+    const source = await youtubeRead(page.cid, false, true);
+    if (!source.audioUrls.length) throw new Error("该视频使用 SABR 分段音频，请选择 Groq 或硅基流动转写");
+    return source.audioUrls;
+  }
   const query = new URLSearchParams({ bvid: meta.bvid, cid: page.cid, qn: "16", fnval: "16", fourk: "0" });
   const payload = await courseBiliJson(`https://api.bilibili.com/x/player/playurl?${query}`);
   const dashAudio = payload.data?.dash?.audio || [];
@@ -126,7 +130,7 @@ async function asrStart(meta, page, provider) {
   if (provider !== settings.provider) throw new Error("转写引擎已修改，请重新开始本次任务");
   if (provider !== "local" && !settings.keys[provider]) throw new Error("请先保存服务商 API Key");
   if (provider !== "local") {
-    return onlineAsrStart(meta, page, provider, settings.keys[provider], await asrAudioUrls(meta, page));
+    return onlineAsrStart(meta, page, provider, settings.keys[provider], meta.platform === "youtube" ? [] : await asrAudioUrls(meta, page), meta.platform === "youtube" ? page.cid : "");
   }
   const token = await asrToken();
   if (!token) throw new Error("先安装并连接本地转写组件。");

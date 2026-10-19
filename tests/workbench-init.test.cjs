@@ -6,7 +6,7 @@ const core = require('../extension/shared/course.js');
 const collectMaterials = require('../extension/workbench/notes/materials.js');
 const source = fs.readFileSync(require.resolve('../extension/workbench/catalog/page.js'), 'utf8');
 
-function boot(search, unavailable = false, missingSubtitle = false, snapshots = {}) {
+function boot(search, unavailable = false, missingSubtitle = false, snapshots = {}, previewError = false) {
   const calls = [], elements = new Map();
   function element() {
     return { value: '', hidden: false, open: false, children: [], classList: { toggle() {} },
@@ -28,20 +28,25 @@ function boot(search, unavailable = false, missingSubtitle = false, snapshots = 
       calls.push([message.action, message]);
       if (unavailable) throw new Error('No course');
       if (message.action === 'meta') return { folder: 'Clippings/Bilibili', meta: {
-        bvid: 'BV1234567890', title: 'Course',
-        pages: Array.from({ length: 4 }, (_, i) => ({ cid: String(i + 1), page: i + 1, part: `1. Lesson ${i + 1}` }))
+        bvid: message.youtubeId ? `YT_${message.youtubeId}` : message.bvid, title: 'Course',
+        ...(message.youtubeId ? { platform: 'youtube', videoId: message.youtubeId } : {}),
+        pages: message.youtubeId ? [{ cid: message.youtubeId, page: 1, part: 'YouTube lesson' }] : Array.from({ length: 4 }, (_, i) => ({ cid: String(i + 1), page: i + 1, part: `1. Lesson ${i + 1}` }))
       } };
-      if (message.action === 'preview') return { body: missingSubtitle ? [] : [{ from: 0, content: 'Actual subtitle' }], missing: missingSubtitle };
+      if (message.action === 'preview') {
+        if (previewError) throw new Error('Caption retrieval failed');
+        return { body: missingSubtitle ? [] : [{ from: 0, content: 'Actual subtitle' }], missing: missingSubtitle };
+      }
+      if (message.action === 'import') return { status: 'saved' };
       throw new Error('Unexpected request');
     },
     feedback: { status: (...args) => calls.push(['status', ...args]) },
-    previewView: { isOpen: () => panelOpen, open: value => { panelOpen = value; }, close() { panelOpen = false; }, message() {}, transcript() {} },
+    previewView: { isOpen: () => panelOpen, open: value => { panelOpen = value; }, close() { panelOpen = false; }, message: (...args) => calls.push(['preview-message', ...args]), transcript() {} },
     importAction: { render() {}, reset() {} },
     connection: { refresh: async () => calls.push(['settings']) },
     transcription: { refresh: async () => ({}), run: async pages => calls.push(['asr', pages[0].cid]) }
   });
   assert.deepEqual(calls, [], 'controller construction does not read settings or a course');
-  return { catalog, calls, url: get('url') };
+  return { catalog, calls, get, url: get('url') };
 }
 
 test('workbench without a source loads settings once and stays empty', async () => {
@@ -135,4 +140,42 @@ test('manual local files work without a course or Obsidian lookup', async () => 
   const context = await h.collect({ ...h.delivery, paths: 'E:/素材/课程.md' });
   assert.equal(context.materials[0].path, 'E:/素材/课程.md');
   assert.deepEqual(h.calls, []);
+});
+
+
+test('workbench applies inherited language to preview and each import, and clears it for another course', async () => {
+  const h = boot('?bvid=BV1234567890&p=2&scope=all&subtitleLanguage=en');
+  await h.catalog.init();
+  assert.equal(h.calls.find(([action]) => action === 'preview')[1].subtitleLanguage, 'en');
+  for (const page of h.catalog.getState().pages) await h.catalog.request('import', { page });
+  const imports = h.calls.filter(([action]) => action === 'import');
+  assert.equal(imports.length, 4);
+  assert.ok(imports.every(([, message]) => message.subtitleLanguage === 'en' && !('trackId' in message)));
+  await h.catalog.loadCourse({ source: 'https://www.bilibili.com/video/BVother123/' });
+  assert.equal('subtitleLanguage' in h.calls.filter(([action]) => action === 'preview').at(-1)[1], false);
+});
+
+test('YouTube preview failure offers audio transcription without claiming subtitles are missing or starting a job', async () => {
+  const h = boot('?youtubeId=GWwL_pLuX-U', false, false, {}, true);
+  await h.catalog.init();
+  assert.equal(h.get('asr-panel').hidden, false);
+  assert.equal(h.get('asr-current').textContent, '尝试音频转写');
+  assert.equal(h.catalog.getState().activeAsrPage.cid, 'GWwL_pLuX-U');
+  assert.equal(h.catalog.getState().pages[0].status, 'pending');
+  assert.ok(h.calls.some(([action, text, error]) => action === 'preview-message' && text === 'Caption retrieval failed' && error));
+  assert.equal(h.calls.some(([action]) => action === 'asr'), false);
+});
+
+test('an explicit YouTube popup transcription handoff survives caption failure', async () => {
+  const h = boot('?youtubeId=GWwL_pLuX-U&asr=1', false, false, {}, true);
+  await h.catalog.init();
+  assert.deepEqual(h.calls.at(-1), ['asr', 'GWwL_pLuX-U']);
+  assert.equal(h.calls.filter(([action]) => action === 'preview').length, 1);
+  const available = boot('?youtubeId=GWwL_pLuX-U&asr=1');
+  await available.catalog.init();
+  assert.equal(available.calls.some(([action]) => action === 'asr'), false);
+  const bili = boot('?bvid=BV1234567890&asr=1', false, false, {}, true);
+  await bili.catalog.init();
+  assert.equal(bili.calls.some(([action]) => action === 'asr'), false);
+  assert.equal(bili.get('asr-panel').hidden, true);
 });

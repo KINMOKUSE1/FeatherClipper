@@ -53,9 +53,15 @@ function normalizeSubtitleTracks(tracks) {
   };
   return [...tracks].sort((a, b) => priority(a) - priority(b));
 }
-async function courseReadBiliSubtitle(tracks, page, trackId = "") {
-  const selected = trackId ? tracks.filter(track => track.id === trackId) : tracks;
+async function courseReadBiliSubtitle(tracks, page, trackId = "", subtitleLanguage = "") {
+  const languageOf = value => String(value || "").toLowerCase().replace(/_/g, "-").replace(/^ai-/, "");
+  const language = languageOf(subtitleLanguage);
+  const selected = trackId ? tracks.filter(track => track.id === trackId) : language ? tracks.filter(track => {
+    const code = languageOf(track.lan);
+    return code === language || ((!code.includes("-") || !language.includes("-")) && code.split("-")[0] === language.split("-")[0]);
+  }) : tracks;
   if (trackId && !selected.length) throw new Error("所选字幕暂不可用，请重新读取视频或选择其他语言");
+  if (language && tracks.length && !selected.length) throw new Error("当前课时没有所选语言的字幕");
   let trackError;
   for (const track of selected) {
     try {
@@ -73,10 +79,10 @@ async function courseReadBiliSubtitle(tracks, page, trackId = "") {
   if (trackError) throw trackError;
   return null;
 }
-async function courseSubtitle(meta, page, purpose = "read", activate = false, trackId = "") {
+async function courseSubtitle(meta, page, purpose = "read", activate = false, trackId = "", subtitleLanguage = "") {
   if (meta.platform === "youtube") {
     const result = await youtubeRead(page.cid, true, false, "", purpose, activate);
     return result.missing ? null : result;
   }
-  return courseReadBiliSubtitle(await courseBiliSubtitleTracks(meta, page), page, trackId);
+  return courseReadBiliSubtitle(await courseBiliSubtitleTracks(meta, page), page, trackId, subtitleLanguage);
 }

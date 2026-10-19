@@ -14,6 +14,7 @@ function boot({ authenticated = true, existing = null, beforeSubtitle, missing =
     runtime: { id: 'test', getURL: file => `chrome-extension://test/${file}`, onMessage: { addListener: fn => listeners.push(fn) } },
     storage: { local: { get: async () => ({ ...local }), set: async data => { Object.assign(local, data); onStored?.(data); } }, sync: { get: async () => ({}) }, session: { get: async key => ({ [key]: session[key] }), set: async data => Object.assign(session, data) } },
     action: { onClicked: { addListener: fn => click = fn } },
+    webRequest: { onBeforeRequest: { addListener() {} } },
     tabs: { create: async data => { opened.push(data); const tab = { id: 2, status: 'complete', url: data.url }; tabs.set(tab.id, tab); return tab; },
       get: async id => tabs.get(id), remove: async id => tabs.delete(id),
       update: async (id, data) => Object.assign(tabs.get(id), data),
@@ -48,7 +49,7 @@ function boot({ authenticated = true, existing = null, beforeSubtitle, missing =
       if (url.includes('/x/web-interface/view')) return { ok: true, json: async () => ({ code: 0, data: { bvid: 'BVexample', aid: 1, title: 'Course', owner: { name: 'Author' }, pages: [{ cid: 2, page: 1, part: '1.1 Intro', duration: 100 }] } }) };
       if (url.includes('/x/player/') && missing) return { ok: true, json: async () => ({ code: 0, data: { cid: new URL(url).searchParams.get('cid'), aid: new URL(url).searchParams.get('aid'), subtitle: { subtitles: [] } } }) };
       if (url.includes('/x/player/') && subtitleLists) {
-        const list = url.includes('/wbi/') ? subtitleLists.wbi : subtitleLists.v2;
+        const list = typeof subtitleLists === 'function' ? subtitleLists(new URL(url)) : url.includes('/wbi/') ? subtitleLists.wbi : subtitleLists.v2;
         return { ok: true, json: async () => ({ code: 0, data: { cid: new URL(url).searchParams.get('cid'), aid: new URL(url).searchParams.get('aid'), subtitle: { subtitles: list || [] } } }) };
       }
       if (url.includes('/x/player/')) return { ok: true, json: async () => ({ code: 0, data: { cid: new URL(url).searchParams.get('cid'), aid: new URL(url).searchParams.get('aid'), subtitle: { subtitles: [
@@ -237,7 +238,7 @@ test('extension messages from an unrelated page are rejected', async () => {
 });
 test('manifest opens the popup and grants YouTube page reading', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(extension, 'manifest.json')));
-  assert.deepEqual(manifest.permissions, ['storage', 'activeTab', 'scripting', 'downloads', 'offscreen', 'declarativeNetRequestWithHostAccess']);
+  assert.deepEqual(manifest.permissions, ['storage', 'activeTab', 'scripting', 'webRequest', 'downloads', 'offscreen', 'declarativeNetRequestWithHostAccess']);
   assert.equal(manifest.action.default_popup, 'popup/index.html'); assert.equal(manifest.side_panel, undefined); assert.equal(manifest.content_scripts, undefined);
   assert.ok(manifest.host_permissions.includes('https://www.youtube.com/*')); assert.ok(!manifest.host_permissions.includes('https://*/*')); assert.equal(manifest.options_page, 'workbench/index.html');
 });
@@ -370,4 +371,52 @@ test('worker restart turns stale running status into a retryable result', async 
   const h = boot({ initial: { [key]: { status: 'running' } } });
   const result = await h.message({ ...quickMessage, type: 'quick-status' }, popupSender);
   assert.equal(result.state.status, 'failed'); assert.match(result.state.error, /中断/);
+});
+
+
+test('workbench inherited language selects separate English tracks for preview and saved materials', async () => {
+  const h = boot({ subtitleLists: url => {
+    const cid = url.searchParams.get('cid');
+    return [{ id: `zh-${cid}`, lan: 'ai-zh', lan_doc: '中文', subtitle_url: `//aisubtitle.hdslb.com/zh-${cid}` },
+      { id: `en-${cid}`, lan: 'ai-en', lan_doc: 'English', subtitle_url: `//aisubtitle.hdslb.com/en-${cid}` }];
+  }, beforeSubtitle: url => [{ from: 1, to: 3, content: `Text ${url.split('/').pop()}` }] });
+  const meta = { ...quickMeta, pages: [quickMeta.pages[0], { cid: '3', page: 2, part: 'Second lesson', duration: 100 }] };
+  for (const page of meta.pages) {
+    const request = { type: 'course-request', meta, page, base: 'Study', subtitleLanguage: 'en' };
+    const preview = await h.message({ ...request, action: 'preview' });
+    assert.equal(preview.track.id, `en-${page.cid}`);
+    assert.equal(preview.body[0].content, `Text en-${page.cid}`);
+    const imported = await h.message({ ...request, action: 'import' });
+    assert.equal(imported.status, 'saved');
+    const raw = h.writes.find(item => decodeURIComponent(item.url).endsWith(`[CID-${page.cid}].md`)).content;
+    assert.match(raw, /subtitle_lang: "English"/);
+    assert.ok(raw.includes(`Text en-${page.cid}`));
+  }
+  assert.ok(!h.fetched.some(url => /\/zh-\d+$/.test(url)));
+});
+
+test('explicit YouTube transcription reads audio directly and imports the resulting material despite caption failure', async () => {
+  const id = 'GWwL_pLuX-U', h = boot({ youtubeVideo: id });
+  const meta = { platform: 'youtube', videoId: id, bvid: `YT_${id}`, title: 'Audio lesson', pages: [{ cid: id, page: 1, part: 'Audio lesson' }] };
+  h.local.asrToken = 'fixture-token';
+  const reads = [], requests = [];
+  h.context.youtubeRead = async (...args) => {
+    reads.push(args);
+    if (args[1]) throw new Error('Caption retrieval failed');
+    return { audioUrls: ['https://rr1.googlevideo.com/fixture-audio'] };
+  };
+  h.context.asrRequest = async (...args) => { requests.push(args); return { id: 'a'.repeat(32), status: 'queued' }; };
+  const request = { type: 'course-request', meta, page: meta.pages[0], base: 'Study', provider: 'local' };
+  assert.equal((await h.message({ ...request, action: 'preview' })).ok, false);
+  const started = await h.message({ ...request, action: 'asr-start' });
+  assert.equal(started.status, 'queued');
+  assert.equal(reads.length, 2);
+  assert.deepEqual(reads[1], [id, false, true]);
+  assert.equal(requests[0][0], '/jobs');
+  assert.equal(requests[0][2].audio_urls[0], 'https://rr1.googlevideo.com/fixture-audio');
+  h.context.asrPoll = async () => ({ status: 'done', bvid: meta.bvid, cid: id, language: 'en', body: [{ from: 0, to: 2, content: 'Audio transcript fixture' }] });
+  const completed = await h.message({ ...request, action: 'asr-finish', jobId: started.id });
+  assert.equal(completed.status, 'saved');
+  assert.match(h.writes.at(-1).content, /Audio transcript fixture/);
+  assert.match(h.writes.at(-1).content, /subtitle_source: "local-asr"/);
 });

@@ -4,9 +4,9 @@ let meta = null, page = null, base = "", settings = null, jobKey = "";
 let busy = false, reading = false, previewing = false, hasSubtitle = false;
 let videoRun = 0;
 let saveScope = "current";
-let subtitleMissing = false;
+let subtitleMissing = false, subtitleReadFailed = false;
 let subtitle = null, exporting = false;
-let subtitleTracks = [], selectedTrackId = "", languageMenuOpen = false;
+let subtitleTracks = [], selectedTrackId = "", subtitleLanguage = "", languageMenuOpen = false;
 function status(text, error = false) {
   $("status").textContent = text; $("status").classList.toggle("error", error);
 }
@@ -38,7 +38,7 @@ function controls() {
   $("read").disabled = $("url").disabled = locked;
   const all = saveScope === "all" && meta?.pages.length > 1;
   const showAsr =
-    subtitleMissing &&
+    (subtitleMissing || (meta?.platform === "youtube" && subtitleReadFailed)) &&
     !all &&
     !busy &&
     !reading &&
@@ -46,6 +46,7 @@ function controls() {
     !exporting;
 
   $("asr-open").hidden = !showAsr;
+  $("asr-open").textContent = subtitleReadFailed ? ui.tryTranscription : ui.transcribe;
   $("save-actions").hidden = showAsr;
   $("import").disabled = locked || !page || (!all && !hasSubtitle) || !settings?.hasApiKey;
   $("save-menu-toggle").hidden = all;
@@ -147,7 +148,7 @@ function renderLanguageMenu() {
     option.setAttribute("aria-label", option.textContent);
     option.setAttribute("aria-checked", String(track.id === selectedTrackId));
     option.addEventListener("click", async () => {
-      selectedTrackId = track.id;
+      selectedTrackId = track.id; subtitleLanguage = track.id ? track.lan : "";
       $("subtitle-language-label").textContent = track.lanDoc || track.lan;
       closeLanguageMenu(true); status("");
       await preview();
@@ -181,7 +182,7 @@ async function preview() {
   previewing = true;
   hasSubtitle = false;
   subtitle = null;
-  subtitleMissing = false;
+  subtitleMissing = false; subtitleReadFailed = false;
   controls();
   $("asr-open").hidden = true;
   $("subtitles").textContent = ui.readingSubtitles;
@@ -210,6 +211,7 @@ async function preview() {
       line.append(time, document.createTextNode(item.content)); $("subtitles").append(line);
     }
   } catch (error) {
+    subtitleReadFailed = true;
     if (meta.platform !== "youtube") renderLanguageMenu();
     $("subtitles").textContent = format(ui.subtitleError, { error: error.message });
     $("preview-label").textContent = ui.subtitleFailed;
@@ -227,7 +229,7 @@ async function loadVideo() {
   reading = true; page = null; meta = null; jobKey = ""; hasSubtitle = false; saveScope = "current"; controls();
   $("video").hidden = true; $("empty").hidden = true; $("workspace").hidden = true;
   $("preview-panel").open = false; status(ui.recognizing);
-  closeLanguageMenu(); subtitleTracks = []; selectedTrackId = "";
+  closeLanguageMenu(); subtitleTracks = []; selectedTrackId = ""; subtitleLanguage = "";
   $("subtitle-language-switch").hidden = true; $("subtitle-track").hidden = false; $("subtitle-language-label").textContent = ui.automatic;
   try {
     const data = await send({ type: "course-request", action: "meta", ...(parsed.platform === "youtube" ? { youtubeId: parsed.id, playlistId: parsed.playlistId } : { bvid: parsed.id }) });
@@ -277,6 +279,7 @@ $("asr-open").addEventListener("click", async () => {
   if (meta.playlistId) target.searchParams.set("playlistId", meta.playlistId);
   target.searchParams.set("p", page.page);
   target.searchParams.set("asr", "1");
+  if (meta.platform !== "youtube" && subtitleLanguage) target.searchParams.set("subtitleLanguage", subtitleLanguage);
   await chrome.tabs.create({ url: target.href }); window.close();
 });
 $("import").addEventListener("click", async () => {
@@ -295,6 +298,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 async function openWorkspace(selectAll = false) {
   const target = new URL(chrome.runtime.getURL("workbench/index.html"));
   if (meta && page) { target.searchParams.set(meta.platform === "youtube" ? "youtubeId" : "bvid", meta.platform === "youtube" ? meta.videoId : meta.bvid); if (meta.playlistId) target.searchParams.set("playlistId", meta.playlistId); target.searchParams.set("p", page.page); }
+  if (meta && meta.platform !== "youtube" && subtitleLanguage) target.searchParams.set("subtitleLanguage", subtitleLanguage);
   if (selectAll) target.searchParams.set("scope", "all");
   await chrome.tabs.create({ url: target.href }); window.close();
 }

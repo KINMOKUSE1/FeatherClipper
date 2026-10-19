@@ -33,8 +33,11 @@ async function handleCourseMessage(message) {
     const existingPath = existingRawPath(meta, page, base, await courseRawFiles(meta, base));
     if (existingPath) return rememberCourseImport(meta, page, base, { status: "exists", path: existingPath });
     if (action === "asr-start") {
-      const subtitle = await courseSubtitle(meta, page);
-      if (subtitle) return { status: "subtitle-available" };
+      // YouTube 的转写由用户主动发起，字幕读取失败不阻断独立的音轨读取。
+      if (meta.platform !== "youtube") {
+        const subtitle = await courseSubtitle(meta, page);
+        if (subtitle) return { status: "subtitle-available" };
+      }
       return asrStart(meta, page, message.provider);
     }
     const job = await asrPoll(message.jobId);
@@ -62,7 +65,7 @@ async function handleCourseMessage(message) {
   if (action === "preview") {
     if (!(meta.platform === "youtube" ? /^[\w-]{11}$/.test(page?.cid || "") : /^\d+$/.test(page?.cid || "")) || !meta.pages?.some(item => item.cid === page.cid)) throw new Error("视频信息无效。");
     const tracks = meta.platform === "youtube" ? [] : await courseBiliSubtitleTracks(meta, page);
-    const subtitle = meta.platform === "youtube" ? await courseSubtitle(meta, page, action) : await courseReadBiliSubtitle(tracks, page, message.trackId || "");
+    const subtitle = meta.platform === "youtube" ? await courseSubtitle(meta, page, action) : await courseReadBiliSubtitle(tracks, page, message.trackId || "", message.subtitleLanguage || "");
     return { tracks: tracks.map(({ id, lan, lanDoc }) => ({ id, lan, lanDoc })), ...(subtitle
       ? { track: { id: subtitle.track.id, lan: subtitle.track.lan, lanDoc: subtitle.track.lanDoc }, body: subtitle.body }
       : { body: [], missing: true }) };
@@ -86,7 +89,7 @@ async function handleCourseMessage(message) {
     const path = CourseCore.rawPath(meta, page, base);
     const existingPath = existingRawPath(meta, page, base, await courseRawFiles(meta, base));
     if (existingPath) return rememberCourseImport(meta, page, base, { status: "exists", path: existingPath });
-    const subtitle = await courseSubtitle(meta, page, "import", message.activateVideo === true, message.trackId || "");
+    const subtitle = await courseSubtitle(meta, page, "import", message.activateVideo === true, message.trackId || "", message.subtitleLanguage || "");
     if (!subtitle) return { status: "missing" };
     // Recheck after network work in case a note appeared while fetching subtitles.
     const appearedPath = existingRawPath(meta, page, base, await courseRawFiles(meta, base));

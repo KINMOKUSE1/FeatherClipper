@@ -104,8 +104,8 @@ test('popup keeps single-video saves separate from explicit whole-course handoff
   assert.equal(get('import').disabled, true);
 });
 
-async function exportHarness({ languages = false } = {}) {
-  const elements = new Map(), messages = [], copied = [], downloads = [];
+async function exportHarness({ languages = false, youtube = false } = {}) {
+  const elements = new Map(), messages = [], copied = [], downloads = [], opened = [];
   const element = () => ({ set textContent(value) { this.text = value; this.children = []; }, get textContent() { return this.text || ''; }, value: '', children: [], attributes: {}, listeners: {}, style: {}, offsetWidth: 150, offsetHeight: 112, classList: { toggle() {} },
     focus() {}, contains() { return false; },
     getBoundingClientRect() { return { left: 120, top: 220, bottom: 240 }; },
@@ -123,16 +123,16 @@ async function exportHarness({ languages = false } = {}) {
     } } },
     chrome: {
       downloads: { download: async options => { downloads.push(options); return 1; } },
-      tabs: { query: async () => [{ url: 'https://www.bilibili.com/video/BV1ps4y1d73V/' }] },
+      tabs: { query: async () => [{ url: youtube ? 'https://www.youtube.com/watch?v=GWwL_pLuX-U' : 'https://www.bilibili.com/video/BV1ps4y1d73V/' }], create: async tab => opened.push(tab) },
       storage: { local: { get: async () => ({}) }, onChanged: { addListener() {} } },
-      runtime: { sendMessage: async message => {
+      runtime: { getURL: name => `chrome-extension://test/${name}`, sendMessage: async message => {
         messages.push(message);
-        if (message.type === 'settings-get') return { ok: true, settings: { hasApiKey: languages } };
+        if (message.type === 'settings-get') return { ok: true, settings: { hasApiKey: languages || youtube } };
         if (message.type === 'quick-status') return { ok: true, key: 'job' };
         if (message.type === 'quick-import') return { ok: true, status: 'saved' };
         if (message.action === 'meta') return { ok: true, folder: 'Study', meta: {
-          bvid: message.bvid, title: 'Export course', author: 'Teacher',
-          pages: [{ cid: '1', page: 1, part: '1. Export: Lesson' }, { cid: '2', page: 2, part: '2. Other' }]
+          ...(youtube ? { platform: 'youtube', videoId: message.youtubeId, bvid: `YT_${message.youtubeId}` } : { bvid: message.bvid }), title: 'Export course', author: 'Teacher',
+          pages: youtube ? [{ cid: message.youtubeId, page: 1, part: 'Export lesson' }] : [{ cid: '1', page: 1, part: '1. Export: Lesson' }, { cid: '2', page: 2, part: '2. Other' }]
         } };
         if (message.action === 'preview' && context.trackFail) return { ok: false, error: 'Selected subtitle unavailable' };
         if (message.action === 'preview') return { ok: true, tracks: context.missing ? [] : languages ? [{ id: 'zh', lan: 'zh', lanDoc: '中文' }, { id: 'en', lan: 'en', lanDoc: 'English' }] : [], track: languages && message.trackId !== 'en' ? { id: 'zh', lan: 'zh', lanDoc: '中文' } : { id: 'en', lan: 'en', lanDoc: 'English' },
@@ -143,7 +143,7 @@ async function exportHarness({ languages = false } = {}) {
   });
   vm.runInContext(fs.readFileSync(require.resolve('../extension/popup/page.js'), 'utf8'), context);
   await new Promise(setImmediate);
-  return { get, context, messages, copied, downloads };
+  return { get, context, messages, copied, downloads, opened };
 }
 
 test('popup exports full Markdown without Obsidian, including subtitles beyond the preview', async () => {
@@ -236,4 +236,54 @@ test('Bilibili refresh replaces stale languages with the current empty preview i
   assert.equal(h.get('subtitles').children.length, 0);
   assert.equal(h.get('copy-subtitle').disabled, true);
   assert.equal(h.get('asr-open').hidden, false);
+});
+
+
+test('Bilibili workspace handoff carries a language preference for current and whole-course views', async () => {
+  const h = await exportHarness({ languages: true });
+  const menu = h.get('subtitle-language-menu');
+  await menu.children.find(option => option.textContent === 'English').listeners.click();
+  for (const all of [false, true]) {
+    await h.context.openWorkspace(all);
+    const params = new URL(h.opened.at(-1).url).searchParams;
+    assert.equal(params.get('subtitleLanguage'), 'en');
+    assert.equal(params.get('bvid'), 'BV1ps4y1d73V');
+    assert.equal(params.has('trackId'), false, 'track IDs belong to one video');
+    assert.equal(params.get('scope'), all ? 'all' : null);
+  }
+  await menu.children.find(option => option.textContent === '自动选择').listeners.click();
+  await h.context.openWorkspace();
+  assert.equal(new URL(h.opened.at(-1).url).searchParams.has('subtitleLanguage'), false);
+  await menu.children.find(option => option.textContent === 'English').listeners.click();
+  await h.context.loadVideo();
+  await h.context.openWorkspace();
+  assert.equal(new URL(h.opened.at(-1).url).searchParams.has('subtitleLanguage'), false, 'a fresh video read resets the explicit preference');
+});
+
+test('YouTube caption errors expose an explicit audio fallback and block stale subtitle exports', async () => {
+  const h = await exportHarness({ youtube: true });
+  h.context.trackFail = true;
+  await h.context.loadVideo();
+  assert.equal(h.get('preview-label').textContent, '字幕读取失败');
+  assert.match(h.get('subtitles').textContent, /Selected subtitle unavailable/);
+  assert.equal(h.get('asr-open').hidden, false);
+  assert.equal(h.get('asr-open').textContent, '尝试音频转写');
+  assert.equal(h.get('copy-subtitle').disabled, true);
+  assert.equal(h.messages.some(message => message.action === 'asr-start'), false);
+  assert.equal(h.opened.length, 0);
+  await h.get('asr-open').listeners.click();
+  const params = new URL(h.opened.at(-1).url).searchParams;
+  assert.equal(params.get('youtubeId'), 'GWwL_pLuX-U');
+  assert.equal(params.get('asr'), '1');
+  assert.equal(params.has('subtitleLanguage'), false);
+  h.context.trackFail = false;
+  await h.context.loadVideo();
+  assert.equal(h.get('asr-open').hidden, true);
+});
+
+test('Bilibili caption errors do not expose the YouTube-only error fallback', async () => {
+  const h = await exportHarness({ languages: true });
+  h.context.trackFail = true;
+  await h.context.loadVideo();
+  assert.equal(h.get('asr-open').hidden, true);
 });

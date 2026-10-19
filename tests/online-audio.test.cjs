@@ -36,6 +36,34 @@ test('media downloads use the backup URL and never include credentials', async t
   await assert.rejects(audio.download(['https://bilivideo.com.evil.test/audio'], new AbortController().signal));
 });
 
+test('download failures retain HTTP status, timeout and network categories without exposing signed URLs', async t => {
+  const urls = ['https://x.googlevideo.com/audio?signature=private-signature'];
+  t.mock.method(global, 'fetch', async () => new Response('', { status: 403 }));
+  await assert.rejects(audio.download(urls, new AbortController().signal), error =>
+    /音轨下载失败：HTTP 403/.test(error.message) && !error.message.includes('private-signature'));
+  t.mock.method(global, 'fetch', async () => { throw new TypeError(urls[0]); });
+  await assert.rejects(audio.download(urls, new AbortController().signal), error =>
+    /网络请求失败/.test(error.message) && !error.message.includes('private-signature'));
+  t.mock.method(global, 'fetch', async () => { throw new DOMException(urls[0], 'TimeoutError'); });
+  await assert.rejects(audio.download(urls, new AbortController().signal), /下载超时/);
+});
+
+test('online job polling exposes the actual download rejection before any provider upload', async t => {
+  const calls = [];
+  t.mock.method(global, 'fetch', async url => { calls.push(url); return new Response('', { status: 403 }); });
+  const h = worker(audio.transcribe);
+  const input = { action: 'start', id: 'online-' + 'c'.repeat(32), bvid: 'YT_PaEcQmgEz78', cid: 'PaEcQmgEz78', provider: 'siliconflow',
+    urls: ['https://x.googlevideo.com/audio?signature=private-signature'], apiKey: 'private-key' };
+  h.send(input);
+  await vm.runInContext('queue', h.context);
+  const result = h.send({ action: 'poll', id: input.id });
+  assert.equal(result.status, 'failed');
+  assert.match(result.detail, /HTTP 403/);
+  assert.equal(calls.length, 1);
+  assert.equal(JSON.stringify(result).includes('private-signature'), false);
+  assert.equal(JSON.stringify(result).includes('private-key'), false);
+});
+
 test('cloud request is a multipart WAV upload and auth failures do not disclose its key', async t => {
   let requests = 0;
   t.mock.method(global, 'fetch', async (url, options) => {

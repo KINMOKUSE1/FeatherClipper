@@ -118,3 +118,16 @@ test('explicit language selection fetches only its body and cannot change langua
 test('duration validation rejects foreign content even from matching metadata', async () => {
   await assert.rejects(boot({ body: [{ from: 0, to: 1000, content: 'Wrong content' }] }).read(), /超出该 P 的时长/);
 });
+
+
+test('language preferences select each video track independently, including AI and regional variants', async () => {
+  const first = boot(), second = boot({ tracks: [chinese, { ...english, id: 77, lan: 'ai-en' }] });
+  assert.equal((await first.context.courseSubtitle(meta, page, 'preview', false, '', 'en')).track.id, '2');
+  assert.equal((await second.context.courseSubtitle(meta, page, 'import', false, '', 'en')).track.id, '77');
+  const regional = boot({ tracks: [chinese, { ...english, lan: 'en-US' }] });
+  assert.equal((await regional.context.courseSubtitle(meta, page, 'preview', false, '', 'en')).track.lan, 'en-US');
+  const unavailable = boot({ tracks: [chinese] });
+  await assert.rejects(unavailable.context.courseSubtitle(meta, page, 'preview', false, '', 'en'), /没有所选语言/);
+  assert.ok(!unavailable.calls.some(call => call.url.endsWith('/chinese')));
+  assert.equal(await boot({ tracks: [] }).context.courseSubtitle(meta, page, 'preview', false, '', 'en'), null);
+});

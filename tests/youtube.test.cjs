@@ -136,6 +136,101 @@ test('YouTube audio lookup keeps only direct Google video audio streams', async 
   assert.deepEqual([...result.audioUrls], ['https://x.googlevideo.com/audio']);
 });
 
+test('audio lookup uses the current live player when SPA startup data is absent', async () => {
+  const response = { videoDetails: { videoId, title: 'Live lesson', lengthSeconds: '180' },
+    streamingData: { adaptiveFormats: [{ mimeType: 'audio/mp4', url: 'https://x.googlevideo.com/live-audio' }] } };
+  const h = page({ noPlayer: true, tracks: [], entries: {}, metadataNodes: {
+    '#movie_player': { getPlayerResponse: () => response,
+      getVideoData: () => ({ video_id: videoId, title: 'Live lesson', author: 'Live teacher' }) }
+  } });
+  const result = await h.read(false, true);
+  assert.equal(result.meta.title, 'Live lesson');
+  assert.equal(result.meta.pages[0].duration, 180);
+  assert.deepEqual([...result.audioUrls], ['https://x.googlevideo.com/live-audio']);
+  assert.equal(h.requested.length, 0);
+});
+
+test('SABR adaptive audio can fall back to the live format 18 MP4 with AAC audio', async () => {
+  const response = { videoDetails: { videoId, title: 'Current video' }, streamingData: {
+    serverAbrStreamingUrl: 'https://x.googlevideo.com/sabr',
+    adaptiveFormats: Array.from({ length: 8 }, (_, itag) => ({ mimeType: 'audio/webm; codecs="opus"', itag })),
+    formats: [{ itag: 18, mimeType: 'video/mp4; codecs="avc1.42001E, mp4a.40.2"',
+      url: 'https://x.googlevideo.com/muxed-18', bitrate: 300000 }]
+  } };
+  const h = page({ noPlayer: true, tracks: [], entries: {}, metadataNodes: {
+    '#movie_player': { getPlayerResponse: () => response }
+  } });
+  const result = await h.read(false, true);
+  assert.equal(result.error, undefined);
+  assert.deepEqual([...result.audioUrls], ['https://x.googlevideo.com/muxed-18']);
+  assert.equal(h.requested.length, 0);
+});
+
+test('direct audio is preferred to muxed MP4 and video-only or foreign streams are excluded', async () => {
+  const response = { videoDetails: { videoId, title: 'Current video' }, streamingData: {
+    adaptiveFormats: [
+      { mimeType: 'audio/mp4', url: 'https://x.googlevideo.com/audio-high', bitrate: 128000 },
+      { mimeType: 'audio/mp4', url: 'https://x.googlevideo.com/audio-low', bitrate: 64000 }
+    ],
+    formats: [
+      { mimeType: 'video/mp4; codecs="avc1.42001E, mp4a.40.2"', url: 'https://x.googlevideo.com/muxed', bitrate: 100 },
+      { mimeType: 'video/mp4; codecs="avc1.42001E"', url: 'https://x.googlevideo.com/video-only' },
+      { mimeType: 'video/mp4; codecs="avc1.42001E, mp4a.40.2"', url: 'https://googlevideo.com.evil.test/muxed' },
+      { mimeType: 'video/mp4; codecs="avc1.42001E, mp4a.40.2"', signatureCipher: 'not-a-direct-url' }
+    ]
+  } };
+  const h = page({ noPlayer: true, tracks: [], entries: {}, metadataNodes: {
+    '#movie_player': { getPlayerResponse: () => response }
+  } });
+  const result = await h.read(false, true);
+  assert.deepEqual([...result.audioUrls], ['https://x.googlevideo.com/audio-low', 'https://x.googlevideo.com/audio-high', 'https://x.googlevideo.com/muxed']);
+});
+
+test('audio lookup rejects a live player response belonging to another video', async () => {
+  const h = page({ noPlayer: true, tracks: [], entries: {}, metadataNodes: {
+    '#movie_player': {
+      getPlayerResponse: () => ({ videoDetails: { videoId: 'abcdef12345', title: 'Previous video' },
+        streamingData: { adaptiveFormats: [{ mimeType: 'audio/mp4', url: 'https://x.googlevideo.com/previous-audio' }] } }),
+      getVideoData: () => ({ video_id: 'abcdef12345', title: 'Previous video' })
+    }
+  } });
+  const result = await h.read(false, true);
+  assert.match(result.error, /无法读取 YouTube 视频信息/);
+  assert.equal(result.audioUrls, undefined);
+});
+
+test('SABR-only live playback selects session download without mistaking it for missing metadata', async () => {
+  const h = page({ noPlayer: true, tracks: [], entries: {},
+    mobilePlayer: { videoDetails: { videoId, title: 'API title' }, streamingData: { adaptiveFormats: [] } },
+    metadataNodes: { '#movie_player': {
+      getPlayerResponse: () => ({ videoDetails: { videoId, title: 'Live lesson' },
+        streamingData: { serverAbrStreamingUrl: 'https://x.googlevideo.com/sabr',
+          adaptiveFormats: [{ mimeType: 'audio/webm', itag: 251 }] } }),
+      getVideoData: () => ({ video_id: videoId, title: 'Live lesson' })
+    } }
+  });
+  const result = await h.read(false, true);
+  assert.equal(result.error, undefined);
+  assert.equal(result.sabr, true);
+  assert.deepEqual([...result.audioUrls], []);
+});
+
+test('SABR audio lookup avoids an unrelated mobile-client fallback even if it offers direct URLs', async () => {
+  const h = page({ noPlayer: true, tracks: [], entries: {},
+    mobilePlayer: { videoDetails: { videoId, title: 'API title' }, streamingData: {
+      adaptiveFormats: [{ mimeType: 'audio/mp4', url: 'https://x.googlevideo.com/api-audio' }] } },
+    metadataNodes: { '#movie_player': {
+      getPlayerResponse: () => ({ videoDetails: { videoId, title: 'Live lesson' },
+        streamingData: { serverAbrStreamingUrl: 'https://x.googlevideo.com/sabr', adaptiveFormats: [] } })
+    } }
+  });
+  const result = await h.read(false, true);
+  assert.equal(result.meta.title, 'Live lesson');
+  assert.equal(result.sabr, true);
+  assert.deepEqual([...result.audioUrls], []);
+  assert.equal(h.requested.length, 0);
+});
+
 test('empty caption responses are retrieval failures rather than proof of missing captions', async () => {
   const h = page({ tracks: [
     { languageCode: 'en', name: { simpleText: 'English' }, baseUrl: 'https://www.youtube.com/api/timedtext?lang=en' }

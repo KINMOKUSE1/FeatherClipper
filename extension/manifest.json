@@ -8,6 +8,7 @@
     "storage",
     "activeTab",
     "scripting",
+    "webRequest",
     "downloads",
     "offscreen",
     "declarativeNetRequestWithHostAccess"
