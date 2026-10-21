@@ -4,7 +4,7 @@ let meta = null, page = null, base = "", settings = null, jobKey = "";
 let busy = false, reading = false, previewing = false, hasSubtitle = false;
 let videoRun = 0;
 let saveScope = "current";
-let subtitleMissing = false, subtitleReadFailed = false;
+let subtitleMissing = false, subtitleReadFailed = false, subtitleError = "";
 let subtitle = null, exporting = false;
 let subtitleTracks = [], selectedTrackId = "", subtitleLanguage = "", languageMenuOpen = false;
 function status(text, error = false) {
@@ -182,7 +182,7 @@ async function preview() {
   previewing = true;
   hasSubtitle = false;
   subtitle = null;
-  subtitleMissing = false; subtitleReadFailed = false;
+  subtitleMissing = false; subtitleReadFailed = false; subtitleError = "";
   controls();
   $("asr-open").hidden = true;
   $("subtitles").textContent = ui.readingSubtitles;
@@ -211,7 +211,7 @@ async function preview() {
       line.append(time, document.createTextNode(item.content)); $("subtitles").append(line);
     }
   } catch (error) {
-    subtitleReadFailed = true;
+    subtitleReadFailed = true; subtitleError = error.message;
     if (meta.platform !== "youtube") renderLanguageMenu();
     $("subtitles").textContent = format(ui.subtitleError, { error: error.message });
     $("preview-label").textContent = ui.subtitleFailed;
@@ -272,6 +272,10 @@ $("source-form").addEventListener("submit", event => { event.preventDefault(); l
 for (const scope of ["current", "all"]) {
   $(`scope-${scope}`).addEventListener("click", () => { saveScope = scope; controls(); });
 }
+function addSubtitleHandoff(target) {
+  if (!meta || !page || previewing || (!subtitleMissing && !subtitleReadFailed)) return;
+  target.searchParams.set("subtitlePreview", JSON.stringify({ bvid: meta.bvid, cid: page.cid, status: subtitleMissing ? "missing" : "failed", error: subtitleError }));
+}
 $("asr-open").addEventListener("click", async () => {
   if ($( "asr-open").disabled || !meta || !page) return;
   const target = new URL(chrome.runtime.getURL("workbench/index.html"));
@@ -280,6 +284,7 @@ $("asr-open").addEventListener("click", async () => {
   target.searchParams.set("p", page.page);
   target.searchParams.set("asr", "1");
   if (meta.platform !== "youtube" && subtitleLanguage) target.searchParams.set("subtitleLanguage", subtitleLanguage);
+  addSubtitleHandoff(target);
   await chrome.tabs.create({ url: target.href }); window.close();
 });
 $("import").addEventListener("click", async () => {
@@ -300,6 +305,7 @@ async function openWorkspace(selectAll = false) {
   if (meta && page) { target.searchParams.set(meta.platform === "youtube" ? "youtubeId" : "bvid", meta.platform === "youtube" ? meta.videoId : meta.bvid); if (meta.playlistId) target.searchParams.set("playlistId", meta.playlistId); target.searchParams.set("p", page.page); }
   if (meta && meta.platform !== "youtube" && subtitleLanguage) target.searchParams.set("subtitleLanguage", subtitleLanguage);
   if (selectAll) target.searchParams.set("scope", "all");
+  addSubtitleHandoff(target);
   await chrome.tabs.create({ url: target.href }); window.close();
 }
 $("workspace").addEventListener("click", () => openWorkspace().catch(error => status(error.message, true)));

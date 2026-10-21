@@ -7,7 +7,7 @@ const core = require('../extension/shared/course.js');
 const source = fs.readFileSync(path.join(__dirname, '../extension/background/youtube.js'), 'utf8');
 
 const videoId = 'GWwL_pLuX-U';
-function page({ tracks, entries, audio = [], playlist = null, mobilePlayer = null, domTranscript = null, inlineOnly = false, noPlayer = false, fetchOverride = null, metadataNodes = {}, otherPanels = [], playlistPanels = [], onWait = null }) {
+function page({ tracks, entries, audio = [], playlist = null, mobilePlayer = null, domTranscript = null, inlineOnly = false, noPlayer = false, fetchOverride = null, metadataNodes = {}, otherPanels = [], playlistPanels = [], onWait = null, networkDelay = 0 }) {
   const player = { videoDetails: { videoId, title: 'Course video', author: 'Teacher', lengthSeconds: '240' },
     captions: { playerCaptionsTracklistRenderer: { captionTracks: tracks } },
     streamingData: { adaptiveFormats: audio } };
@@ -73,6 +73,7 @@ function page({ tracks, entries, audio = [], playlist = null, mobilePlayer = nul
     DOMParser: class { parseFromString() { return { querySelectorAll: () => [] }; } },
     setTimeout: (callback, delay) => { now += delay; onWait?.(now, context); queueMicrotask(callback); },
     fetch: async (url, options) => {
+      now += networkDelay;
       requested.push(String(url));
       if (fetchOverride) return fetchOverride(String(url), options);
       if (String(url).includes('/youtubei/v1/player')) return { ok: true, json: async () => mobilePlayer };
@@ -656,7 +657,7 @@ test('an open panel waits only until the first valid segments appear and is not 
   assert.equal(h.state().now, 1050);
 });
 
-test('missing entry, ignored click and invalid body all exit within the same eight-second budget', async () => {
+test('missing entry, ignored click and invalid body all exit within the same five-second budget', async () => {
   for (const fixture of [
     { buttonAt: 12000, lines: [['0:07', 'Too late.']] },
     { ignoredClicks: 1, lines: [['0:07', 'Not opened.']] },
@@ -666,7 +667,7 @@ test('missing entry, ignored click and invalid body all exit within the same eig
     const result = await h.read(true, false);
     assert.match(result.error, /尚不能判定视频无字幕/);
     assert.equal(result.body, undefined);
-    assert.equal(h.state().now, 8000);
+    assert.equal(h.state().now, 5000);
     assert.ok(h.state().clicks <= 1);
   }
 });
@@ -780,13 +781,39 @@ test('expired queued metadata does not navigate later and a subsequent read can 
     setTimeout: fn => { timers.push(fn); return timers.length; }, clearTimeout() {} });
   vm.runInContext(source, context);
   const body = context.youtubeRead(videoId, true);
+  const bodyDone = assert.rejects(body, /字幕获取超时/);
   await new Promise(setImmediate);
   const meta = context.youtubeRead('abcdef12345');
   const rejected = assert.rejects(meta, /视频信息读取超时/);
   await new Promise(setImmediate);
-  now = 12000; timers[0](); await rejected;
-  release(); await body; await new Promise(setImmediate);
+  now = 12000; timers[1](); await rejected;
+  release(); await bodyDone; await new Promise(setImmediate);
   assert.equal(calls, 1);
   chrome.scripting.executeScript = async () => [{ result: { meta: { title: 'Retry works' } } }];
   assert.equal((await context.youtubeRead(videoId)).meta.title, 'Retry works');
+});
+
+
+test('YouTube API attempts and transcript DOM share five seconds rather than separate budgets', async () => {
+  const h = page({ tracks: [], entries: {}, networkDelay: 1000 });
+  const result = await h.read(true, false);
+  assert.match(result.error, /字幕获取失败/);
+  assert.equal(h.state().now, 5000);
+  assert.match(result.error, /5 秒内/);
+});
+
+test('queued YouTube subtitles time out at five seconds and cannot inject after expiration', async () => {
+  let now = 0, release, calls = 0; const timers = [];
+  class Clock extends Date { static now() { return now; } }
+  const context = vm.createContext({ URL, Date: Clock,
+    setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; }, clearTimeout() {},
+    chrome: { tabs: { query: async () => [{ id: 1, status: 'complete', url: 'https://www.youtube.com/watch?v=' + videoId }] },
+      scripting: { executeScript: async () => { calls++; await new Promise(resolve => { release = resolve; }); return [{ result: { audioUrls: [] } }]; } } } });
+  vm.runInContext(source, context);
+  const audio = context.youtubeRead(videoId, false, true); await new Promise(setImmediate);
+  const subtitle = context.youtubeRead(videoId, true), rejected = assert.rejects(subtitle, /字幕获取超时（5 秒）/);
+  assert.deepEqual(timers.map(timer => timer.ms), [5000]);
+  now = 5000; timers[0].fn(); await rejected;
+  release(); await audio; await new Promise(setImmediate);
+  assert.equal(calls, 1);
 });

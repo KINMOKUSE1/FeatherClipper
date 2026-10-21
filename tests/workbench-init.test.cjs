@@ -17,7 +17,7 @@ function boot(search, unavailable = false, missingSubtitle = false, snapshots = 
   const get = id => { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); };
   let panelOpen = false;
   const window = { addEventListener() {}, matchMedia: () => ({ matches: false }) };
-  const context = vm.createContext({ UiText: require('../extension/shared/ui-text.js'), window, URLSearchParams, location: { search }, CourseCore: core,
+  const context = vm.createContext({ UiText: require('../extension/shared/ui-text.js'), window, URLSearchParams, location: { search }, history: { state: null, replaceState(state, title, url) { context.location.search = url; } }, CourseCore: core,
     document: { getElementById: get, createElement: element, createTextNode: text => text,
       addEventListener() {}, querySelector: () => element(), querySelectorAll: () => [] },
     chrome: { storage: { local: { get: async () => snapshots, set: async () => {} } } }
@@ -161,7 +161,7 @@ test('YouTube preview failure offers audio transcription without claiming subtit
   assert.equal(h.get('asr-panel').hidden, false);
   assert.equal(h.get('asr-current').textContent, '尝试音频转写');
   assert.equal(h.catalog.getState().activeAsrPage.cid, 'GWwL_pLuX-U');
-  assert.equal(h.catalog.getState().pages[0].status, 'pending');
+  assert.equal(h.catalog.getState().pages[0].status, 'failed');
   assert.ok(h.calls.some(([action, text, error]) => action === 'preview-message' && text === 'Caption retrieval failed' && error));
   assert.equal(h.calls.some(([action]) => action === 'asr'), false);
 });
@@ -178,4 +178,43 @@ test('an explicit YouTube popup transcription handoff survives caption failure',
   await bili.catalog.init();
   assert.equal(bili.calls.some(([action]) => action === 'asr'), false);
   assert.equal(bili.get('asr-panel').hidden, true);
+});
+
+
+function handoffSearch(source, result) { return source + '&subtitlePreview=' + encodeURIComponent(JSON.stringify(result)); }
+test('workbench inherits the popup failure for the exact lesson without requesting captions again', async () => {
+  const state = { bvid: 'BV1234567890', cid: '4', status: 'failed', error: '字幕获取超时（5 秒），请重试' };
+  const h = boot(handoffSearch('?bvid=BV1234567890&p=4&scope=all', state)); await h.catalog.init();
+  assert.equal(h.calls.some(([action]) => action === 'preview'), false);
+  assert.equal(h.catalog.getState().pages[3].status, 'failed');
+  assert.equal(h.catalog.getState().pages[0].status, 'pending');
+  assert.ok(h.calls.some(([action, text]) => action === 'preview-message' && text === state.error));
+  await h.catalog.loadCourse();
+  assert.equal(h.calls.filter(([action]) => action === 'preview').length, 1, 'manual reread does not reuse the inherited failure');
+  assert.equal(h.catalog.getState().pages[3].status, 'pending');
+});
+
+test('missing popup subtitles keep the transcription entry, and imported status is preserved', async () => {
+  const state = { bvid: 'BV1234567890', cid: '1', status: 'missing' };
+  const snapshots = { 'boc-course-v1:BV1234567890:Clippings/Bilibili': { pages: [{ cid: '1', status: 'saved' }] } };
+  const h = boot(handoffSearch('?bvid=BV1234567890', state), false, false, snapshots); await h.catalog.init();
+  assert.equal(h.calls.some(([action]) => action === 'preview'), false);
+  assert.equal(h.catalog.getState().pages[0].status, 'saved');
+  assert.equal(h.get('asr-panel').hidden, false);
+});
+
+test('YouTube popup ASR handoff reuses the failed preview and proceeds without another subtitle lookup', async () => {
+  const state = { bvid: 'YT_GWwL_pLuX-U', cid: 'GWwL_pLuX-U', status: 'failed', error: 'Caption timeout' };
+  const h = boot(handoffSearch('?youtubeId=GWwL_pLuX-U&asr=1', state)); await h.catalog.init();
+  assert.equal(h.calls.some(([action]) => action === 'preview'), false);
+  assert.deepEqual(h.calls.at(-1), ['asr', 'GWwL_pLuX-U']);
+});
+
+test('foreign course, foreign lesson and malformed popup handoffs use a fresh preview', async () => {
+  for (const state of [{ bvid: 'BVother', cid: '1', status: 'failed' }, { bvid: 'BV1234567890', cid: '4', status: 'missing' }, { status: 'failed' }]) {
+    const h = boot(handoffSearch('?bvid=BV1234567890', state)); await h.catalog.init();
+    assert.equal(h.calls.filter(([action]) => action === 'preview').length, 1);
+  }
+  const h = boot('?bvid=BV1234567890&subtitlePreview=invalid'); await h.catalog.init();
+  assert.equal(h.calls.filter(([action]) => action === 'preview').length, 1);
 });

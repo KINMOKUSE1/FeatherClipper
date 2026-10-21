@@ -287,3 +287,20 @@ test('Bilibili caption errors do not expose the YouTube-only error fallback', as
   await h.context.loadVideo();
   assert.equal(h.get('asr-open').hidden, true);
 });
+
+
+test('popup carries only its latest completed missing or failed preview to both workbench entries', async () => {
+  for (const youtube of [false, true]) {
+    const h = await exportHarness({ youtube });
+    h.context.trackFail = true; await h.context.loadVideo(); await h.context.openWorkspace();
+    const state = JSON.parse(new URL(h.opened.at(-1).url).searchParams.get('subtitlePreview'));
+    assert.equal(state.status, 'failed'); assert.equal(state.error, 'Selected subtitle unavailable');
+    assert.equal(state.cid, youtube ? 'GWwL_pLuX-U' : '1');
+    if (youtube) { await h.get('asr-open').listeners.click(); assert.deepEqual(JSON.parse(new URL(h.opened.at(-1).url).searchParams.get('subtitlePreview')), state); }
+    h.context.trackFail = false; h.context.missing = true; await h.context.loadVideo(); await h.context.openWorkspace();
+    const missing = JSON.parse(new URL(h.opened.at(-1).url).searchParams.get('subtitlePreview'));
+    assert.equal(missing.status, 'missing'); assert.equal(missing.error, '');
+    h.context.missing = false; await h.context.loadVideo(); await h.context.openWorkspace();
+    assert.equal(new URL(h.opened.at(-1).url).searchParams.has('subtitlePreview'), false);
+  }
+});

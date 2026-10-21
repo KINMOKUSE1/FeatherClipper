@@ -186,10 +186,12 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
     if (meta) {
       if ($("source-dialog").open) $("source-dialog").close();
       const page = pages.find(item => item.page === currentPage);
-      if (page && options.preview !== false) await preview(page);
+      const inherited = options.subtitlePreview;
+      const matching = inherited?.bvid === meta.bvid && String(inherited.cid) === String(page?.cid) && ["missing", "failed"].includes(inherited.status);
+      if (page && options.preview !== false) await preview(page, matching ? inherited : null);
     }
   }
-  async function preview(page) {
+  async function preview(page, inherited = null) {
     if (previewView.isOpen() && page.cid === previewId) { previewView.close(); return; }
     previewView.open(true);
     if (window.matchMedia("(max-width: 1100px)").matches) $("preview-close").focus();
@@ -199,7 +201,8 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
     $("preview-title").textContent = partTitle(page);
     previewView.message(ui.previewLoading);
     try {
-      const result = await request("preview", { page });
+      if (inherited?.status === "failed") throw new Error(inherited.error || UiText.popup.subtitleFailed);
+      const result = inherited?.status === "missing" ? { missing: true } : await request("preview", { page });
       if (run !== previewRun) return;
       if (result.missing) {
         if (!["saved", "exists"].includes(page.status)) page.status = "missing";
@@ -218,7 +221,9 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
       previewView.transcript(meta, page, result.body);
     } catch (error) {
       if (run !== previewRun) return;
+      if (!["saved", "exists"].includes(page.status)) { page.status = "failed"; page.error = error.message; }
       previewView.message(error.message, true);
+      render();
       if (meta.platform === "youtube") {
         activeAsrPage = page; $("asr-panel").hidden = false;
         try { await transcription.refresh(); } catch { /* The user can open transcription settings. */ }
@@ -291,8 +296,14 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
     syncControls(); await connection.refresh();
     const params = new URLSearchParams(location.search);
     const bvid = params.get("bvid"), youtubeId = params.get("youtubeId"), playlistId = params.get("playlistId");
+    let subtitlePreview = null;
+    if (params.has("subtitlePreview")) {
+      try { subtitlePreview = JSON.parse(params.get("subtitlePreview")); } catch { /* Invalid handoffs use a fresh read. */ }
+      params.delete("subtitlePreview");
+      history.replaceState(history.state, "", `?${params}`);
+    }
     if (bvid || youtubeId) {
-      $("url").value = youtubeId ? `https://www.youtube.com/watch?v=${youtubeId}${playlistId ? `&list=${playlistId}` : ""}` : `https://www.bilibili.com/video/${bvid}/?p=${currentPage}`; await loadCourse({ subtitleLanguage: params.get("subtitleLanguage") || "" });
+      $("url").value = youtubeId ? `https://www.youtube.com/watch?v=${youtubeId}${playlistId ? `&list=${playlistId}` : ""}` : `https://www.bilibili.com/video/${bvid}/?p=${currentPage}`; await loadCourse({ subtitleLanguage: params.get("subtitleLanguage") || "", subtitlePreview });
       if (meta && params.get("scope") === "all") {
         pages.forEach(page => page.selected = true); render();
       }

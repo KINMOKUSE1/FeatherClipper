@@ -21,8 +21,8 @@ header { display: flex; justify-content: space-between; align-items: center; gap
 .popup-brand-icon { width: 24px; height: 24px; flex: none; }
 header strong { font-size: 16px; font-weight: 600; letter-spacing: -.3px; white-space: nowrap; }
 main, #connection { padding: 0 24px 24px; }
-main { padding-bottom: 12px; }
-#connection {padding-top: 12px; }
+main { padding-bottom: 20px; }
+/* #connection {padding-top: 12px; } */
 button, input { font: inherit; }
 button { min-height: 36px; padding: 8px 12px; border: 1px solid var(--accent); border-radius: 4px; color: var(--paper); background: var(--accent); font-weight: 500; cursor: pointer; }
 button:hover:not(:disabled) { filter: brightness(.94); }
@@ -85,7 +85,7 @@ summary::-webkit-details-marker { display: none; }
 .save-menu { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 5; min-width: 186px; padding: 5px; border: 1px solid var(--line); border-radius: 7px; background: #fff; box-shadow: 0 4px 16px #303a4a18; }
 .save-menu button { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 36px; padding: 7px 10px; border: 0; border-radius: 4px; background: transparent; color: var(--ink); font-size: 13px; font-weight: 400; text-align: left; }
 .save-menu button:hover:not(:disabled), .save-menu button:focus-visible { background: var(--soft); filter: none; }
-.popup-footer { display: flex; justify-content: space-between; align-items: start; gap: 12px; margin-top: 0px; }
+.popup-footer { display: flex; justify-content: space-between; align-items: start; gap: 12px; margin-bottom: -8px; }
 #source-form { margin-top: 6px; }
 .source-row, .actions { display: flex; gap: 8px; }
 .source-row input { flex: 1; font-size: 12px; }

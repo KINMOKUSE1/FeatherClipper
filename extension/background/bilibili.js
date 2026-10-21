@@ -1,30 +1,36 @@
 // B站目录和字幕读取；字幕只使用带 WBI 签名且归属匹配的接口响应。
-async function courseBiliJson(url, allowLoggedOut = false) {
-  const response = await fetch(url, { credentials: "include", cache: "no-store", referrer: "https://www.bilibili.com/", signal: AbortSignal.timeout(20000) });
-  if (!response.ok) {
-    const error = new Error(`B站请求失败 HTTP ${response.status}`);
-    error.fatal = [401, 403, 412, 429].includes(response.status);
+async function courseBiliJson(url, allowLoggedOut = false, signal) {
+  try {
+    signal?.throwIfAborted();
+    const response = await fetch(url, { credentials: "include", cache: "no-store", referrer: "https://www.bilibili.com/", signal: signal || AbortSignal.timeout(20000) });
+    if (!response.ok) {
+      const error = new Error(`B站请求失败 HTTP ${response.status}`);
+      error.fatal = [401, 403, 412, 429].includes(response.status);
+      throw error;
+    }
+    const payload = await response.json();
+    if (payload.code !== undefined && payload.code !== 0 && !(allowLoggedOut && payload.code === -101)) {
+      const error = new Error(`B站接口 ${payload.code}：${payload.message || "请求失败"}`);
+      error.fatal = [-101, -352, -403, -412, -799].includes(payload.code);
+      throw error;
+    }
+    return payload;
+  } catch (error) {
+    if (signal?.aborted) throw new Error("字幕获取超时（5 秒），请重试");
     throw error;
   }
-  const payload = await response.json();
-  if (payload.code !== undefined && payload.code !== 0 && !(allowLoggedOut && payload.code === -101)) {
-    const error = new Error(`B站接口 ${payload.code}：${payload.message || "请求失败"}`);
-    error.fatal = [-101, -352, -403, -412, -799].includes(payload.code);
-    throw error;
-  }
-  return payload;
 }
 function formatLocalDate(value = Date.now()) {
   const date = new Date(value);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
-async function courseBiliSubtitleTracks(meta, page) {
+async function courseBiliSubtitleTracks(meta, page, signal = AbortSignal.timeout(5000)) {
   if (!/^\d+$/.test(meta.aid || "") || !meta.pages?.some(item => String(item.cid) === String(page.cid))) throw new Error("视频信息不完整，请重新读取目录");
   // 每次刷新重新获取签名信息和登录状态，不缓存字幕列表或正文。
-  const nav = await courseBiliJson("https://api.bilibili.com/x/web-interface/nav", true);
+  const nav = await courseBiliJson("https://api.bilibili.com/x/web-interface/nav", true, signal);
   const keyOf = value => String(value || "").split("?")[0].split("/").pop().replace(/\.[^.]+$/, "");
   const query = courseWbiQuery({ bvid: meta.bvid, aid: meta.aid, cid: page.cid }, keyOf(nav.data?.wbi_img?.img_url), keyOf(nav.data?.wbi_img?.sub_url));
-  const payload = await courseBiliJson(`https://api.bilibili.com/x/player/wbi/v2?${query}`);
+  const payload = await courseBiliJson(`https://api.bilibili.com/x/player/wbi/v2?${query}`, false, signal);
   const data = payload.data;
   if (!data || String(data.cid) !== String(page.cid) || (data.aid !== undefined && String(data.aid) !== String(meta.aid))
     || [data.bvid, data.bv_id].some(value => value !== undefined && value !== meta.bvid)) throw new Error("字幕信息与当前视频不一致，请重新读取");
@@ -53,7 +59,7 @@ function normalizeSubtitleTracks(tracks) {
   };
   return [...tracks].sort((a, b) => priority(a) - priority(b));
 }
-async function courseReadBiliSubtitle(tracks, page, trackId = "", subtitleLanguage = "") {
+async function courseReadBiliSubtitle(tracks, page, trackId = "", subtitleLanguage = "", signal = AbortSignal.timeout(5000)) {
   const languageOf = value => String(value || "").toLowerCase().replace(/_/g, "-").replace(/^ai-/, "");
   const language = languageOf(subtitleLanguage);
   const selected = trackId ? tracks.filter(track => track.id === trackId) : language ? tracks.filter(track => {
@@ -67,7 +73,7 @@ async function courseReadBiliSubtitle(tracks, page, trackId = "", subtitleLangua
     try {
       const url = new URL(track.subtitleUrl);
       if (url.protocol !== "https:" || !(url.hostname === "hdslb.com" || url.hostname.endsWith(".hdslb.com") || url.hostname.endsWith(".bilibili.com"))) throw new Error("字幕地址不属于 B站字幕服务");
-      const subtitle = await courseBiliJson(url.href);
+      const subtitle = await courseBiliJson(url.href, false, signal);
       if (!Array.isArray(subtitle.body) || subtitle.body.some(item => !Number.isFinite(item.from) || item.from < 0 || typeof item.content !== "string"
         || (item.to !== undefined && (!Number.isFinite(item.to) || item.to < item.from)))) throw new Error("B站字幕内容响应无效，请重试");
       const body = subtitle.body.filter(item => item.content.trim());
@@ -84,5 +90,6 @@ async function courseSubtitle(meta, page, purpose = "read", activate = false, tr
     const result = await youtubeRead(page.cid, true, false, "", purpose, activate);
     return result.missing ? null : result;
   }
-  return courseReadBiliSubtitle(await courseBiliSubtitleTracks(meta, page), page, trackId, subtitleLanguage);
+  const signal = AbortSignal.timeout(5000);
+  return courseReadBiliSubtitle(await courseBiliSubtitleTracks(meta, page, signal), page, trackId, subtitleLanguage, signal);
 }

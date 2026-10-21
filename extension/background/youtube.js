@@ -1,6 +1,6 @@
 /* Follows Obsidian Web Clipper / Defuddle: existing DOM, caption files, then open DOM.
  * Reference: https://github.com/kepano/defuddle/blob/main/src/extractors/youtube.ts */
-async function youtubePageRead(videoId, includeBody, includeAudio, playlistId) {
+async function youtubePageRead(videoId, includeBody, includeAudio, playlistId, subtitleDeadline = Date.now() + 5000) {
   try {
   const currentId = new URL(location.href).searchParams.get("v");
   if (currentId !== videoId) throw new Error("YouTube 页面已切换视频，请重新读取。");
@@ -248,7 +248,7 @@ async function youtubePageRead(videoId, includeBody, includeAudio, playlistId) {
   async function readTranscript(openPanel = false) {
     let container = validContainer();
     // One short budget for opening the panel and reading its contents.
-    const deadline = Date.now() + 8000;
+    const deadline = subtitleDeadline;
     const wait = predicate => poll(predicate, Math.max(0, deadline - Date.now()));
     if (openPanel && !container) {
       const ready = await wait(() => {
@@ -274,14 +274,14 @@ async function youtubePageRead(videoId, includeBody, includeAudio, playlistId) {
           if (!expanded && usable(more)) { more.click(); expanded = true; }
           return null;
         });
-        if (!entry) { report("页面文稿", "8 秒内未找到可用入口或正文"); return null; }
+        if (!entry) { report("页面文稿", "5 秒内未找到可用入口或正文"); return null; }
         if (entry !== true) {
           entry.click();
           report("文稿入口", "已点击，等待有效正文");
         }
       }
       container = await wait(validContainer);
-      if (!container) { report("页面文稿", "8 秒内未出现有效正文"); return null; }
+      if (!container) { report("页面文稿", "5 秒内未出现有效正文"); return null; }
     }
     if (!container) return null;
     const languageButton = (current = container) => (current?.closest(panelSelector) || current)?.querySelector(
@@ -311,7 +311,7 @@ async function youtubePageRead(videoId, includeBody, includeAudio, playlistId) {
 
   // Both caption paths run together. A usable result cancels the other path.
   const controller = new AbortController();
-  const budget = AbortSignal.timeout(8000);
+  const budget = AbortSignal.timeout(Math.max(0, subtitleDeadline - Date.now()));
   const captionFetch = (url, options = {}) => fetch(url, {
     ...options, credentials: "include", cache: "no-store",
     signal: AbortSignal.any([controller.signal, budget, AbortSignal.timeout(4000)])
@@ -439,12 +439,14 @@ async function youtubeRead(videoId, includeBody = false, includeAudio = false, p
   const requestKey = `${resultKey}:${purpose}:${activate}`;
   if (youtubePendingReads.has(requestKey)) return youtubePendingReads.get(requestKey);
   const metadataOnly = !includeBody && !includeAudio;
-  const expires = Date.now() + 12000;
+  const timed = metadataOnly || includeBody;
+  const milliseconds = includeBody ? 5000 : 12000;
+  const expires = Date.now() + milliseconds;
   let timer;
-  const timeoutError = () => new Error("视频信息读取超时，请在视频页加载完成后点击“读取”重试。");
-  const timeout = metadataOnly ? new Promise((resolve, reject) => { timer = setTimeout(() => reject(timeoutError()), 12000); }) : null;
+  const timeoutError = () => new Error(includeBody ? "字幕获取超时（5 秒），请重试" : "视频信息读取超时，请在视频页加载完成后点击“读取”重试。");
+  const timeout = timed ? new Promise((resolve, reject) => { timer = setTimeout(() => reject(timeoutError()), milliseconds); }) : null;
   const run = async existingTab => {
-    if (metadataOnly && Date.now() >= expires) throw timeoutError();
+    if (timed && Date.now() >= expires) throw timeoutError();
     // Keep only the latest preview for one subsequent import. Reads and retries
     // always inspect the page again; no subtitle results live in session storage.
     if (purpose === "import") {
@@ -453,9 +455,10 @@ async function youtubeRead(videoId, includeBody = false, includeAudio = false, p
       if (preview?.key === resultKey) return preview.result;
     } else if (includeBody) youtubePreview = null;
     const tab = existingTab || await youtubeTab(videoId, playlistId, activate);
-    if (metadataOnly && Date.now() >= expires) throw timeoutError();
-    const request = chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", ...(metadataOnly ? { injectImmediately: true } : {}), func: youtubePageRead, args: [videoId, includeBody, includeAudio, playlistId] });
-    const results = await (metadataOnly ? Promise.race([request, timeout]) : request);
+    if (timed && Date.now() >= expires) throw timeoutError();
+    const request = chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", ...(metadataOnly ? { injectImmediately: true } : {}), func: youtubePageRead, args: [videoId, includeBody, includeAudio, playlistId, ...(includeBody ? [expires] : [])] });
+    const results = await (timed ? Promise.race([request, timeout]) : request);
+    if (timed && Date.now() >= expires) throw timeoutError();
     const result = results?.[0]?.result;
     if (!result) throw new Error("无法读取 YouTube 页面，请确认视频可以播放。");
     if (result.error) throw new Error(result.error);
@@ -476,8 +479,8 @@ async function youtubeRead(videoId, includeBody = false, includeAudio = false, p
     // Reading an existing page cannot navigate the shared helper. Only requests
     // needing a new page stay queued with subtitle reads.
     return existing ? run(existing) : enqueue();
-  })(), timeout]) : enqueue();
+  })(), timeout]) : includeBody ? Promise.race([enqueue(), timeout]) : enqueue();
   youtubePendingReads.set(requestKey, work);
   try { return await work; }
-  finally { if (metadataOnly) clearTimeout(timer); youtubePendingReads.delete(requestKey); }
+  finally { if (timed) clearTimeout(timer); youtubePendingReads.delete(requestKey); }
 }

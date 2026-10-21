@@ -64,8 +64,9 @@ async function handleCourseMessage(message) {
   }
   if (action === "preview") {
     if (!(meta.platform === "youtube" ? /^[\w-]{11}$/.test(page?.cid || "") : /^\d+$/.test(page?.cid || "")) || !meta.pages?.some(item => item.cid === page.cid)) throw new Error("视频信息无效。");
-    const tracks = meta.platform === "youtube" ? [] : await courseBiliSubtitleTracks(meta, page);
-    const subtitle = meta.platform === "youtube" ? await courseSubtitle(meta, page, action) : await courseReadBiliSubtitle(tracks, page, message.trackId || "", message.subtitleLanguage || "");
+    const signal = AbortSignal.timeout(5000);
+    const tracks = meta.platform === "youtube" ? [] : await courseBiliSubtitleTracks(meta, page, signal);
+    const subtitle = meta.platform === "youtube" ? await courseSubtitle(meta, page, action) : await courseReadBiliSubtitle(tracks, page, message.trackId || "", message.subtitleLanguage || "", signal);
     return { tracks: tracks.map(({ id, lan, lanDoc }) => ({ id, lan, lanDoc })), ...(subtitle
       ? { track: { id: subtitle.track.id, lan: subtitle.track.lan, lanDoc: subtitle.track.lanDoc }, body: subtitle.body }
       : { body: [], missing: true }) };
