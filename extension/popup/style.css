@@ -87,7 +87,7 @@ summary::-webkit-details-marker { display: none; }
 .save-menu button:hover:not(:disabled), .save-menu button:focus-visible { background: var(--soft); filter: none; }
 .popup-footer { display: flex; justify-content: space-between; align-items: start; gap: 12px; margin-bottom: -8px; }
 #source-form { margin-top: 6px; }
-.source-row, .actions { display: flex; gap: 8px; }
+.source-row, .actions { display: flex; gap: 8px; margin-top: 12px; }
 .source-row input { flex: 1; font-size: 12px; }
 .source-row button, #workspace { flex: none; white-space: nowrap; }
 .actions { margin-top: 20px; }

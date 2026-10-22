@@ -90,7 +90,7 @@ async function handleCourseMessage(message) {
     const path = CourseCore.rawPath(meta, page, base);
     const existingPath = existingRawPath(meta, page, base, await courseRawFiles(meta, base));
     if (existingPath) return rememberCourseImport(meta, page, base, { status: "exists", path: existingPath });
-    const subtitle = await courseSubtitle(meta, page, "import", message.activateVideo === true, message.trackId || "", message.subtitleLanguage || "");
+    const subtitle = await courseSubtitle(meta, page, "import", message.trackId || "", message.subtitleLanguage || "");
     if (!subtitle) return { status: "missing" };
     // Recheck after network work in case a note appeared while fetching subtitles.
     const appearedPath = existingRawPath(meta, page, base, await courseRawFiles(meta, base));

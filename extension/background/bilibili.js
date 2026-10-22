@@ -85,9 +85,9 @@ async function courseReadBiliSubtitle(tracks, page, trackId = "", subtitleLangua
   if (trackError) throw trackError;
   return null;
 }
-async function courseSubtitle(meta, page, purpose = "read", activate = false, trackId = "", subtitleLanguage = "") {
+async function courseSubtitle(meta, page, purpose = "read", trackId = "", subtitleLanguage = "") {
   if (meta.platform === "youtube") {
-    const result = await youtubeRead(page.cid, true, false, "", purpose, activate);
+    const result = await youtubeRead(page.cid, true, false, "", purpose);
     return result.missing ? null : result;
   }
   const signal = AbortSignal.timeout(5000);

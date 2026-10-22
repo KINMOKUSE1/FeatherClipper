@@ -250,7 +250,7 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
         for (const page of selected) {
           if (stopping) break;
           page.status = "running"; page.error = ""; render();
-          try { const result = await request("import", { page, activateVideo: meta.platform === "youtube" }); page.status = result.status; }
+          try { const result = await request("import", { page }); page.status = result.status; }
           catch (error) { page.status = "failed"; page.error = error.message; if (error.fatal) fatalError = error; }
           counts[page.status] = (counts[page.status] || 0) + 1; done++; importAction.progress(done, selected.length);
           await persist(); render(); await updateIndex();

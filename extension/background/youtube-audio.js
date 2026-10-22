@@ -76,7 +76,7 @@ async function youtubeAudioSource(videoId, jobId) {
         if (result[0]?.result) {
           state = result[0].result; started = true;
           if (!state.url) {
-            const audio = await chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", func: youtubePageRead, args: [videoId, false, true, ""] });
+            const audio = await chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", func: youtubePageRead, args: [videoId, true, ""] });
             const source = audio[0]?.result;
             if (!source?.audioUrls?.length) throw new Error(source?.error || "YouTube 没有提供可用的音轨地址");
             return { urls: source.audioUrls };

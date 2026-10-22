@@ -5,6 +5,7 @@ importScripts(
   "settings.js",
   "wbi.js",
   "bilibili.js",
+  "youtube-subtitles.js",
   "youtube.js",
   "../transcription/sabr/vendor.js",
   "youtube-audio.js",

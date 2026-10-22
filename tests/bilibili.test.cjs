@@ -25,7 +25,7 @@ function boot(options = {}) {
     return { ok: true, json: async () => options.bodyResponse || { body: options.body ?? [{ from: 0, to: 2, content: url.endsWith('/english') ? 'English text' : '中文内容' }] } };
   } });
   vm.runInContext(source, context);
-  return { context, calls, read: (trackId = '') => context.courseSubtitle(meta, page, 'read', false, trackId) };
+  return { context, calls, read: (trackId = '') => context.courseSubtitle(meta, page, 'read', trackId) };
 }
 
 test('MD5 matches RFC vectors and Node crypto across UTF-8 and padding boundaries', () => {
@@ -122,14 +122,14 @@ test('duration validation rejects foreign content even from matching metadata', 
 
 test('language preferences select each video track independently, including AI and regional variants', async () => {
   const first = boot(), second = boot({ tracks: [chinese, { ...english, id: 77, lan: 'ai-en' }] });
-  assert.equal((await first.context.courseSubtitle(meta, page, 'preview', false, '', 'en')).track.id, '2');
-  assert.equal((await second.context.courseSubtitle(meta, page, 'import', false, '', 'en')).track.id, '77');
+  assert.equal((await first.context.courseSubtitle(meta, page, 'preview', '', 'en')).track.id, '2');
+  assert.equal((await second.context.courseSubtitle(meta, page, 'import', '', 'en')).track.id, '77');
   const regional = boot({ tracks: [chinese, { ...english, lan: 'en-US' }] });
-  assert.equal((await regional.context.courseSubtitle(meta, page, 'preview', false, '', 'en')).track.lan, 'en-US');
+  assert.equal((await regional.context.courseSubtitle(meta, page, 'preview', '', 'en')).track.lan, 'en-US');
   const unavailable = boot({ tracks: [chinese] });
-  await assert.rejects(unavailable.context.courseSubtitle(meta, page, 'preview', false, '', 'en'), /没有所选语言/);
+  await assert.rejects(unavailable.context.courseSubtitle(meta, page, 'preview', '', 'en'), /没有所选语言/);
   assert.ok(!unavailable.calls.some(call => call.url.endsWith('/chinese')));
-  assert.equal(await boot({ tracks: [] }).context.courseSubtitle(meta, page, 'preview', false, '', 'en'), null);
+  assert.equal(await boot({ tracks: [] }).context.courseSubtitle(meta, page, 'preview', '', 'en'), null);
 });
 
 

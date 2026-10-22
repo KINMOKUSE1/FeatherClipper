@@ -15,6 +15,7 @@ function boot({ authenticated = true, existing = null, beforeSubtitle, missing =
     storage: { local: { get: async () => ({ ...local }), set: async data => { Object.assign(local, data); onStored?.(data); } }, sync: { get: async () => ({}) }, session: { get: async key => ({ [key]: session[key] }), set: async data => Object.assign(session, data) } },
     action: { onClicked: { addListener: fn => click = fn } },
     webRequest: { onBeforeRequest: { addListener() {} } },
+    declarativeNetRequest: { updateSessionRules: async () => {} },
     tabs: { create: async data => { opened.push(data); const tab = { id: 2, status: 'complete', url: data.url }; tabs.set(tab.id, tab); return tab; },
       get: async id => tabs.get(id), remove: async id => tabs.delete(id),
       update: async (id, data) => Object.assign(tabs.get(id), data),
@@ -27,7 +28,7 @@ function boot({ authenticated = true, existing = null, beforeSubtitle, missing =
         ...(args[1] ? { track: { lan: 'en', lanDoc: 'English' }, body: [{ from: 3, to: 5, content: 'First lesson' }] } : {}) } }];
     } }
   };
-  context = vm.createContext({ chrome, console, URL, URLSearchParams, AbortSignal, TextEncoder, setInterval, clearInterval, setTimeout, clearTimeout,
+  context = vm.createContext({ chrome, console, URL, URLSearchParams, AbortSignal, AbortController, TextEncoder, setInterval, clearInterval, setTimeout, clearTimeout,
     navigator: { locks: { request: async (name, options, run) => {
       if (locks.has(name)) return run(null);
       locks.add(name); try { return await run({ name }); } finally { locks.delete(name); }
@@ -35,6 +36,14 @@ function boot({ authenticated = true, existing = null, beforeSubtitle, missing =
     importScripts: (...files) => files.forEach(file => vm.runInContext(fs.readFileSync(path.join(extension, 'background', file), 'utf8'), context)),
     fetch: async (url, options = {}) => {
       fetched.push(url); requests.push({ url, options });
+      if (url.startsWith('https://www.youtube.com/watch?')) return { ok: true, text: async () => '{"INNERTUBE_API_KEY":"fixture"}' };
+      if (url.startsWith('https://www.youtube.com/youtubei/v1/player')) {
+        const id = JSON.parse(options.body).videoId;
+        youtubeCalls.push([id, true]);
+        return { ok: true, json: async () => ({ playabilityStatus: { status: 'OK' }, videoDetails: { videoId: id, title: 'Lecture', author: 'Teacher' },
+          captions: { playerCaptionsTracklistRenderer: { captionTracks: missing ? [] : [{ languageCode: 'en', name: { simpleText: 'English' }, baseUrl: 'https://www.youtube.com/api/timedtext?v=' + id }] } } }) };
+      }
+      if (url.startsWith('https://www.youtube.com/api/timedtext')) return { ok: true, text: async () => '<transcript><text start="3" dur="2">First lesson</text></transcript>' };
       if (url === 'http://127.0.0.1:27123/') return { ok: true, json: async () => ({ authenticated }) };
       if (url.startsWith('http://127.0.0.1:27123/vault/')) {
         if (options.method === 'PUT') { writes.push({ url, content: options.body }); vault.set(url, options.body); return { ok: true }; }
@@ -330,15 +339,14 @@ test('metadata accepts a pasted YouTube watch-and-list URL from an older page', 
   assert.equal(result.meta.pages.length, 2);
 });
 
-test('workbench import activates the selected YouTube video through the normal import action', async () => {
+test('workbench imports the selected YouTube video in the background without opening a tab', async () => {
   const h = boot({ youtubeVideo: 'GWwL_pLuX-U', youtubePlaylist: 'PLKq1TCpsv3Y4' });
   const data = await h.message({ type: 'course-request', action: 'meta', youtubeId: 'GWwL_pLuX-U', playlistId: 'PLKq1TCpsv3Y4' });
   const selected = data.meta.pages[1];
-  const result = await h.message({ type: 'course-request', action: 'import', meta: data.meta, page: selected, base: data.folder, activateVideo: true });
+  const result = await h.message({ type: 'course-request', action: 'import', meta: data.meta, page: selected, base: data.folder });
   assert.equal(result.status, 'saved');
-  assert.equal(h.opened.length, 1);
-  assert.equal(h.opened[0].active, true);
-  assert.equal(new URL(h.opened[0].url).searchParams.get('v'), selected.cid);
+  assert.equal(h.opened.length, 0);
+  assert.ok(h.youtubeCalls.some(args => args[0] === selected.cid && args[1] === true));
 });
 test('closing popup does not own or cancel the background operation; duplicate requests share it', async () => {
   let release, entered, saved;
