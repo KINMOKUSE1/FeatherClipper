@@ -1,69 +1,41 @@
 # Vid2Notes
+---
 
-把 B站和 YouTube 的课程字幕收进 Obsidian，再交给你使用的 AI 整理成学习笔记。
+一个收集网课素材，并使用 AI 按个人偏好整理成学习笔记的轻量化浏览器扩展。
+
+---
 
 Vid2Notes 是面向课程学习的 Chrome / Edge 扩展，支持单个视频、B站分 P 和 YouTube 播放列表。从字幕预览、批量导入，到音频转写、个性化笔记整理，在同一个工作台完成素材准备。
 
-源码版本：**v1.3.5**
 
 [安装与使用](#安装) · [使用说明](./使用说明.md) · [开发指南](./docs/开发指南.md)
+
+## 动机
+现今已存在诸多开源免费的字幕导入工具，如 [Bilibili-Obsidian-Clipper](https://github.com/haixiong1997/Bilibili-Obsidian-Clipper) 与 [obsidian-clipper](https://github.com/obsidianmd/obsidian-clipper) 等。但
+- 两者都不支持多p自动导入
+- 不集中于收集→学习的闭环
+- 两者都无法处理字幕缺失的情况，
+
+所以本项目主要目的是利用obsidian易于收纳相关资料的特性，不引入无关功能，提供在线免费api音频转写功能，并为无相关mcp使用经验/网页ai使用者提供可自定义的结构化高质量skill/prompt，生成对应视频课程笔记.
 
 ## 功能
 
 - **字幕采集**：识别当前视频和分 P，预览字幕；B站支持切换字幕语言
 - **复制与导出**：复制完整 Markdown 字幕，或保存为 `.md` 文件
-- **课程导入**：按章节筛选、多选课时、核对字幕并批量导入 Obsidian；按钮显示进度，再次点击取消，失败项可重试
 - **导入记录**：按课程系列归并，展示封面、最近导入时间和已导入数量；从记录返回课程素材，继续导入剩余视频
 - **个性化笔记**：配置目标、语言、笔记结构和 YAML 属性，生成适用于本地 agent 或网页 AI 的规则与任务指令
 - **音频转写**：为无字幕视频选择本地模型、Groq 或硅基流动，转写后导入笔记库
 
-工作台包含 **课程素材、导入记录、整理笔记、音频转写、连接配置** 五个页面。
-
-## 界面预览
-
-| B站：当前视频字幕 | YouTube：系列课程 |
-|:---:|:---:|
-| <img src="./docs/images/popup-bilibili.png" alt="B站视频的字幕预览与保存入口" width="320"> | <img src="./docs/images/popup-youtube.png" alt="YouTube 播放列表的当前课时与整课入口" width="320"> |
-
-**课程工作台：选择课时、调整章节并核对字幕**
-
-![YouTube 课程目录与字幕核对](./docs/images/workbench-youtube.png)
-
 ## 安装
 
-### 加载当前源码
-
-1. 下载或克隆本仓库，将文件放在长期保留的目录
-2. 打开浏览器的扩展管理页：Chrome 使用 `chrome://extensions/`，Edge 使用 `edge://extensions/`
-3. 开启“开发者模式”或“开发人员模式”，点击“加载已解压的扩展程序”或“加载解压缩的扩展”
-4. 选择仓库中的 **`extension/` 文件夹**，将 Vid2Notes 固定到工具栏
-
-Chrome 最低版本为 116。更新源码后，到扩展管理页点击“重新加载”，再打开扩展页面。
-
-下载区提供[上次发布的扩展包](./downloads/course-clipper-edge.zip)和[本地转写安装程序](./downloads/vid2notes-asr-setup.exe)。扩展包解压后加载其中的 `course-clipper` 文件夹；本页介绍当前源码，最新功能通过上述源码加载方式使用。
 
 ## 使用
 
-### 预览、复制与保存字幕
-
-在 B站或 YouTube 视频页点击扩展图标，自动读取当前课时。快捷窗口展示前 12 个阅读段落，复制和文件导出包含完整字幕。
-
-- **保存字幕 / 保存当前字幕**：导入 Obsidian
-- **保存按钮右侧的箭头**：复制到剪贴板，或保存 Markdown 文件
-- **B站字幕语言**：点击预览标题行中的语言名称，选择自动或指定字幕轨
-- **整门课程 / 选择分 P**：进入工作台，处理系列课程
-
-B站字幕读取会校验视频归属，并分别显示无字幕、登录受限和读取失败等状态。遇到登录提示时，在当前浏览器登录 B站后重新读取。
-
 ### 连接 Obsidian
 
-复制与文件导出可直接使用。导入笔记库时，在 **连接配置** 页面设置：
-
-1. 在 Obsidian 安装并启用 [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) 插件，启用 HTTP 服务并复制 API Key
-2. 填写服务地址、API Key 和默认素材根目录；默认地址为 `http://127.0.0.1:27123`
+1. 在 Obsidian 插件市场安装并启用 [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) 插件，启用 HTTP 服务并复制 API Key
+2. 在扩展窗口中填写服务地址、API Key 和默认素材根目录；默认地址为 `http://127.0.0.1:27123`
 3. 点击 **测试连接**，连接成功后 **保存配置**
-
-API Key 支持纯密钥和 `Bearer <密钥>` 两种写法，自动处理前缀大小写与首尾空格。
 
 ### 批量导入课程
 
@@ -71,16 +43,6 @@ API Key 支持纯密钥和 `Bearer <密钥>` 两种写法，自动处理前缀�
 2. 按章节筛选，使用全选、仅选当前或清空；章节号可直接修改
 3. 点击课时标题展开字幕预览，再次点击收起
 4. 确认保存目录，点击 **导入 Obsidian**
-
-导入按钮显示当前进度，再次点击即可取消。已有字幕文件自动跳过，失败项可重试，无字幕课时可转写音频。
-
-快捷窗口关闭后，当前视频的导入在后台继续。批量处理时保持工作台和 Obsidian 打开；读取 YouTube 文稿时，浏览器会使用对应的视频页面。
-
-### 从导入记录继续学习
-
-**导入记录** 按系列展示课程封面、名称、最近导入时间和进度，例如 `12/30`。后续导入更新原记录，同一个视频重复导入只计一次；单个视频独立显示。
-
-点击系列记录，按课程原顺序查看已导入的视频，并打开原视频链接。详情页右上角的 **进入课程素材** 会加载完整课程目录，沿用记录中的保存目录并显示当前导入状态。单个视频的同名入口位于更多菜单中。
 
 ### 整理学习笔记
 
@@ -168,6 +130,6 @@ python scripts/build_install_package.py
 
 本项目基于 [Bilibili-Obsidian-Clipper](https://github.com/haixiong1997/Bilibili-Obsidian-Clipper) 二次开发，保留原项目的 MIT 许可证与署名。
 
-YouTube 字幕提取参考 [Obsidian Web Clipper](https://github.com/obsidianmd/obsidian-clipper) 和 [Defuddle](https://github.com/kepano/defuddle)。本地笔记库连接使用 [Obsidian Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api)。
+YouTube 字幕请求流程参考 [youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api)。本地笔记库连接使用 [Obsidian Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api)。
 
 项目采用 [MIT License](./LICENSE)。
