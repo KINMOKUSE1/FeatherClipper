@@ -10,7 +10,6 @@ dist/
 release/
 *.zip
 __pycache__/
-!extension/learning-kit.zip
 !downloads/course-clipper-edge.zip
 
 # Local scratch and OS files
