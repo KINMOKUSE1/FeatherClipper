@@ -32,7 +32,7 @@ FeatherClipper 面向课程学习，支持 Chrome / Edge，适用于单个视频
 2. 在 Obsidian 中安装并启用 Local REST API，在扩展中填写连接信息
 3. 打开视频，选择课时并导入素材；进入“整理笔记”，配置规则后，将材料和指令交给 AI
 
-[https://github.com/user-attachments/assets/293886fa-db54-4d43-8468-c5f47a63a69a]
+(https://github.com/user-attachments/assets/293886fa-db54-4d43-8468-c5f47a63a69a)
 
 仅复制或导出字幕时，无需连接 Obsidian。本地转写组件按需安装。
 
