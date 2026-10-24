@@ -47,7 +47,7 @@ function boot({ authenticated = true, existing = null, beforeSubtitle, missing =
       if (url === 'http://127.0.0.1:27123/') return { ok: true, json: async () => ({ authenticated }) };
       if (url.startsWith('http://127.0.0.1:27123/vault/')) {
         if (options.method === 'PUT') { writes.push({ url, content: options.body }); vault.set(url, options.body); return { ok: true }; }
-        if (decodeURIComponent(url).endsWith('/原始字幕/')) {
+        if (/\/(?:原始字幕|Raw Subtitles)\/$/.test(decodeURIComponent(url))) {
           const files = [...vault.keys()].filter(key => key.startsWith(url)).map(key => decodeURIComponent(key.slice(url.length)));
           return files.length ? { ok: true, json: async () => ({ files }) } : { ok: false, status: 404 };
         }
@@ -275,6 +275,23 @@ test('quick import saves raw subtitles, index and durable status; repeat skips r
   const records = Object.entries(h.local).filter(([key]) => key.startsWith('featherclipper:import-history:'));
   assert.equal(records.length, 1);
   assert.equal(records[0][1].language, '中文（自动生成）');
+});
+
+test('English quick imports survive a UI change and remain deduplicated after returning to Chinese', async () => {
+  const h = boot({ initial: { 'featherclipper:ui-locale': 'en' }, beforeSubtitle: async () => {
+    h.local['featherclipper:ui-locale'] = 'zh-CN';
+  } });
+  const result = await h.message({ ...quickMessage, locale: 'en' }, popupSender);
+  assert.equal(result.status, 'saved');
+  const raw = h.writes.find(write => decodeURIComponent(write.url).includes('/Raw Subtitles/'));
+  assert.ok(raw);
+  assert.match(raw.content, /## Subtitles/);
+  assert.match(raw.content, /实际解析链路/);
+  assert.ok(h.writes.some(write => decodeURIComponent(write.url).endsWith('/Course Import Index.md')));
+  const repeated = await h.message({ ...quickMessage, locale: 'zh-CN' }, popupSender);
+  assert.equal(repeated.status, 'exists');
+  assert.equal(h.writes.filter(write => decodeURIComponent(write.url).endsWith('[CID-2].md')).length, 1);
+  assert.match(h.writes.at(-1).content, /\[字幕\]\(<Raw Subtitles\//);
 });
 
 test('workbench imports and completed local transcription both persist history', async () => {

@@ -37,5 +37,8 @@ window.createConnectionPage = function ({ send, feedback, navigate, getCatalog }
   $("settings").addEventListener("click", openSettings);
   $("save-settings").addEventListener("click", () => updateSettings(false));
   $("test-settings").addEventListener("click", () => updateSettings(true));
+  UiText.i18n.subscribe(() => {
+    if (savedSettings) $("connection-state").textContent = savedSettings.hasApiKey ? ui.configured : ui.unconfigured;
+  });
   return { refresh: refreshSettings, open: openSettings };
 };

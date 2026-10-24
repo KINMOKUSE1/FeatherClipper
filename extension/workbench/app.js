@@ -5,13 +5,14 @@
   async function send(message) {
     const response = await chrome.runtime.sendMessage(message);
     if (!response?.ok) {
-      const error = new Error(response?.error || ui.connectionLost);
+      const error = new Error(I18n.error(response?.error) || ui.connectionLost);
       error.fatal = response?.fatal;
       throw error;
     }
     return response;
   }
   async function start() {
+    await I18n.ready;
     const hosts = [...document.querySelectorAll("[data-page]")];
     const pages = await Promise.all(hosts.map(async host => {
       const response = await fetch(new URL(`${host.dataset.page}/page.html`, assetBase), { cache: "no-store" });
@@ -23,6 +24,7 @@
       template.innerHTML = pages[index];
       host.replaceWith(template.content);
     });
+    I18n.apply(document);
     let catalog;
     const { navigate } = createWorkbenchShell();
     const feedback = createWorkbenchFeedback({ isBusy: () => {

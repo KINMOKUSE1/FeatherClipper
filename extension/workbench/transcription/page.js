@@ -161,5 +161,6 @@ window.createTranscriptionPage = function ({ getCatalog, send, feedback, navigat
     finally { $("asr-clear-key").disabled = false; }
   });
   $("local-asr-settings").addEventListener("click", () => open().catch(error => status(error.message, true)));
+  UiText.i18n.subscribe(() => { renderSettings(); });
   return { refresh, open, run };
 };

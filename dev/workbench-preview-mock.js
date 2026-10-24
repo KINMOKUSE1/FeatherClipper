@@ -66,7 +66,7 @@
     return meta;
   }
   function sourcePaths(meta, pages, base) {
-    return Object.fromEntries(pages.map(page => [page.cid, CourseCore.rawPath(meta, page, base)]).filter(([, path]) => files.has(path)));
+    return Object.fromEntries(pages.map(page => [page.cid, [...files.keys()].find(path => path.startsWith(CourseCore.courseFolder(meta, base) + "/") && path.endsWith(` [${meta.platform === "youtube" ? "YT" : "CID"}-${page.cid}].md`))]).filter(([, path]) => path));
   }
   function subtitleMissing(page, meta) {
     return page.page === 7 || (scenario === "missing" && page.page === Math.min(4, meta.pages.length));
@@ -115,18 +115,20 @@
     }
     if (message.action === "raw-paths") {
       if (!settings.hasApiKey) return { ok: false, error: "请先填写 Obsidian Local REST API Key" };
-      return { ok: true, sources: sourcePaths(meta, message.pages, base) };
+      return { ok: true, sources: sourcePaths(meta, message.pages, base), index: CourseCore.indexPath(meta, base, message.locale) };
     }
     if (message.action === "index") {
-      files.set(`${CourseCore.courseFolder(meta, base)}/课程导入清单.md`, CourseCore.buildIndex(meta, message.pages, base));
+      const sources = sourcePaths(meta, message.pages, base);
+      const pages = message.pages.map(page => ({ ...page, sourcePath: sources[page.cid] || "" }));
+      files.set(CourseCore.indexPath(meta, base, message.locale), CourseCore.buildIndex(meta, pages, base, message.locale));
       return { ok: true, sources: sourcePaths(meta, message.pages, base) };
     }
-    const path = page ? CourseCore.rawPath(meta, page, base) : "";
+    const path = page ? sourcePaths(meta, [page], base)[page.cid] || CourseCore.rawPath(meta, page, base, message.locale) : "";
     if (message.action === "import") {
       await delay(500);
       if (files.has(path)) return { ok: true, status: "exists", path };
       if (subtitleMissing(page, meta)) return { ok: true, status: "missing" };
-      files.set(path, CourseCore.buildRaw(meta, page, { lan: meta.platform === "youtube" ? "en" : "zh", lanDoc: meta.platform === "youtube" ? "English" : "中文" }, transcript(page, meta.platform)));
+      files.set(path, CourseCore.buildRaw(meta, page, { lan: meta.platform === "youtube" ? "en" : "zh", lanDoc: meta.platform === "youtube" ? "English" : "中文" }, transcript(page, meta.platform), message.locale));
       return { ok: true, status: "saved", path };
     }
     if (message.action === "asr-start") {

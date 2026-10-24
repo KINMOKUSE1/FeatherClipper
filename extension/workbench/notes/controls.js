@@ -47,7 +47,11 @@ window.createNoteControls = function (form) {
     });
     const sync = () => {
       text.textContent = select.selectedOptions[0]?.textContent || ui.choose; button.disabled = select.disabled;
-      options.forEach((item, index) => item.setAttribute("aria-selected", String(select.options[index].selected)));
+      options.forEach((item, index) => {
+        item.textContent = select.options[index].textContent;
+        item.setAttribute("aria-label", item.textContent);
+        item.setAttribute("aria-selected", String(select.options[index].selected));
+      });
     };
     function open() {
       menu.showPopover();

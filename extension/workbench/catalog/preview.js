@@ -5,6 +5,7 @@ window.createSubtitlePreview = function () {
   const previewPanel = document.getElementById("preview-panel");
   let previewOpen = !previewPanel.hidden;
   let panelAnimation = null;
+  let lastMessage = null;
   function setPreviewOpen(open) {
     if (previewOpen === open) return;
     const current = panelAnimation ? getComputedStyle(previewPanel) : null;
@@ -51,6 +52,7 @@ window.createSubtitlePreview = function () {
     closePreview();
   });
   function previewMessage(text, error = false) {
+    lastMessage = { text, error };
     const message = document.createElement("p");
     message.className = `preview-message${error ? " error" : ""}`;
     message.setAttribute("role", "status");
@@ -58,6 +60,7 @@ window.createSubtitlePreview = function () {
     document.getElementById("preview-body").replaceChildren(message);
   }
   function transcript(meta, page, body, timestamps = true) {
+    lastMessage = null;
     const container = document.getElementById("preview-body");
     container.replaceChildren();
     const groups = timestamps ? CourseCore.groupSubtitles(body, meta.platform) : body;
@@ -72,5 +75,6 @@ window.createSubtitlePreview = function () {
       paragraph.append(document.createTextNode(item.content)); container.append(paragraph);
     }
   }
+  UiText.i18n.subscribe(() => { if (lastMessage) previewMessage(UiText.i18n.error(lastMessage.text), lastMessage.error); });
   return { isOpen: () => previewOpen, open: setPreviewOpen, close: closePreview, message: previewMessage, transcript };
 };

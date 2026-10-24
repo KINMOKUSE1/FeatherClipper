@@ -1,54 +1,54 @@
     <div id="catalog-page">
     <section id="empty" class="empty-state">
       <span class="icon icon-chapters empty-icon" aria-hidden="true"></span>
-      <p class="eyebrow">从一段视频开始</p>
-      <h1>把课程收进你的专属知识库。</h1>
-      <p>读取目录、核对字幕，再保存到 Obsidian。</p>
-      <button id="empty-load" type="button">粘贴视频或课程链接</button>
+      <p class="eyebrow"><span data-i18n="从一段视频开始">从一段视频开始</span></p>
+      <h1><span data-i18n="把课程收进你的专属知识库。">把课程收进你的专属知识库。</span></h1>
+      <p><span data-i18n="读取目录、核对字幕，再保存到 Obsidian。">读取目录、核对字幕，再保存到 Obsidian。</span></p>
+      <button id="empty-load" type="button"><span data-i18n="粘贴视频或课程链接">粘贴视频或课程链接</span></button>
     </section>
 
     <section id="course" hidden>
       <div class="course-heading">
-        <div class="course-title-row"><h1 id="title"></h1><button id="source-open" class="text-button" type="button"><span class="icon icon-link" aria-hidden="true"></span>更换课程</button></div>
+        <div class="course-title-row"><h1 id="title"></h1><button id="source-open" class="text-button" type="button"><span class="icon icon-link" aria-hidden="true"></span><span data-i18n="更换课程">更换课程</span></button></div>
         <p id="course-meta" class="course-meta"></p>
       </div>
       <div class="workspace">
-        <section class="catalog" aria-label="课程目录">
+        <section class="catalog" aria-label="课程目录" data-i18n-aria-label="课程目录">
           <span id="count" class="sr-only" aria-live="polite"></span>
           <div class="toolbar">
             <div class="chapter-filter">
-              <button id="filter" class="text-button" type="button" aria-label="按章节筛选：全部章节" aria-haspopup="listbox" aria-expanded="false" aria-controls="filter-options"><span id="filter-label">全部章节</span><span class="icon icon-chevron" aria-hidden="true"></span></button>
-              <div id="filter-options" class="chapter-options" role="listbox" aria-label="按章节筛选" hidden></div>
+              <button id="filter" class="text-button" type="button" aria-label="按章节筛选：全部章节" aria-haspopup="listbox" aria-expanded="false" aria-controls="filter-options" data-i18n-aria-label="按章节筛选：全部章节"><span id="filter-label"><span data-i18n="全部章节">全部章节</span></span><span class="icon icon-chevron" aria-hidden="true"></span></button>
+              <div id="filter-options" class="chapter-options" role="listbox" aria-label="按章节筛选" hidden data-i18n-aria-label="按章节筛选"></div>
             </div>
-            <div class="selection-actions" role="group" aria-label="选择导入范围"><button id="select" class="text-button" type="button">全选视频</button><button id="current" class="text-button" type="button">仅选当前</button><button id="clear" class="text-button" type="button">取消全选</button></div>
+            <div class="selection-actions" role="group" aria-label="选择导入范围" data-i18n-aria-label="选择导入范围"><button id="select" class="text-button" type="button"><span data-i18n="全选视频">全选视频</span></button><button id="current" class="text-button" type="button"><span data-i18n="仅选当前">仅选当前</span></button><button id="clear" class="text-button" type="button"><span data-i18n="取消全选">取消全选</span></button></div>
           </div>
           <div class="table-wrap">
-            <table aria-label="课程课时列表">
+            <table aria-label="课程课时列表" data-i18n-aria-label="课程课时列表">
               <colgroup><col class="selection-column"><col class="number-column"><col><col class="chapter-column"><col class="status-column"></colgroup>
               <tbody id="parts"></tbody>
             </table>
           </div>
         </section>
 
-        <aside id="preview-panel" class="preview" aria-label="字幕核对" hidden>
+        <aside id="preview-panel" class="preview" aria-label="字幕核对" hidden data-i18n-aria-label="字幕核对">
           <div class="preview-header">
-            <div class="preview-tools-row"><h2 id="preview-title">选择一节课程</h2><button id="preview-close" class="text-button" type="button" aria-label="关闭字幕面板，返回目录">×</button></div>
+            <div class="preview-tools-row"><h2 id="preview-title"><span data-i18n="选择一节课程">选择一节课程</span></h2><button id="preview-close" class="text-button" type="button" aria-label="关闭字幕面板，返回目录" data-i18n-aria-label="关闭字幕面板，返回目录">×</button></div>
           </div>
-          <div id="preview-body" class="transcript"><p class="preview-message">点击课程标题查看字幕。</p></div>
-          <div id="asr-panel" class="asr-panel" hidden><button id="asr-current" type="button">转写并导入</button><span class="asr-engine-choice"><span>使用 <span id="asr-engine-label">本地模型</span></span><span aria-hidden="true">·</span><button id="asr-change-engine" class="text-button" type="button" aria-label="更换转写引擎">更换</button></span></div>
+          <div id="preview-body" class="transcript"><p class="preview-message"><span data-i18n="点击课程标题查看字幕。">点击课程标题查看字幕。</span></p></div>
+          <div id="asr-panel" class="asr-panel" hidden><button id="asr-current" type="button"><span data-i18n="转写并导入">转写并导入</span></button><span class="asr-engine-choice"><span><span data-i18n="使用">使用</span> <span id="asr-engine-label"><span data-i18n="本地模型">本地模型</span></span></span><span aria-hidden="true">·</span><button id="asr-change-engine" class="text-button" type="button" aria-label="更换转写引擎" data-i18n-aria-label="更换转写引擎"><span data-i18n="更换">更换</span></button></span></div>
         </aside>
       </div>
 
-      <section class="import-bar" aria-label="导入操作">
-        <div class="import-heading"><div class="import-details"><p id="import-summary">请先勾选要导入的视频。</p><div class="destination"><span>保存到</span><p id="destination"></p><button id="folder-edit" class="text-button" type="button" aria-label="修改保存目录" title="修改保存目录"><span class="icon icon-edit" aria-hidden="true"></span></button></div></div><div class="import-actions"><button id="retry" class="text-button import-auxiliary" type="button" aria-label="重试失败项" hidden><span class="icon icon-retry" aria-hidden="true"></span>重试</button><button id="asr-selected" class="text-button import-auxiliary" type="button" aria-label="本地转写并导入无字幕视频" hidden><span class="icon icon-audio" aria-hidden="true"></span><span id="asr-selected-label">本地转写</span></button><button id="start" type="button"><span class="icon icon-save" aria-hidden="true"></span>导入 Obsidian</button></div></div>
+      <section class="import-bar" aria-label="导入操作" data-i18n-aria-label="导入操作">
+        <div class="import-heading"><div class="import-details"><p id="import-summary"><span data-i18n="请先勾选要导入的视频。">请先勾选要导入的视频。</span></p><div class="destination"><span><span data-i18n="保存到">保存到</span></span><p id="destination"></p><button id="folder-edit" class="text-button" type="button" aria-label="修改保存目录" title="修改保存目录" data-i18n-aria-label="修改保存目录" data-i18n-title="修改保存目录"><span class="icon icon-edit" aria-hidden="true"></span></button></div></div><div class="import-actions"><button id="retry" class="text-button import-auxiliary" type="button" aria-label="重试失败项" hidden data-i18n-aria-label="重试失败项"><span class="icon icon-retry" aria-hidden="true"></span><span data-i18n="重试">重试</span></button><button id="asr-selected" class="text-button import-auxiliary" type="button" aria-label="本地转写并导入无字幕视频" hidden data-i18n-aria-label="本地转写并导入无字幕视频"><span class="icon icon-audio" aria-hidden="true"></span><span id="asr-selected-label"><span data-i18n="本地转写">本地转写</span></span></button><button id="start" type="button"><span class="icon icon-save" aria-hidden="true"></span><span data-i18n="导入 Obsidian">导入 Obsidian</span></button></div></div>
       </section>
     </section>
     </div>
 <dialog id="source-dialog" aria-labelledby="source-title">
-  <div class="dialog-heading"><div><p class="eyebrow">课程来源</p><h2 id="source-title">读取一门课程</h2></div><button class="close-button" type="button" data-close="source-dialog" aria-label="关闭课程来源">×</button></div>
-  <label for="url">B站或 YouTube 链接</label><div class="inline"><input id="url" type="text" placeholder="粘贴视频或播放列表链接" spellcheck="false"><button id="load" type="button">读取目录</button></div>
-  <label for="folder">素材根目录</label><input id="folder" value="Clippings/Bilibili" spellcheck="false">
-  <p class="muted">读取课程目录和可用字幕，素材将保存到所选根目录。</p>
+  <div class="dialog-heading"><div><p class="eyebrow"><span data-i18n="课程来源">课程来源</span></p><h2 id="source-title"><span data-i18n="读取一门课程">读取一门课程</span></h2></div><button class="close-button" type="button" data-close="source-dialog" aria-label="关闭课程来源" data-i18n-aria-label="关闭课程来源">×</button></div>
+  <label for="url"><span data-i18n="B站或 YouTube 链接">B站或 YouTube 链接</span></label><div class="inline"><input id="url" type="text" placeholder="粘贴视频或播放列表链接" spellcheck="false" data-i18n-placeholder="粘贴视频或播放列表链接"><button id="load" type="button"><span data-i18n="读取目录">读取目录</span></button></div>
+  <label for="folder"><span data-i18n="素材根目录">素材根目录</span></label><input id="folder" value="Clippings/Bilibili" spellcheck="false">
+  <p class="muted"><span data-i18n="读取课程目录和可用字幕，素材将保存到所选根目录。">读取课程目录和可用字幕，素材将保存到所选根目录。</span></p>
   <p id="source-status" role="status" aria-live="polite"></p>
 </dialog>
 

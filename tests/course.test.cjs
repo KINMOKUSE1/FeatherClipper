@@ -9,7 +9,7 @@ const page = { cid: '456', page: 10, part: '2.1.1_进位计数制', duration: 60
 function harness({ existing = null, rawFiles = [], tracks = true, needLogin = false, biliCode = 0, body = [{ from: 0, to: 3, content: '示例' }], secondExists = false, localStatus, asrJob } = {}) {
   const calls = [], writes = [], stored = {};
   let getCount = 0;
-  const context = vm.createContext({ CourseCore: core, URL, URLSearchParams, AbortSignal, TextEncoder, console,
+  const context = vm.createContext({ I18n: require('../extension/shared/i18n.js'), CourseCore: core, URL, URLSearchParams, AbortSignal, TextEncoder, console,
     getMergedSettings: async () => ({ obsidianApiBaseUrl: 'http://127.0.0.1:27123', obsidianApiKey: 'test-key' }),
     normalizeConnection: settings => settings,
     asrStart: async () => ({ id: 'a'.repeat(32), status: 'queued' }),
@@ -23,6 +23,7 @@ function harness({ existing = null, rawFiles = [], tracks = true, needLogin = fa
       if (url.startsWith('http://127.0.0.1')) {
         if (localStatus) return { ok: false, status: localStatus };
         if (options.method === 'PUT') { writes.push({ url, body: options.body }); return { ok: true, status: 200 }; }
+        if (decodeURIComponent(url).endsWith('/Raw Subtitles/')) return { ok: false, status: 404 };
         if (decodeURIComponent(url).endsWith('/原始字幕/')) {
           getCount++;
           const files = [...rawFiles, ...writes.filter(write => decodeURIComponent(write.url).includes('/原始字幕/')).map(write => decodeURIComponent(write.url).split('/').pop())];
@@ -154,7 +155,7 @@ test('index identifies missing and failed parts, grouping remains editable', () 
 });
 test('existing note is skipped before any subtitle fetch and never overwritten', async () => {
   const h = harness({ existing: 'user annotations' }); assert.equal((await h.run('import')).status, 'exists');
-  assert.equal(h.writes.length, 0); assert.equal(h.calls.length, 1);
+  assert.equal(h.writes.length, 0); assert.equal(h.calls.length, 2);
 });
 test('renamed part reuses the existing CID file without creating a duplicate', async () => {
   const h = harness({ rawFiles: ['以前的标题 [CID-456].md'] });

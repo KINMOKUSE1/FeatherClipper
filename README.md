@@ -1,5 +1,7 @@
 # FeatherClipper
 
+简体中文 · [English](./README.en.md)
+
 一个收集网课素材，并借助 AI 按个人偏好整理成学习笔记的轻量浏览器扩展。
 
 ---
@@ -20,6 +22,7 @@ FeatherClipper 面向课程学习，支持 Chrome / Edge，适用于单个视频
 
 ## 功能
 
+- **界面语言**：支持简体中文、English 和繁體中文；英文与繁中模式使用英文生成说明、规则和默认路径，保留原始素材及自定义内容
 - **字幕采集**：识别当前视频和分 P，预览字幕；B站支持切换字幕语言
 - **复制与导出**：复制完整的 Markdown 字幕，或保存为 `.md` 文件
 - **导入记录**：按课程系列归并，展示封面、最近导入时间和已导入数量；可从记录返回课程素材，继续导入剩余视频
@@ -36,6 +39,10 @@ FeatherClipper 面向课程学习，支持 Chrome / Edge，适用于单个视频
 
 详细操作见[使用说明](./使用说明.md)。
 
+## 安装
+
+https://github.com/user-attachments/assets/293886fa-db54-4d43-8468-c5f47a63a69a
+
 ## 开发
 
 使用 HTML、CSS 和 JavaScript，开发预览与正式扩展共用一份实现，无需编译。
@@ -48,4 +55,4 @@ FeatherClipper 面向课程学习，支持 Chrome / Edge，适用于单个视频
 
 YouTube 字幕请求流程参考 [youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api)，Obsidian 连接使用 [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api)。
 
-[MIT License](./LICENSE)[[]]
+[MIT License](./LICENSE)

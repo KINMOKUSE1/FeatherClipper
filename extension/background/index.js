@@ -1,5 +1,8 @@
 /* 扩展后台入口；按依赖顺序加载各服务。 */
 importScripts(
+  "../shared/locales/en.js",
+  "../shared/locales/zh-TW.js",
+  "../shared/i18n.js",
   "../shared/course.js",
   "../shared/import-history.js",
   "settings.js",

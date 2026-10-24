@@ -1,0 +1,4 @@
+interface:
+  display_name: "Course notes"
+  short_description: "Organize courses with personal preferences, retaining examples, derivations, and sources"
+  default_prompt: "Use $course-notes to organize the course materials I specify"

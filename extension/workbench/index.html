@@ -3,23 +3,29 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>FeatherClipper · 课程工作台</title>
+    <title data-i18n="FeatherClipper · 课程工作台">FeatherClipper · 课程工作台</title>
     <link rel="stylesheet" href="theme.css">
     <link rel="stylesheet" href="shell.css">
     <link rel="stylesheet" href="settings.css">
     <link rel="stylesheet" href="catalog/style.css">
     <link rel="stylesheet" href="history/style.css">
+    <link rel="stylesheet" href="../shared/select.css">
     <link rel="stylesheet" href="notes/style.css">
+    <link rel="stylesheet" href="../shared/i18n.css">
   </head>
   <body>
     <div class="app-shell">
-      <aside class="sidebar" aria-label="工作台导航">
+      <aside class="sidebar" aria-label="工作台导航" data-i18n-aria-label="工作台导航">
         <div class="brand"><img src="../shared/icons/icon128.png" alt=""><strong>FeatherClipper</strong></div>
-        <button id="catalog-nav" class="nav-button active" type="button"><span class="icon icon-chapters" aria-hidden="true"></span>课程素材</button>
-        <button id="history-nav" class="nav-button" type="button"><span class="icon icon-history" aria-hidden="true"></span>导入记录</button>
-        <button id="notes-nav" class="nav-button" type="button"><span class="icon icon-notes" aria-hidden="true"></span>整理笔记</button>
-        <button id="local-asr-settings" class="nav-button" type="button"><span class="icon icon-audio" aria-hidden="true"></span>音频转写</button>
-        <button id="settings" class="nav-button" type="button"><span class="icon icon-settings" aria-hidden="true"></span><span>连接配置</span></button>
+        <button id="catalog-nav" class="nav-button active" type="button"><span class="icon icon-chapters" aria-hidden="true"></span><span data-i18n="课程素材">课程素材</span></button>
+        <button id="history-nav" class="nav-button" type="button"><span class="icon icon-history" aria-hidden="true"></span><span data-i18n="导入记录">导入记录</span></button>
+        <button id="notes-nav" class="nav-button" type="button"><span class="icon icon-notes" aria-hidden="true"></span><span data-i18n="整理笔记">整理笔记</span></button>
+        <button id="local-asr-settings" class="nav-button" type="button"><span class="icon icon-audio" aria-hidden="true"></span><span data-i18n="音频转写">音频转写</span></button>
+        <button id="settings" class="nav-button" type="button"><span class="icon icon-settings" aria-hidden="true"></span><span><span data-i18n="连接配置">连接配置</span></span></button>
+        <div class="sidebar-footer">
+          <label for="interface-language" class="sr-only" data-i18n="界面语言">界面语言</label>
+          <select id="interface-language" data-language-selector><option value="zh-CN">简体中文</option><option value="en">English</option><option value="zh-TW">繁體中文</option></select>
+        </div>
       </aside>
 
       <main class="main-content">
@@ -32,6 +38,9 @@
       </main>
     </div>
 
+    <script src="../shared/locales/en.js"></script>
+    <script src="../shared/locales/zh-TW.js"></script>
+    <script src="../shared/i18n.js"></script>
     <script src="../shared/ui-text.js"></script>
     <script src="../shared/course.js"></script>
     <script src="../shared/import-history.js"></script>

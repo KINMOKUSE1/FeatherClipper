@@ -1,9 +1,9 @@
-/* 动态界面文案。按页面分组修改文字，保留键名和 {count} 等占位符。
- * 固定页面文字在 HTML；笔记模块默认写法和整理规则在 notes/rules/。
- * 外部接口返回的错误原文直接展示，不在这里改写。 */
+/* Simplified Chinese source text. Translations live in shared/locales/.
+ * HTML marks fixed text with data-i18n; dynamic groups below retain their API. */
 (() => {
   function format(template, values = {}) {
-    return template.replace(/\{(\w+)\}/g, (match, key) => values[key] == null ? match : String(values[key]));
+    const result = template.replace(/\{(\w+)\}/g, (match, key) => values[key] == null ? match : String(values[key]));
+    return language.locale === "en" && Number(values.count) === 1 ? result.replace(/\bvideos\b/g, "video").replace(/\blessons\b/g, "lesson") : result;
   }
   const text = { format,
     // 快捷窗口：保存范围、字幕、语言切换和连接提示
@@ -325,6 +325,10 @@
       writeFailed: "文件写入核对失败：{file}"
     }
   };
-  if (typeof module !== "undefined" && module.exports) module.exports = text;
-  else window.UiText = text;
+  const language = typeof module !== "undefined" && module.exports ? require("./i18n.js") : window.I18n;
+  const localized = language.map(text);
+  Object.defineProperty(text, "i18n", { value: language });
+  Object.defineProperty(text, "forLocale", { value: locale => language.catalog(text, locale) });
+  if (typeof module !== "undefined" && module.exports) module.exports = localized;
+  else window.UiText = localized;
 })();

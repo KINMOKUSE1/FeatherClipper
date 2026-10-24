@@ -26,24 +26,36 @@ async function courseLocalRequest(filepath, method = "GET", content, expectJson 
   return method === "GET" ? expectJson ? response.json() : response.text() : true;
 }
 async function courseRawFiles(meta, base) {
-  const directory = `${CourseCore.courseFolder(meta, base)}/原始字幕/`;
-  const listing = await courseLocalRequest(directory, "GET", undefined, true);
-  if (listing === null) return [];
-  if (!Array.isArray(listing.files) || !listing.files.every(name => typeof name === "string")) {
-    const error = new Error("无法读取原始字幕目录，已停止以避免重复导入。");
-    error.fatal = true;
-    throw error;
+  const folder = CourseCore.courseFolder(meta, base), files = [];
+  for (const name of CourseCore.rawDirectories()) {
+    const directory = `${folder}/${name}/`;
+    const listing = await courseLocalRequest(directory, "GET", undefined, true);
+    if (listing === null) continue;
+    if (!Array.isArray(listing.files) || !listing.files.every(file => typeof file === "string")) {
+      const error = new Error("无法读取原始字幕目录，已停止以避免重复导入。");
+      error.fatal = true;
+      throw error;
+    }
+    files.push(...listing.files.map(file => directory + file));
   }
-  return listing.files;
+  return files;
 }
 function existingRawPath(meta, page, base, files) {
   const currentName = CourseCore.rawPath(meta, page, base).split("/").pop();
   const suffix = meta.platform === "youtube" ? ` [YT-${page.cid}].md` : ` [CID-${page.cid}].md`;
-  const name = files.includes(currentName) ? currentName
-    : files.find(file => (meta.platform !== "youtube" && file === `CID-${page.cid}.md`) || file.endsWith(suffix));
-  return name ? `${CourseCore.courseFolder(meta, base)}/原始字幕/${name}` : null;
+  const path = files.find(path => path.split("/").pop() === currentName)
+    || files.find(path => (meta.platform !== "youtube" && path.split("/").pop() === `CID-${page.cid}.md`) || path.endsWith(suffix));
+  return path || null;
 }
 async function courseRawSources(meta, pages, base) {
   const files = await courseRawFiles(meta, base);
   return Object.fromEntries(pages.map(page => [page.cid, existingRawPath(meta, page, base, files)]).filter(([, path]) => path));
+}
+async function existingCourseIndex(meta, base, locale) {
+  const preferred = CourseCore.indexPath(meta, base, locale);
+  for (const path of [preferred, CourseCore.indexPath(meta, base, locale === "en" ? "zh-CN" : "en")]) {
+    const content = await courseLocalRequest(path);
+    if (content !== null) return { path, content };
+  }
+  return { path: preferred, content: null };
 }

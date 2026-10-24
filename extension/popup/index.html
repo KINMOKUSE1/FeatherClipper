@@ -1,10 +1,12 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="popup-routing">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>FeatherClipper</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../shared/i18n.css">
+    <script src="language-gate.js"></script>
   </head>
   <body>
     <header>
@@ -12,43 +14,43 @@
         <img class="popup-brand-icon" src="../shared/icons/icon128.png" alt="" aria-hidden="true">
         <strong>FeatherClipper</strong>
       </div>
-      <button id="settings" class="quiet settings-button" aria-label="连接设置" title="连接设置">
+      <button id="settings" class="quiet settings-button" aria-label="连接设置" title="连接设置" data-i18n-aria-label="连接设置" data-i18n-title="连接设置">
         <span class="icon icon-settings" aria-hidden="true"></span>
-        <span id="settings-label">连接 Obsidian</span>
+        <span id="settings-label"><span data-i18n="连接 Obsidian">连接 Obsidian</span></span>
       </button>
     </header>
 
     <main id="clipper">
       <div id="empty">
-        <h1>0.o 咕？</h1> 
-        <p class="muted">打开视频，或粘贴链接。</p>
+        <h1><span data-i18n="0.o 咕？">0.o 咕？</span></h1> 
+        <p class="muted"><span data-i18n="打开视频，或粘贴链接。">打开视频，或粘贴链接。</span></p>
       </div>  
       <section id="video" hidden>
         <p id="video-meta" class="video-meta"></p>
         <h1 id="course-name"></h1>
         <p id="current-part" class="current-part"><span id="part-number"></span><span id="part-name"></span></p>
-        <div id="save-scope" class="save-scope" role="group" aria-label="保存范围" hidden>
-          <button id="scope-current" type="button" aria-pressed="true">当前一节</button>
-          <button id="scope-all" type="button" aria-pressed="false">整门课程</button>
+        <div id="save-scope" class="save-scope" role="group" aria-label="保存范围" hidden data-i18n-aria-label="保存范围">
+          <button id="scope-current" type="button" aria-pressed="true"><span data-i18n="当前一节">当前一节</span></button>
+          <button id="scope-all" type="button" aria-pressed="false"><span data-i18n="整门课程">整门课程</span></button>
         </div>
         <details id="preview-panel" class="preview-panel">
           <summary>
-            <span class="preview-summary"><span class="icon icon-captions" aria-hidden="true"></span><span id="preview-label">字幕预览</span><span id="subtitle-track"></span><span id="subtitle-language-switch" class="subtitle-language-switch" hidden><button id="subtitle-language" type="button" aria-label="切换字幕语言" aria-haspopup="menu" aria-expanded="false" aria-controls="subtitle-language-menu"><span id="subtitle-language-label"></span><span class="icon icon-chevron" aria-hidden="true"></span></button></span></span>
+            <span class="preview-summary"><span class="icon icon-captions" aria-hidden="true"></span><span id="preview-label"><span data-i18n="字幕预览">字幕预览</span></span><span id="subtitle-track"></span><span id="subtitle-language-switch" class="subtitle-language-switch" hidden><button id="subtitle-language" type="button" aria-label="切换字幕语言" aria-haspopup="menu" aria-expanded="false" aria-controls="subtitle-language-menu" data-i18n-aria-label="切换字幕语言"><span id="subtitle-language-label"></span><span class="icon icon-chevron" aria-hidden="true"></span></button></span></span>
             <span class="icon icon-chevron" aria-hidden="true"></span>
           </summary>
-          <div id="subtitles" tabindex="0" aria-label="字幕内容"></div>
+          <div id="subtitles" tabindex="0" aria-label="字幕内容" data-i18n-aria-label="字幕内容"></div>
         </details>
-        <div id="subtitle-language-menu" class="subtitle-language-menu" popover="auto" role="menu" aria-label="字幕语言"></div>
-        <button id="asr-open" class="secondary" hidden>转写并导入</button>
+        <div id="subtitle-language-menu" class="subtitle-language-menu" popover="auto" role="menu" aria-label="字幕语言" data-i18n-aria-label="字幕语言"></div>
+        <button id="asr-open" class="secondary" hidden><span data-i18n="转写并导入">转写并导入</span></button>
         <div id="save-actions" class="save-actions">
-          <button id="import" class="save-button" disabled>
+          <button id="import" class="primary-action save-button" disabled>
             <span class="icon icon-save" aria-hidden="true"></span>
-            <span id="import-label">保存字幕</span>
+            <span id="import-label"><span data-i18n="保存字幕">保存字幕</span></span>
           </button>
-          <button id="save-menu-toggle" class="save-menu-toggle" type="button" aria-label="更多保存方式" aria-haspopup="menu" aria-expanded="false" aria-controls="save-menu" disabled><span class="icon icon-chevron" aria-hidden="true"></span></button>
-          <div id="save-menu" class="save-menu" role="menu" aria-label="导出当前字幕" hidden>
-            <button id="copy-subtitle" type="button" role="menuitem"><span class="icon icon-copy" aria-hidden="true"></span>复制到剪贴板</button>
-            <button id="download-subtitle" type="button" role="menuitem"><span class="icon icon-save" aria-hidden="true"></span>保存文件…</button>
+          <button id="save-menu-toggle" class="save-menu-toggle" type="button" aria-label="更多保存方式" aria-haspopup="menu" aria-expanded="false" aria-controls="save-menu" disabled data-i18n-aria-label="更多保存方式"><span class="icon icon-chevron" aria-hidden="true"></span></button>
+          <div id="save-menu" class="save-menu" role="menu" aria-label="导出当前字幕" hidden data-i18n-aria-label="导出当前字幕">
+            <button id="copy-subtitle" type="button" role="menuitem"><span class="icon icon-copy" aria-hidden="true"></span><span data-i18n="复制到剪贴板">复制到剪贴板</span></button>
+            <button id="download-subtitle" type="button" role="menuitem"><span class="icon icon-save" aria-hidden="true"></span><span data-i18n="保存文件…">保存文件…</span></button>
           </div>
         </div>
       </section>
@@ -63,10 +65,10 @@
             aria-controls="source-panel"
             aria-label="更换链接"
             title="更换链接"
-          ><span class="icon icon-link" aria-hidden="true"></span></button>
+           data-i18n-aria-label="更换链接" data-i18n-title="更换链接"><span class="icon icon-link" aria-hidden="true"></span></button>
 
           <button id="workspace" class="quiet" type="button" hidden>
-            <span id="workspace-label">进入工作台</span>
+            <span id="workspace-label"><span data-i18n="进入工作台">进入工作台</span></span>
             <span class="icon icon-chapters" aria-hidden="true"></span>
           </button>
         </div>
@@ -74,15 +76,15 @@
         <!-- 第二块：下方的链接输入区 -->
         <div id="source-panel">
           <form id="source-form">
-            <label class="sr-only" for="url">视频链接</label>
+            <label class="sr-only" for="url"><span data-i18n="视频链接">视频链接</span></label>
             <div class="source-row">
               <input
                 id="url"
                 placeholder="Bilibili 或 YouTube 视频链接"
                 spellcheck="false"
                 autocomplete="off"
-              >
-              <button id="read" class="secondary" type="submit">读取</button>
+               data-i18n-placeholder="Bilibili 或 YouTube 视频链接">
+              <button id="read" class="secondary" type="submit"><span data-i18n="读取">读取</span></button>
             </div>
           </form>
         </div>
@@ -90,12 +92,12 @@
 
     <section id="connection" hidden aria-labelledby="settings-title">
       <div class="settings-heading">
-        <h1 id="settings-title">连接 Obsidian</h1>
-        <button id="back" class="quiet">返回</button>
+        <h1 id="settings-title"><span data-i18n="连接 Obsidian">连接 Obsidian</span></h1>
+        <button id="back" class="quiet"><span data-i18n="返回">返回</span></button>
       </div>
-      <p class="muted">打开 Obsidian，在 Local REST API 插件设置中复制地址和 Key。</p>
+      <p class="muted"><span data-i18n="打开 Obsidian，在 Local REST API 插件设置中复制地址和 Key。">打开 Obsidian，在 Local REST API 插件设置中复制地址和 Key。</span></p>
 
-      <label for="api-url">服务地址</label>
+      <label for="api-url"><span data-i18n="服务地址">服务地址</span></label>
       <input id="api-url" type="url" spellcheck="false">
 
       <label for="api-key">API Key</label>
@@ -104,19 +106,22 @@
         type="password"
         autocomplete="off"
         placeholder="粘贴 Local REST API Key"
-      >
+       data-i18n-placeholder="粘贴 Local REST API Key">
 
-      <label for="note-folder">素材根目录</label>
+      <label for="note-folder"><span data-i18n="素材根目录">素材根目录</span></label>
       <input id="note-folder" spellcheck="false">
-      <p class="muted">目录相对于笔记库，例如 Clippings/Bilibili。</p>
+      <p class="muted"><span data-i18n="目录相对于笔记库，例如 Clippings/Bilibili。">目录相对于笔记库，例如 Clippings/Bilibili。</span></p>
 
       <div class="actions">
-        <button id="test" class="secondary">测试连接</button>
-        <button id="save">保存设置</button>
+        <button id="test" class="secondary"><span data-i18n="测试连接">测试连接</span></button>
+        <button id="save"><span data-i18n="保存设置">保存设置</span></button>
       </div>
       <p id="settings-status" role="status" aria-live="polite"></p>
     </section>
 
+    <script src="../shared/locales/en.js"></script>
+    <script src="../shared/locales/zh-TW.js"></script>
+    <script src="../shared/i18n.js"></script>
     <script src="../shared/ui-text.js"></script>
     <script src="../shared/course.js"></script>
     <script src="page.js"></script>

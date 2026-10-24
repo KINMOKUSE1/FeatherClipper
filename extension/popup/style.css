@@ -15,6 +15,7 @@
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
+html.popup-routing body { visibility: hidden; }
 body { width: 400px; max-height: 600px; overflow-y: auto; margin: 0; line-height: 1.6; font-family: inherit; font-size: 14px; }
 header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 20px 0; }
 .popup-brand { display: flex; align-items: center; gap: 14px; min-width: 0; min-height: 44px; }
@@ -79,7 +80,8 @@ summary::-webkit-details-marker { display: none; }
 #asr-open { width: 100%; margin-top: 14px; }
 #read {font-size: 12px; }
 .save-actions { position: relative; display: flex; margin-top: 14px; }
-.save-button { display: flex; align-items: center; justify-content: center; gap: 9px; flex: 1; min-width: 0; min-height: 44px; border-radius: 4px 0 0 4px; color: #fff; }
+.primary-action { display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 44px; color: #fff; }
+.save-button { flex: 1; min-width: 0; border-radius: 4px 0 0 4px; }
 .save-menu-toggle { display: flex; align-items: center; justify-content: center; flex: none; width: 38px; padding: 0; border-left-color: #ffffff35; border-radius: 0 4px 4px 0; color: #fff; }
 .save-actions:has(.save-menu-toggle[hidden]) .save-button { border-radius: 4px; }
 .save-menu { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 5; min-width: 186px; padding: 5px; border: 1px solid var(--line); border-radius: 7px; background: #fff; box-shadow: 0 4px 16px #303a4a18; }
@@ -106,6 +108,7 @@ summary::-webkit-details-marker { display: none; }
 .icon-captions { --icon: url("../shared/icons/lucide/captions.svg"); }
 .icon-chapters { --icon: url("../shared/icons/lucide/list-tree.svg"); }
 .icon-link { --icon: url("../shared/icons/lucide/link.svg"); }
+.icon-arrow-right { --icon: url("../shared/icons/lucide/arrow-right.svg"); }
 .icon-copy { --icon: url("../shared/icons/lucide/copy.svg"); }
 
 /* 空状态显示时，隐藏链接区域的折叠标题 */

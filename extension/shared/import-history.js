@@ -58,7 +58,7 @@
         thumbnail: isSeries ? latest.courseThumbnail || cached?.pages[0]?.thumbnail
           || (latest.platform === "youtube" && cached?.pages[0]?.cid ? `https://i.ytimg.com/vi/${cached.pages[0].cid}/hqdefault.jpg` : latest.thumbnail) : latest.thumbnail,
         sourceUrl: source.href,
-        sourcePath: isSeries ? latest.coursePath || latest.sourcePath.split("/原始字幕/")[0] : latest.sourcePath,
+        sourcePath: isSeries ? latest.coursePath || latest.sourcePath.split(/\/(?:原始字幕|Raw Subtitles)\//)[0] : latest.sourcePath,
         videos: ordered, storageIds: entries.map(entry => entry.id) };
     });
   }

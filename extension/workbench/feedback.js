@@ -1,6 +1,7 @@
 /* 工作台轻提示和设置页反馈；不处理导入或连接业务。 */
 window.createWorkbenchFeedback = function ({ isBusy }) {
   function status(text, error = false) {
+    text = UiText.i18n.error(text);
     const sourceOpen = document.getElementById("source-dialog").open;
     document.getElementById("source-status").textContent = sourceOpen ? text : "";
     document.getElementById("source-status").classList.toggle("error", error);
@@ -35,7 +36,7 @@ window.createWorkbenchFeedback = function ({ isBusy }) {
   function showSettingsFeedback(id, text) {
     const message = document.getElementById(id);
     dismissSettingsFeedback(message);
-    message.textContent = text.replace(/。/g, "");
+    message.textContent = UiText.i18n.error(text).replace(/。/g, "");
     if (!message.textContent.trim()) return;
     message.closest(".settings-feedback").hidden = false;
     settingsFeedbackTimers.set(id, setTimeout(() => dismissSettingsFeedback(message), 4000));

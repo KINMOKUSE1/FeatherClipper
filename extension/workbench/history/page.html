@@ -1,25 +1,25 @@
 <section id="history-page" class="history-page" aria-labelledby="history-title" hidden>
   <div id="history-overview" class="history-view">
-    <header class="history-heading"><h1 id="history-title">导入记录</h1><span id="history-count"></span></header>
+    <header class="history-heading"><h1 id="history-title"><span data-i18n="导入记录">导入记录</span></h1><span id="history-count"></span></header>
     <div class="history-toolbar">
-      <label class="history-search"><span class="icon icon-search" aria-hidden="true"></span><input id="history-search" type="search" aria-label="搜索视频或课程" placeholder="搜索视频或课程"></label>
-      <div class="history-filters"><select id="history-source" aria-label="来源"><option value="all">全部来源</option><option value="bilibili">B站</option><option value="youtube">YouTube</option></select><select id="history-sort" aria-label="排序"><option value="newest">最近导入</option><option value="oldest">最早导入</option></select></div>
+      <label class="history-search"><span class="icon icon-search" aria-hidden="true"></span><input id="history-search" type="search" aria-label="搜索视频或课程" placeholder="搜索视频或课程" data-i18n-aria-label="搜索视频或课程" data-i18n-placeholder="搜索视频或课程"></label>
+      <div class="history-filters"><select id="history-source" aria-label="来源" data-i18n-aria-label="来源"><option value="all" data-i18n="全部来源">全部来源</option><option value="bilibili" data-i18n="B站">B站</option><option value="youtube">YouTube</option></select><select id="history-sort" aria-label="排序" data-i18n-aria-label="排序"><option value="newest" data-i18n="最近导入">最近导入</option><option value="oldest" data-i18n="最早导入">最早导入</option></select></div>
     </div>
-    <div class="history-scroll"><div id="history-list" role="list" aria-label="已导入的课程与视频"></div><p id="history-empty" class="history-empty" hidden></p></div>
+    <div class="history-scroll"><div id="history-list" role="list" aria-label="已导入的课程与视频" data-i18n-aria-label="已导入的课程与视频"></div><p id="history-empty" class="history-empty" hidden></p></div>
   </div>
   <section id="history-detail" class="history-view" aria-labelledby="history-detail-title" hidden>
-    <div class="history-detail-navigation"><button id="history-back" type="button">← 导入记录</button></div>
+    <div class="history-detail-navigation"><button id="history-back" type="button"><span data-i18n="← 导入记录">← 导入记录</span></button></div>
     <header class="history-detail-heading">
       <div id="history-detail-cover" class="history-cover"></div>
-      <div class="history-content"><div class="history-detail-title-row"><h2 id="history-detail-title" tabindex="-1"></h2><button id="history-detail-open" type="button">进入课程素材</button></div><p id="history-detail-meta" class="history-meta"></p></div>
+      <div class="history-content"><div class="history-detail-title-row"><h2 id="history-detail-title" tabindex="-1"></h2><button id="history-detail-open" type="button"><span data-i18n="进入课程素材">进入课程素材</span></button></div><p id="history-detail-meta" class="history-meta"></p></div>
     </header>
-    <div class="history-scroll"><div id="history-detail-list" role="list" aria-label="按课程顺序排列的已导入视频"></div></div>
+    <div class="history-scroll"><div id="history-detail-list" role="list" aria-label="按课程顺序排列的已导入视频" data-i18n-aria-label="按课程顺序排列的已导入视频"></div></div>
   </section>
-  <footer class="history-footer"><div class="settings-footer-info"><div class="settings-feedback" hidden><p id="history-status" role="status" aria-live="polite"></p><button class="settings-feedback-close" type="button" aria-label="关闭提示">×</button></div></div></footer>
+  <footer class="history-footer"><div class="settings-footer-info"><div class="settings-feedback" hidden><p id="history-status" role="status" aria-live="polite"></p><button class="settings-feedback-close" type="button" aria-label="关闭提示" data-i18n-aria-label="关闭提示">×</button></div></div></footer>
 </section>
-<div id="history-menu" class="history-menu" popover="auto" role="menu" aria-label="记录操作">
-  <a id="history-original" role="menuitem" target="_blank" rel="noopener">打开原视频 ↗</a>
-  <button id="history-open" type="button" role="menuitem" hidden>进入课程素材</button>
-  <button id="history-copy" type="button" role="menuitem">复制素材路径</button>
-  <button id="history-remove" type="button" role="menuitem">移除记录</button>
+<div id="history-menu" class="history-menu" popover="auto" role="menu" aria-label="记录操作" data-i18n-aria-label="记录操作">
+  <a id="history-original" role="menuitem" target="_blank" rel="noopener"><span data-i18n="打开原视频 ↗">打开原视频 ↗</span></a>
+  <button id="history-open" type="button" role="menuitem" hidden><span data-i18n="进入课程素材">进入课程素材</span></button>
+  <button id="history-copy" type="button" role="menuitem"><span data-i18n="复制素材路径">复制素材路径</span></button>
+  <button id="history-remove" type="button" role="menuitem"><span data-i18n="移除记录">移除记录</span></button>
 </div>

@@ -1,0 +1,11 @@
+/* Popup layout, typography and actions come from style.css. */
+.setup-languages { display: grid; gap: 2px; min-width: 0; margin: 12px 0 0; padding: 4px; border: 1px solid var(--line); border-radius: 8px; }
+.setup-language { display: flex; align-items: center; gap: 10px; min-height: 42px; margin: 0; padding: 10px; border-radius: 4px; font-weight: 400; cursor: pointer; }
+.setup-language:hover, .setup-language:has(input:checked) { background: var(--soft); }
+.setup-language input { appearance: none; position: relative; width: 16px; min-width: 16px; height: 16px; min-height: 0; margin: 0; padding: 0; border-radius: 50%; background: #fff; cursor: pointer; }
+.setup-language input:checked { border-color: var(--accent); }
+.setup-language input:checked::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--accent); }
+.setup-language:has(input:disabled) { cursor: default; opacity: .5; }
+@media (prefers-reduced-motion: no-preference) {
+  .setup-language { transition: background-color 120ms; }
+}

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FeatherClipper</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../shared/i18n.css">
+    <link rel="stylesheet" href="first-run.css">
+  </head>
+  <body>
+    <header>
+      <div class="popup-brand">
+        <img class="popup-brand-icon" src="../shared/icons/icon128.png" alt="" aria-hidden="true">
+        <strong>FeatherClipper</strong>
+      </div>
+    </header>
+    <main id="language-setup" aria-labelledby="setup-title">
+      <div class="settings-heading">
+        <h1 id="setup-title" data-i18n="选择界面语言">选择界面语言</h1>
+      </div>
+      <p class="muted" data-i18n="之后可在工作台左下角切换">之后可在工作台左下角切换</p>
+      <fieldset class="setup-languages">
+        <legend class="sr-only" data-i18n="选择界面语言">选择界面语言</legend>
+        <label class="setup-language"><input type="radio" name="setup-locale" value="zh-CN" data-setup-locale="zh-CN"><span lang="zh-CN">简体中文</span></label>
+        <label class="setup-language"><input type="radio" name="setup-locale" value="en" data-setup-locale="en"><span lang="en">English</span></label>
+        <label class="setup-language"><input type="radio" name="setup-locale" value="zh-TW" data-setup-locale="zh-TW"><span lang="zh-TW">繁體中文</span></label>
+      </fieldset>
+      <div class="actions">
+        <button id="setup-continue" class="primary-action" type="button">
+          <span data-i18n="开始使用">开始使用</span>
+          <span class="icon icon-arrow-right" aria-hidden="true"></span>
+        </button>
+      </div>
+      <p id="setup-status" role="status" aria-live="polite"></p>
+    </main>
+    <script src="../shared/locales/en.js"></script>
+    <script src="../shared/locales/zh-TW.js"></script>
+    <script src="../shared/i18n.js"></script>
+    <script src="first-run.js"></script>
+  </body>
+</html>

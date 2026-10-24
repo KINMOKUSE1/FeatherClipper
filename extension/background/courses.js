@@ -1,6 +1,7 @@
 /* 课程请求路由：平台素材读取、导入、转写结果保存和课程清单更新。 */
 async function handleCourseMessage(message) {
   const { action, meta, page, base } = message;
+  const locale = I18n.outputLocale(message.locale || (await chrome.storage.local.get(I18n.storageKey))[I18n.storageKey] || "zh-CN");
   if (action === "meta") {
     const parsed = CourseCore.parseSource(message.bvid);
     const youtubeId = message.youtubeId || (parsed?.platform === "youtube" ? parsed.id : "");
@@ -20,7 +21,11 @@ async function handleCourseMessage(message) {
     return { meta: { bvid: data.bvid, aid: String(data.aid), title: data.title, author: data.owner?.name || "", thumbnail: String(data.pic || "").replace(/^http:/, "https:").replace(/^\/\//, "https://"), pages: (data.pages || []).map(p => ({ cid: String(p.cid), page: p.page, part: p.part, duration: p.duration })) }, folder };
   }
   if (!meta || !(meta.platform === "youtube" ? /^[\w-]{11}$/.test(meta.videoId || "") && (meta.playlistId ? /^[\w-]{8,60}$/.test(meta.playlistId) && meta.bvid === `YTPL_${meta.playlistId}` : meta.bvid === `YT_${meta.videoId}`) : /^BV[0-9A-Za-z]+$/.test(meta.bvid || ""))) throw new Error("课程信息无效，请重新读取目录。");
-  if (action === "raw-paths") return { sources: await courseRawSources(meta, message.pages || meta.pages, base) };
+  if (action === "raw-paths") {
+    const sources = await courseRawSources(meta, message.pages || meta.pages, base);
+    const index = Object.keys(sources).length ? await existingCourseIndex(meta, base, locale) : null;
+    return { sources, index: index?.content?.startsWith(CourseCore.marker) ? index.path : "" };
+  }
   if (["asr-start", "asr-poll", "asr-finish", "asr-cancel"].includes(action)) {
     if (!(meta.platform === "youtube" ? /^[\w-]{11}$/.test(page?.cid || "") : /^\d+$/.test(page?.cid || "")) || !meta.pages?.some(item => item.cid === page.cid)) throw new Error("视频信息无效。");
     if (action === "asr-poll") {
@@ -29,7 +34,7 @@ async function handleCourseMessage(message) {
         timestamps: job.timestamps, device: job.device, gpu_notice: job.gpu_notice };
     }
     if (action === "asr-cancel") return asrCancel(message.jobId);
-    const path = CourseCore.rawPath(meta, page, base);
+    const path = CourseCore.rawPath(meta, page, base, locale);
     const existingPath = existingRawPath(meta, page, base, await courseRawFiles(meta, base));
     if (existingPath) return rememberCourseImport(meta, page, base, { status: "exists", path: existingPath });
     if (action === "asr-start") {
@@ -54,10 +59,10 @@ async function handleCourseMessage(message) {
     const appearedPath = existingRawPath(meta, page, base, await courseRawFiles(meta, base));
     if (appearedPath) return rememberCourseImport(meta, page, base, { status: "exists", path: appearedPath });
     const models = { local: "faster-whisper-small", groq: "whisper-large-v3-turbo", siliconflow: "FunAudioLLM/SenseVoiceSmall" };
-    const names = { local: "本地转写", groq: "Groq 转写", siliconflow: "硅基流动转写" };
+    const names = Object.fromEntries(Object.entries({ local: "本地转写", groq: "Groq 转写", siliconflow: "硅基流动转写" }).map(([key, value]) => [key, I18n.t(value, {}, locale)]));
     const track = { lan: job.language || "unknown", lanDoc: `${names[provider]}（${models[provider]}）`,
       source: provider === "local" ? "local-asr" : `${provider}-asr`, model: models[provider], timestamps };
-    await courseLocalRequest(path, "PUT", CourseCore.buildRaw(meta, page, track, job.body));
+    await courseLocalRequest(path, "PUT", CourseCore.buildRaw(meta, page, track, job.body, locale));
     const result = await rememberCourseImport(meta, page, base, { status: "saved", path }, track);
     if (provider !== "local") await onlineAsrRequest("forget", { id: message.jobId }).catch(() => {});
     return { ...result, body: job.body, track };
@@ -73,8 +78,7 @@ async function handleCourseMessage(message) {
   }
   const folder = CourseCore.courseFolder(meta, base);
   if (action === "index") {
-    const path = `${folder}/课程导入清单.md`;
-    const existing = await courseLocalRequest(path);
+    const { path, content: existing } = await existingCourseIndex(meta, base, locale);
     if (existing !== null && !existing.startsWith(CourseCore.marker)) {
       const error = new Error("课程导入清单.md 已存在且不是本工具生成，已停止，避免覆盖。");
       error.fatal = true;
@@ -82,12 +86,12 @@ async function handleCourseMessage(message) {
     }
     const sources = await courseRawSources(meta, message.pages, base);
     for (const page of message.pages) page.sourcePath = sources[page.cid] || "";
-    await courseLocalRequest(path, "PUT", CourseCore.buildIndex(meta, message.pages, base));
+    await courseLocalRequest(path, "PUT", CourseCore.buildIndex(meta, message.pages, base, locale));
     return { path, sources };
   }
   if (action === "import") {
     if (!(meta.platform === "youtube" ? /^[\w-]{11}$/.test(page?.cid || "") && meta.pages?.some(item => item.cid === page.cid) : /^\d+$/.test(page?.cid || ""))) throw new Error("视频信息无效。");
-    const path = CourseCore.rawPath(meta, page, base);
+    const path = CourseCore.rawPath(meta, page, base, locale);
     const existingPath = existingRawPath(meta, page, base, await courseRawFiles(meta, base));
     if (existingPath) return rememberCourseImport(meta, page, base, { status: "exists", path: existingPath });
     const subtitle = await courseSubtitle(meta, page, "import", message.trackId || "", message.subtitleLanguage || "");
@@ -95,7 +99,7 @@ async function handleCourseMessage(message) {
     // Recheck after network work in case a note appeared while fetching subtitles.
     const appearedPath = existingRawPath(meta, page, base, await courseRawFiles(meta, base));
     if (appearedPath) return rememberCourseImport(meta, page, base, { status: "exists", path: appearedPath });
-    await courseLocalRequest(path, "PUT", CourseCore.buildRaw(meta, page, subtitle.track, subtitle.body));
+    await courseLocalRequest(path, "PUT", CourseCore.buildRaw(meta, page, subtitle.track, subtitle.body, locale));
     return rememberCourseImport(meta, page, base, { status: "saved", path }, subtitle.track);
   }
   throw new Error("未知的课程操作。");

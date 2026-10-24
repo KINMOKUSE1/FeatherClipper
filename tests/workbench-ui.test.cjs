@@ -62,7 +62,7 @@ test('import action ignores repeated cancellation but allows restarting after ca
 test('central copy can change result wording while preserving import state and count', () => {
   const copy = require('../extension/shared/ui-text.js');
   const h = boot('../extension/workbench/catalog/import-button.js', {
-    ...copy, importButton: { ...copy.importButton, savedCount: '保存完成，共 {count} 节' }
+    ...copy, i18n: copy.i18n, importButton: { ...copy.importButton, savedCount: '保存完成，共 {count} 节' }
   });
   const action = h.window.createImportButton({ onActivate() {}, clearStatus() {} });
   action.progress(2, 2);

@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "收集 B站与 YouTube 课程字幕，导入 Obsidian 并按个人偏好整理学习笔记"
+  },
+  "actionTitle": {
+    "message": "FeatherClipper · 导入 Obsidian"
+  }
+}

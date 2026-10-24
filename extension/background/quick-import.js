@@ -16,6 +16,7 @@ async function quickStatus(message) {
 }
 async function runQuickImport(message, key) {
   const { meta, base } = message;
+  const locale = I18n.outputLocale(message.locale || (await chrome.storage.local.get(I18n.storageKey))[I18n.storageKey] || "zh-CN");
   return navigator.locks.request(`boc-course:${meta.bvid}`, { ifAvailable: true }, async lock => {
     if (!lock) throw new Error("这门课程正在导入，请等待课程工作台中的任务完成。");
     const save = state => chrome.storage.local.set({ [key]: { ...state, updated: Date.now() } });
@@ -31,11 +32,11 @@ async function runQuickImport(message, key) {
       });
       const page = pages.find(item => item.cid === message.cid);
       // Validate the index before saving raw material, just like the course workspace.
-      await handleCourseMessage({ action: "index", meta, base, pages });
-      const result = await handleCourseMessage({ action: "import", meta, base, page, trackId: message.trackId });
+      await handleCourseMessage({ locale, action: "index", meta, base, pages });
+      const result = await handleCourseMessage({ locale, action: "import", meta, base, page, trackId: message.trackId });
       page.status = result.status; page.error = ""; page.sourcePath = result.path || "";
       await chrome.storage.local.set({ [snapshot]: { title: meta.title, pages, updated: Date.now() }, [`boc-course-base:${meta.bvid}`]: base });
-      await handleCourseMessage({ action: "index", meta, base, pages });
+      await handleCourseMessage({ locale, action: "index", meta, base, pages });
       const state = { status: result.status, path: result.path || "" };
       await save(state);
       return state;

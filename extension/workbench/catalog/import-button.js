@@ -39,8 +39,8 @@ window.createImportButton = function ({ onActivate, clearStatus }) {
     stopping = state.stopping;
     const buttonState = importState === "running" && stopping ? "stopping" : importState;
     const busy = buttonState === "running" || buttonState === "stopping";
-    const text = busy ? stopping ? ui.stopping : format(ui.running, { phase: importPhase })
-      : buttonState === "idle" ? ui.idle : importResult;
+    const text = busy ? stopping ? ui.stopping : format(ui.running, { phase: UiText.i18n.error(importPhase) })
+      : buttonState === "idle" ? ui.idle : UiText.i18n.error(importResult);
     const stateKey = `${buttonState}:${text}`;
     const changed = renderedButtonState && renderedButtonState !== stateKey;
     let outgoing = null, from = null;

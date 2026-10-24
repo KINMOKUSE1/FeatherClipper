@@ -7,7 +7,7 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
   const installationMethodKey = "featherclipper:notes-install-method:v1", exportedSkillKey = "featherclipper:notes-exported:v1";
   const get = id => document.getElementById(id);
   const form = get("skill-builder-form");
-  const resourceBase = new URL("notes/rules/", assetBase);
+  const resourceBase = () => new URL(`notes/rules/${UiText.i18n.outputLocale() === "en" ? "en/" : ""}`, assetBase);
   const model = { config: core.defaults(), delivery: core.deliveryDefaults(), resources: null, loaded: false, busy: false, readingFiles: 0,
     installationKey, installationMethodKey, exportedSkillKey, installedSnapshot: localStorage.getItem(installationKey),
     installationMethod: localStorage.getItem(installationMethodKey) || "confirmed", exportedSkillSnapshot: localStorage.getItem(exportedSkillKey),
@@ -133,6 +133,7 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
     const container = get("builder-modules");
     container.replaceChildren();
     model.config.modules.forEach((item, index) => {
+      const displayTitle = item.custom ? item.title : UiText.i18n.t(window.NoteDefaults.forLocale("zh-CN").modules.find(module => module.id === item.id)?.title || item.title);
       const row = element("div", `builder-module${item.enabled ? "" : " is-disabled"}`);
       const top = element("div", "builder-module-top");
       const grip = action("⠿", format(ui.dragModule, { title: item.title || ui.customModule }), () => openMenu());
@@ -155,7 +156,7 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
       const label = element("label", "builder-check");
       const check = element("input"); check.type = "checkbox"; check.checked = item.enabled;
       check.setAttribute("aria-label", format(ui.enableModule, { title: item.title || ui.customModule }));
-      const title = item.custom ? element("input", "builder-module-name") : element("h3", "builder-module-title", item.title);
+      const title = item.custom ? element("input", "builder-module-name") : element("h3", "builder-module-title", displayTitle);
       if (item.custom) {
         title.value = item.title; title.placeholder = ui.moduleName; title.required = item.enabled;
         title.setAttribute("aria-label", ui.customModuleName);
@@ -217,12 +218,12 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
       check.id = `builder-property-${item.name}`; check.setAttribute("aria-label", format(ui.enableProperty, { name: item.name }));
       const label = element("label", "builder-property-name", item.name); label.htmlFor = check.id;
       const hint = item.fixed ? item.name === "author" ? ui.authorHint : ui.tagsHint : ui.automaticProperty;
-      const icon = element("span", "icon property-type-icon"); icon.setAttribute("aria-hidden", "true"); icon.title = `${core.types[item.type]} · ${hint}`;
+      const icon = element("span", "icon property-type-icon"); icon.setAttribute("aria-hidden", "true"); icon.title = `${window.NoteDefaults.forLocale(UiText.i18n.locale).types[item.type]} · ${hint}`;
       const value = element("input");
       value.value = item.fixed ? item.value : item.rule; value.disabled = !item.enabled;
       value.required = item.enabled && !item.fixed;
       value.setAttribute("aria-label", format(ui.propertyInput, { name: item.name, kind: item.fixed ? ui.propertyValue : ui.propertyRule }));
-      value.title = `${core.types[item.type]} · ${hint}`;
+      value.title = `${window.NoteDefaults.forLocale(UiText.i18n.locale).types[item.type]} · ${hint}`;
       if (item.name === "author") value.placeholder = ui.authorHint;
       value.addEventListener("input", () => { item[item.fixed ? "value" : "rule"] = value.value; refreshPreview(); });
       check.addEventListener("change", () => {
@@ -241,7 +242,7 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
       name.setAttribute("aria-label", ui.customPropertyName);
       name.addEventListener("input", () => { item.name = name.value.trim(); refreshPreview(); });
       const type = element("select"); type.setAttribute("aria-label", ui.customPropertyType);
-      for (const [key, label] of Object.entries(core.types)) type.add(new Option(label, key));
+      for (const [key, label] of Object.entries(window.NoteDefaults.forLocale(UiText.i18n.locale).types)) type.add(new Option(label, key));
       type.value = item.type;
       const value = element(item.type === "boolean" ? "select" : "input", "builder-custom-value");
       value.setAttribute("aria-label", ui.customPropertyValue);
@@ -258,13 +259,16 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
   async function load() {
     if (model.loaded) return;
     if (!model.resources) {
-      const responses = await Promise.all(["SKILL.md", "openai.yaml", "workflow.md", "tasks.md", "mermaid.md", "markdown.md"].map(file => fetch(new URL(file, resourceBase), { cache: "no-store" })));
+      const responses = await Promise.all(["SKILL.md", "openai.yaml", "workflow.md", "tasks.md", "mermaid.md", "markdown.md"].map(file => fetch(new URL(file, resourceBase()), { cache: "no-store" })));
       if (responses.some(response => !response.ok)) throw new Error(ui.rulesFailed);
       const [entry, agent, workflow, tasks, mermaid, markdown] = await Promise.all(responses.map(response => response.text()));
       model.resources = { entry, agent, workflow, tasks, mermaid, markdown };
     }
     const saved = localStorage.getItem(storageKey);
-    if (saved) model.config = { ...core.defaults(), ...JSON.parse(saved) };
+    if (saved) {
+        const parsed = JSON.parse(saved);
+        model.config = window.NoteDefaults.migrate({ ...core.defaults(), ...parsed }, parsed.outputLocale || "zh-CN", UiText.i18n.outputLocale());
+      }
     const savedDelivery = localStorage.getItem(deliveryKey);
     if (savedDelivery) model.delivery = { ...core.deliveryDefaults(), ...JSON.parse(savedDelivery) };
     for (const name of fields) get(`builder-${name}`).value = model.config[name];
@@ -275,7 +279,7 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
     document.fonts.ready.then(resizeTextareas);
   }
   function storePreferences() {
-    localStorage.setItem(storageKey, JSON.stringify(model.config));
+    localStorage.setItem(storageKey, JSON.stringify({ ...model.config, outputLocale: UiText.i18n.outputLocale() }));
     localStorage.setItem(deliveryKey, JSON.stringify(model.delivery));
     get("builder-save-status").textContent = ui.autosaved;
   }
@@ -325,7 +329,7 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
   });
 
   function previewTask(task, files = []) {
-    const path = task.path || "任务指令.txt";
+    const path = task.path || UiText.i18n.t("任务指令.txt", {}, UiText.i18n.outputLocale());
     renderFileList([{ path, content: task.text }, ...files], path);
     scroll.scrollTo({ top: scroll.scrollTop + get("builder-preview").getBoundingClientRect().top - scroll.getBoundingClientRect().top - 18,
       behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
@@ -360,6 +364,19 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
     showSettingsFeedback("note-status", "");
     try { await load(); refreshPreview(); navigate("note-preferences-page"); }
     catch (error) { feedback.status(error.message, true); }
+  });
+  UiText.i18n.subscribe(async ({ previous, locale, outputChanged }) => {
+    if (!model.loaded) return;
+    read();
+    if (outputChanged) {
+      model.config = window.NoteDefaults.migrate(model.config, previous, locale);
+      const responses = await Promise.all(["SKILL.md", "openai.yaml", "workflow.md", "tasks.md", "mermaid.md", "markdown.md"].map(file => fetch(new URL(file, resourceBase()), { cache: "no-store" })));
+      if (responses.some(response => !response.ok)) throw new Error(ui.rulesFailed);
+      const [entry, agent, workflow, tasks, mermaid, markdown] = await Promise.all(responses.map(response => response.text()));
+      model.resources = { entry, agent, workflow, tasks, mermaid, markdown };
+      for (const name of fields) get(`builder-${name}`).value = model.config[name];
+    }
+    renderModules(); renderProperties(); renderCustomProperties(); refreshPreview();
   });
   return { load, save };
 };

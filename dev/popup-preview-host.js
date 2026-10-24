@@ -4,7 +4,8 @@ const scenario = document.getElementById("scenario");
 const expanded = document.getElementById("expanded");
 const notice = document.getElementById("notice");
 const params = new URLSearchParams(location.search);
-if ([...scenario.options].some(option => option.value === params.get("state"))) scenario.value = params.get("state");
+const initialState = params.get("setup") === "1" ? "setup" : params.get("state");
+if ([...scenario.options].some(option => option.value === initialState)) scenario.value = initialState;
 expanded.checked = params.get("expanded") === "1";
 let renderRun = 0, resizeObserver;
 
@@ -13,16 +14,19 @@ function rememberState() {
   url.searchParams.set("state", scenario.value);
   url.searchParams.set("expanded", expanded.checked ? "1" : "0");
   url.searchParams.delete("version");
+  url.searchParams.delete("setup");
   history.replaceState(null, "", url);
 }
 
 async function renderPreview() {
   const run = ++renderRun;
   rememberState();
+  expanded.disabled = scenario.value === "setup";
   notice.textContent = "";
   try {
     const source = "../extension/popup/";
-    const response = await fetch(`${source}index.html`, { cache: "no-store" });
+    const entry = scenario.value === "setup" ? "first-run.html" : "index.html";
+    const response = await fetch(`${source}${entry}`, { cache: "no-store" });
     if (!response.ok) throw new Error(`无法读取 popup/index.html（${response.status}）`);
     const html = await response.text();
     if (run !== renderRun) return;
@@ -49,10 +53,10 @@ async function renderPreview() {
 
 frame.addEventListener("load", () => {
   const doc = frame.contentDocument;
-  if (!doc?.body || !doc.getElementById("clipper")) return;
+  if (!doc?.body) return;
   const panel = doc.getElementById("preview-panel");
-  if (expanded.checked) panel.open = true;
-  panel.addEventListener("toggle", () => {
+  if (panel && expanded.checked) panel.open = true;
+  panel?.addEventListener("toggle", () => {
     expanded.checked = panel.open;
     rememberState();
   });
@@ -62,6 +66,11 @@ frame.addEventListener("load", () => {
   resizeObserver.observe(doc.body);
 });
 window.addEventListener("message", event => {
+  if (event.source === frame.contentWindow && event.data?.type === "preview-language-complete") {
+    const url = new URL(location.href);
+    url.searchParams.delete("setup"); url.searchParams.set("locale", event.data.locale);
+    history.replaceState(null, "", url); scenario.value = "series"; renderPreview();
+  }
   if (event.source === frame.contentWindow && event.data?.type === "preview-navigation") {
     notice.textContent = event.data.text;
   }

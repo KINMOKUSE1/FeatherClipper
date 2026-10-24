@@ -34,8 +34,8 @@ window.createHistoryPage = function ({ catalog, feedback, navigate }) {
   }
   function dateTime(importedAt) {
     const date = new Date(importedAt), time = document.createElement("time"); time.className = "history-date"; time.dateTime = date.toISOString();
-    time.textContent = new Intl.DateTimeFormat("zh-CN", { ...(date.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}), month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
-    time.title = format(ui.recent, { date: date.toLocaleString("zh-CN") });
+    time.textContent = new Intl.DateTimeFormat(UiText.i18n.locale, { ...(date.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}), month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
+    time.title = format(ui.recent, { date: date.toLocaleString(UiText.i18n.locale) });
     time.setAttribute("aria-label", time.title);
     return time;
   }
@@ -52,7 +52,7 @@ window.createHistoryPage = function ({ catalog, feedback, navigate }) {
     get("history-detail").hidden = false;
     get("history-detail-title").textContent = record.title;
     const cover = get("history-detail-cover"); cover.replaceChildren(); fillCover(cover, record.thumbnail);
-    const source = document.createElement("span"); source.textContent = record.platform === "youtube" ? "YouTube" : "B站";
+    const source = document.createElement("span"); source.textContent = record.platform === "youtube" ? "YouTube" : UiText.i18n.t("B站");
     const count = document.createElement("strong"); count.className = "history-progress"; count.textContent = progress(record);
     count.title = record.totalVideos === null ? ui.unknownTotal : format(ui.progressLabel, { imported: record.importedCount, total: record.totalVideos });
     get("history-detail-meta").replaceChildren(source, count, dateTime(record.importedAt));
@@ -103,7 +103,7 @@ window.createHistoryPage = function ({ catalog, feedback, navigate }) {
       const title = record.isSeries ? button(record.title, "history-video-title", () => openDetail(record, title)) : link(record.title, "history-video-title", record.sourceUrl); title.title = record.title;
       const meta = document.createElement("p"); meta.className = "history-meta";
       const source = document.createElement("span");
-      source.textContent = [record.platform === "youtube" ? "YouTube" : "B站", record.isSeries ? ui.series : ui.single, record.isSeries ? "" : record.language].filter(Boolean).join(" · ");
+      source.textContent = [record.platform === "youtube" ? "YouTube" : UiText.i18n.t("B站"), record.isSeries ? ui.series : ui.single, record.isSeries ? "" : record.language].filter(Boolean).join(" · ");
       meta.append(source);
       if (record.isSeries) {
         const count = document.createElement("strong"); count.className = "history-progress"; count.textContent = progress(record);
@@ -153,5 +153,10 @@ window.createHistoryPage = function ({ catalog, feedback, navigate }) {
   });
   get("history-page").querySelectorAll(".history-scroll").forEach(scroll => scroll.addEventListener("scroll", () => closeMenu()));
   window.addEventListener("resize", () => closeMenu());
+  UiText.i18n.subscribe(() => {
+    for (const id of ["history-detail-open", "history-open"]) get(id).textContent = ui.enterCatalog;
+    render();
+    if (detailRecord) openDetail(detailRecord);
+  });
   return { load };
 };

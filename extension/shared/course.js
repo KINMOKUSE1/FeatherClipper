@@ -1,14 +1,16 @@
 /* Shared by the course page, background worker, and tests. */
 (function (root) {
+  const language = typeof module !== "undefined" && module.exports ? require("./i18n.js") : root.I18n;
+  const tr = (text, values, locale) => language.t(text, values, locale || language.outputLocale());
   const marker = "<!-- boc-course-index:v1 -->";
   function safeName(value) {
     const name = String(value || "").normalize("NFC").replace(/[<>:"/\\|?*\x00-\x1f\[\]#^]/g, "_").replace(/[. ]+$/g, "").trim();
-    return (name || "未命名").slice(0, 70);
+    return (name || tr("未命名")).slice(0, 70);
   }
   function normalizeFolder(value) {
     const parts = String(value || "").trim().replace(/\\/g, "/").split("/");
     if (!parts.length || parts.some(p => !p || p === "." || p === ".." || /[<>:"|?*\x00-\x1f]/.test(p) || /[. ]$/.test(p))) {
-      throw new Error("请输入笔记库内的相对目录，例如 Clippings/Bilibili。");
+      throw new Error(tr("请输入笔记库内的相对目录，例如 Clippings/Bilibili。"));
     }
     return parts.join("/");
   }
@@ -53,9 +55,10 @@
     const left = String(a).split(".").map(Number), right = String(b).split(".").map(Number);
     return left[0] - right[0] || (left[1] ?? -1) - (right[1] ?? -1);
   }
-  function chapterLabel(chapter) {
+  function chapterLabel(chapter, locale = language.locale) {
+    const tr = (text, values) => language.t(text, values, locale);
     const value = normalizeChapter(chapter);
-    return !value || value === "0" ? "未分章" : value.includes(".") ? `第${value}节` : `第${value.padStart(2, "0")}章`;
+    return !value || value === "0" ? tr("未分章") : value.includes(".") ? tr("第{0}节", { "0": (value) }) : tr("第{0}章", { "0": (value.padStart(2, "0")) });
   }
   function parseSource(source) {
     const value = String(source || "").trim();
@@ -76,8 +79,9 @@
   function courseFolder(meta, base) {
     return `${normalizeFolder(base)}/${safeName(meta.title)} [${meta.platform === "youtube" ? meta.playlistId ? `YT-PL-${meta.playlistId}` : `YT-${meta.videoId}` : meta.bvid}]`;
   }
-  function rawPath(meta, page, base) {
-    return `${courseFolder(meta, base)}/原始字幕/${safeName(page.part)} [${meta.platform === "youtube" ? `YT-${page.cid}` : `CID-${page.cid}`}].md`;
+  function rawPath(meta, page, base, locale = language.outputLocale()) {
+    const tr = (text, values) => language.t(text, values, language.outputLocale(locale));
+    return tr("{0}/原始字幕/{1} [{2}].md", { "0": (courseFolder(meta, base)), "1": (safeName(page.part)), "2": (meta.platform === "youtube" ? `YT-${page.cid}` : `CID-${page.cid}`) });
   }
   function videoUrl(meta, page) {
     return meta.platform === "youtube" ? `https://www.youtube.com/watch?v=${page.cid}` : `https://www.bilibili.com/video/${meta.bvid}/?p=${page.page}`;
@@ -110,7 +114,8 @@
     flush();
     return groups;
   }
-  function buildRaw(meta, page, track, body) {
+  function buildRaw(meta, page, track, body, locale = language.outputLocale()) {
+    const tr = (text, values) => language.t(text, values, language.outputLocale(locale));
     const q = JSON.stringify;
     const timestamps = track.timestamps !== false;
     const transcribed = Boolean(track.source?.endsWith("-asr"));
@@ -121,31 +126,37 @@
       `subtitle_lang: ${q(track.lanDoc || track.lan)}`, ...(track.source ? [`subtitle_source: ${q(track.source)}`] : []),
       ...(track.model ? [`transcription_model: ${q(track.model)}`, `transcription_timestamps: ${timestamps}`] : []), `created: ${q(new Date().toISOString())}`,
       `tags: [clippings, ${meta.platform === "youtube" ? "youtube" : "bilibili"}, course-source]`, "---", "", `# ${partTitle}`, "",
-      transcribed ? `> ${track.lanDoc}生成的原始转录稿${timestamps ? "，带分段时间戳" : "，没有时间戳"}。` : "> 原始字幕素材。章节归属以课程导入清单为准；字幕不能完整替代视频中的板书、图表和公式。", "", timestamps ? "## 字幕" : "## 转录稿", "",
+      transcribed ? tr("> {0}生成的原始转录稿{1}。", { "0": (track.lanDoc), "1": (timestamps ? tr("，带分段时间戳") : tr("，没有时间戳")) }) : tr("> 原始字幕素材。章节归属以课程导入清单为准；字幕不能完整替代视频中的板书、图表和公式。"), "", timestamps ? tr("## 字幕") : tr("## 转录稿"), "",
       ...(timestamps ? groupSubtitles(body, meta.platform).map(item => `[${timestamp(item.from)}](${timestampUrl(meta, page, item.from)}) ${item.content}\n`)
         : body.map(item => `${item.content}\n`)), ""].join("\n");
   }
   function tableText(value) { return String(value || "").replace(/\|/g, "\\|").replace(/[\r\n]/g, " "); }
-  function buildIndex(meta, pages, base) {
-    const lines = [marker, `# ${meta.title} · 课程导入清单`, "", "> 此文件由批量导入器更新。学习批注请写入最终章节笔记。", "",
-      `课程：[${meta.platform === "youtube" ? meta.playlistId || meta.videoId : meta.bvid}](${meta.playlistId ? `https://www.youtube.com/playlist?list=${meta.playlistId}` : videoUrl(meta, pages[0])})`, `更新：${new Date().toISOString()}`, "",
-      meta.platform === "youtube" ? "原始字幕以视频标题命名，YouTube 视频 ID 用于避免同名冲突。" : "原始字幕以分 P 名称命名，CID 用于区分同名视频；分章以本清单为准。", "",
-      "下一步：在工作台的“整理笔记”页面填写偏好，复制任务指令；将本清单与指定范围的字幕交给你选择的 AI，默认按确认的分组每组整理一篇笔记。英文课程以 Lecture 为基本单元（Lecture 02.1–02.4 同属 2，合成一篇）；普通数字章节如 2.2、2.3 分别成篇。未分章项需确定整理范围。", ""];
+  function buildIndex(meta, pages, base, locale = language.outputLocale()) {
+    const tr = (text, values) => language.t(text, values, language.outputLocale(locale));
+    const lines = [marker, tr("# {0} · 课程导入清单", { "0": (meta.title) }), "", tr("> 此文件由批量导入器更新。学习批注请写入最终章节笔记。"), "",
+      tr("课程：[{0}]({1})", { "0": (meta.platform === "youtube" ? meta.playlistId || meta.videoId : meta.bvid), "1": (meta.playlistId ? `https://www.youtube.com/playlist?list=${meta.playlistId}` : videoUrl(meta, pages[0])) }), tr("更新：{0}", { "0": (new Date().toISOString()) }), "",
+      meta.platform === "youtube" ? tr("原始字幕以视频标题命名，YouTube 视频 ID 用于避免同名冲突。") : tr("原始字幕以分 P 名称命名，CID 用于区分同名视频；分章以本清单为准。"), "",
+      tr("下一步：在工作台的“整理笔记”页面填写偏好，复制任务指令；将本清单与指定范围的字幕交给你选择的 AI，默认按确认的分组每组整理一篇笔记。英文课程以 Lecture 为基本单元（Lecture 02.1–02.4 同属 2，合成一篇）；普通数字章节如 2.2、2.3 分别成篇。未分章项需确定整理范围。"), ""];
     const chapters = [...new Set(pages.map(p => p.chapter))].sort(compareChapters);
     for (const chapter of chapters) {
-      lines.push(`## ${chapterLabel(chapter)}`, "", "| P | 标题 | 状态 | 原始素材 |", "|---|---|---|---|");
+      lines.push(`## ${chapterLabel(chapter, language.outputLocale(locale))}`, "", tr("| P | 标题 | 状态 | 原始素材 |"), "|---|---|---|---|");
       for (const page of pages.filter(p => p.chapter === chapter)) {
         const available = ["saved", "exists"].includes(page.status);
-        const labels = { saved: "已导入", exists: "已存在，跳过", missing: "无可用字幕", failed: "失败", pending: "待导入", running: "待核实" };
-        const status = `${labels[page.status] || "待导入"}${page.error ? `：${page.error}` : ""}`;
-        const filename = (page.sourcePath || rawPath(meta, page, base)).split("/").pop();
-        const link = available ? `[字幕](<原始字幕/${filename}>)` : "—";
+        const labels = { saved: tr("已导入"), exists: tr("已存在，跳过"), missing: tr("无可用字幕"), failed: tr("失败"), pending: tr("待导入"), running: tr("待核实") };
+        const status = `${labels[page.status] || tr("待导入")}${page.error ? `: ${language.error(page.error, language.outputLocale(locale))}` : ""}`;
+        const source = page.sourcePath || rawPath(meta, page, base, locale);
+        const relative = source.startsWith(courseFolder(meta, base) + "/") ? source.slice(courseFolder(meta, base).length + 1) : source;
+        const link = available ? `[${tr("字幕") }](<${relative}>)` : "—";
         lines.push(`| [P${page.page}](${videoUrl(meta, page)}) | ${tableText(page.part)} | ${tableText(status)} | ${link} |`);
       }
       lines.push("");
     }
     return lines.join("\n");
   }
-  root.CourseCore = { marker, safeName, normalizeFolder, chapterOf, normalizeChapter, compareChapters, chapterLabel, parseSource, courseFolder, rawPath, videoUrl, timestampUrl, groupSubtitles, buildRaw, buildIndex };
+  function rawDirectories() { return ["原始字幕", "Raw Subtitles"]; }
+  function indexPath(meta, base, locale = language.outputLocale()) {
+    return `${courseFolder(meta, base)}/${language.outputLocale(locale) === "en" ? "Course Import Index.md" : "课程导入清单.md"}`;
+  }
+  root.CourseCore = { rawDirectories, indexPath, marker, safeName, normalizeFolder, chapterOf, normalizeChapter, compareChapters, chapterLabel, parseSource, courseFolder, rawPath, videoUrl, timestampUrl, groupSubtitles, buildRaw, buildIndex };
   if (typeof module !== "undefined") module.exports = root.CourseCore;
 })(globalThis);

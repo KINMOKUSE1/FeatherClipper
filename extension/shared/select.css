@@ -1,0 +1,11 @@
+/* Shared custom selects: the existing note controls, also used by language settings. */
+.builder-select { display: inline-flex; width: fit-content; max-width: 100%; min-width: 0; }
+.builder-select .builder-select-trigger { display: inline-flex; align-items: center; gap: 12px; max-width: 100%; min-height: 34px; padding: 6px 10px; border: 1px solid #dfe1e5; border-radius: 7px; background: var(--surface, #fff); color: var(--ink); font: 14px/20px var(--font-controls, var(--font-ui)); box-shadow: 0 1px 2px #35405204; }
+.builder-select-value { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.builder-select-trigger .icon { width: 14px; height: 14px; color: var(--muted); }
+.builder-select .builder-select-trigger:hover:not(:disabled), .builder-select .builder-select-trigger[aria-expanded="true"] { border-color: #c7cbd1; background: #f5f5f5; filter: none; }
+.builder-select-menu { position: fixed; inset: auto; width: max-content; max-width: calc(100vw - 16px); max-height: min(360px, calc(100vh - 32px)); overflow-y: auto; margin: 0; padding: 5px; border: 1px solid #e5e6e9; border-radius: 10px; background: var(--surface, #fff); color: var(--ink); box-shadow: 0 6px 24px #2026311c, 0 2px 6px #20263108; }
+.builder-select .builder-select-option { display: flex; align-items: center; justify-content: space-between; gap: 22px; width: 100%; min-height: 34px; padding: 7px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); text-align: left; font: 14px/20px var(--font-controls, var(--font-ui)); }
+.builder-select-option::after { content: ""; width: 14px; flex: none; }
+.builder-select-option[aria-selected="true"]::after { content: "✓"; }
+.builder-select .builder-select-option:hover:not(:disabled), .builder-select .builder-select-option:focus-visible { background: #f1f2f4; outline: none; filter: none; }

@@ -1,6 +1,7 @@
 /* 技能安装、目录同步与本次任务交付。 */
 window.createNotesDelivery = function ({ model, catalog, feedback, element, read, save, ready, pendingInstallation, skillSnapshot, webSnapshot, updateDelivery, refreshPreview, previewTask }) {
   const ui = UiText.notes, format = UiText.format;
+  const outputText = (text, values) => UiText.i18n.t(text, values, UiText.i18n.outputLocale());
   const get = id => document.getElementById(id);
   const core = window.NoteGenerator;
   const { settings: showSettingsFeedback } = feedback;
@@ -22,7 +23,7 @@ window.createNotesDelivery = function ({ model, catalog, feedback, element, read
   async function exportSkill() {
     await save();
     const files = core.buildFiles(model.config, model.resources), snapshot = JSON.stringify(files);
-    await navigator.clipboard.writeText(ui.installPrompt);
+    await navigator.clipboard.writeText(UiText.forLocale(UiText.i18n.outputLocale()).notes.installPrompt);
     downloadSkill(files);
     model.exportedSkillSnapshot = snapshot;
     localStorage.setItem(model.exportedSkillKey, snapshot);
@@ -61,7 +62,7 @@ window.createNotesDelivery = function ({ model, catalog, feedback, element, read
       updateDelivery();
       try {
         if (!reference && selected.length > 1) { input.value = ""; throw new Error(UiText.validation.webSingleFile); }
-        const files = await Promise.all(selected.map(async (file, index) => ({ fileName: `${reference ? "已有笔记" : "素材"}/${index + 1}-${CourseCore.safeName(file.name)}`, content: await file.text() })));
+        const files = await Promise.all(selected.map(async (file, index) => ({ fileName: `${reference ? outputText("已有笔记") : outputText("素材")}/${index + 1}-${CourseCore.safeName(file.name)}`, content: await file.text() })));
         if (reference) model.uploadedReferences = files; else model.uploadedMaterials = files;
         if (!reference) get(`${id}-help`).textContent = files.length ? format(ui.filesRead, { count: files.length }) : ui.materialsHelp;
       } catch (error) { showSettingsFeedback("note-status", format(ui.readFailed, { error: error.message })); }
@@ -70,15 +71,15 @@ window.createNotesDelivery = function ({ model, catalog, feedback, element, read
   }
   async function prepareTask() {
     await save();
-    const currentConfig = structuredClone(model.config), currentDelivery = { ...model.delivery, ready: ready() };
+    const currentConfig = structuredClone(model.config), currentDelivery = { ...model.delivery, ready: ready(), outputLocale: UiText.i18n.outputLocale() };
     if (currentDelivery.environment === "local" && !currentDelivery.ready) throw new Error(ui.installationRequired);
     const context = await window.collectNoteMaterials({ catalog, core: CourseCore, delivery: currentDelivery, uploadedMaterials: model.uploadedMaterials, uploadedReferences: model.uploadedReferences });
-    return { text: core.buildTask(currentConfig, currentDelivery, context), config: currentConfig, delivery: currentDelivery, context };
+    return { text: core.buildTask(currentConfig, currentDelivery, context), config: currentConfig, delivery: currentDelivery, context, locale: currentDelivery.outputLocale };
   }
   get("builder-preview-task").addEventListener("click", () => run(async () => {
     await save();
     if (model.delivery.environment === "local" && !ready()) {
-      previewTask({ text: ui.installPrompt, path: "安装指令.txt" }, core.buildFiles(model.config, model.resources));
+      previewTask({ text: UiText.forLocale(UiText.i18n.outputLocale()).notes.installPrompt, path: outputText("安装指令.txt") }, core.buildFiles(model.config, model.resources));
       return;
     }
     const task = await prepareTask();
@@ -92,7 +93,7 @@ window.createNotesDelivery = function ({ model, catalog, feedback, element, read
   }
   function exportWebTask(task) {
     if (task.delivery.format === "zip") download(window.NoteFiles.zip(task.files), "course-web-task.zip", "application/zip");
-    else download(core.combineWebFiles(task.files), "课程任务材料.md", "text/markdown;charset=utf-8");
+    else download(core.combineWebFiles(task.files, task.locale), UiText.i18n.t("课程任务材料.md", {}, task.locale), "text/markdown;charset=utf-8");
   }
   get("builder-export-web").addEventListener("click", () => run(async () => {
     exportWebTask(await prepareWebTask());

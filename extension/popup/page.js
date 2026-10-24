@@ -12,7 +12,7 @@ function status(text, error = false) {
 }
 async function send(message) {
   const result = await chrome.runtime.sendMessage(message);
-  if (!result?.ok) throw new Error(result?.error || ui.connectionLost);
+  if (!result?.ok) throw new Error(UiText.i18n.error(result?.error) || ui.connectionLost);
   return result;
 }
 $("subtitles").addEventListener("click", async event => {
@@ -292,7 +292,7 @@ $("import").addEventListener("click", async () => {
     return;
   }
   showJob({ status: "running" });
-  try { showJob(await send({ type: "quick-import", bvid: meta.bvid, cid: page.cid, meta, base, trackId: subtitle?.track?.id || selectedTrackId })); }
+  try { showJob(await send({ type: "quick-import", locale: UiText.i18n.outputLocale(), bvid: meta.bvid, cid: page.cid, meta, base, trackId: subtitle?.track?.id || selectedTrackId })); }
   catch (error) { showJob({ status: "failed", error: error.message }); }
 });
 chrome.storage.onChanged.addListener((changes, area) => {
@@ -332,6 +332,9 @@ async function saveSettings(testOnly) {
 $("test").addEventListener("click", () => saveSettings(true));
 $("save").addEventListener("click", () => saveSettings(false));
 async function init() {
+  if (await window.PopupLanguageReady === false) return;
+  await UiText.i18n.ready;
+  UiText.i18n.apply(document);
   await refreshSettings();
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   try {
@@ -341,4 +344,19 @@ async function init() {
     }
   } catch { /* Non-video tabs use the manual input. */ }
 }
+UiText.i18n.subscribe(() => {
+  controls(); renderLanguageMenu();
+  $("status").textContent = UiText.i18n.error($("status").textContent);
+  $("settings-status").textContent = UiText.i18n.error($("settings-status").textContent);
+  if (page) {
+    $("preview-label").textContent = previewing ? ui.readingSubtitles : subtitleReadFailed ? ui.subtitleFailed : hasSubtitle ? ui.subtitlePreview : ui.noSubtitles;
+    if (!hasSubtitle) $("subtitles").textContent = subtitleReadFailed ? UiText.i18n.error(subtitleError) : previewing ? ui.readingSubtitles : ui.transcriptionHint;
+  }
+  if (meta) {
+    const count = meta.pages.length;
+    $("video-meta").textContent = format(ui.videoMeta, { platform: meta.platform === "youtube" ? "YouTube" : UiText.i18n.t("B站"), description: count > 1 ? format(ui.series, { count, unit: meta.platform === "youtube" ? ui.videoUnit : "P" }) : ui.singleVideo });
+    $("scope-all").textContent = format(ui.wholeCourse, { count, unit: meta.platform === "youtube" ? ui.videoUnit : "P" });
+    $("workspace-label").textContent = count > 1 ? ui.chooseLessons : ui.openWorkbench;
+  }
+});
 init().catch(error => status(error.message, true));

@@ -2,22 +2,22 @@
   <div class="settings-scroll">
     <div class="notes-layout">
     <header class="preferences-heading">
-      <h1 id="notes-title">整理笔记</h1>
-      <p class="section-description">配置整理规则并自动生成相应 skill。</p>
+      <h1 id="notes-title"><span data-i18n="整理笔记">整理笔记</span></h1>
+      <p class="section-description"><span data-i18n="配置整理规则并自动生成相应 skill。">配置整理规则并自动生成相应 skill。</span></p>
     </header>
     <div class="notes-content">
     <form id="skill-builder-form" class="note-preferences" novalidate>
       <section aria-labelledby="builder-delivery-title">
-        <h2 id="builder-delivery-title" class="preference-group-title">本次任务</h2>
+        <h2 id="builder-delivery-title" class="preference-group-title"><span data-i18n="本次任务">本次任务</span></h2>
         <div class="settings-group">
-          <div class="settings-row"><label for="builder-environment">AI 使用方式</label><select id="builder-environment"><option value="local">本地 agent</option><option value="web">网页 AI</option></select></div>
-          <div class="settings-row"><label for="builder-task">任务类型</label><p id="builder-task-help" class="field-help"></p><select id="builder-task"><option value="notes">整理笔记</option><option value="supplement">补充笔记</option><option value="continue">继续整理</option><option value="translate">翻译字幕</option><option value="review">复习答疑</option></select></div>
-          <div class="settings-row"><span class="settings-row-title">课程素材</span><p id="builder-material-help" class="field-help">使用课程素材页所选课时</p><span id="builder-material-count" class="builder-material-count"></span></div>
-          <div id="builder-reference-row" class="settings-row" hidden><label for="builder-reference">已有内容 <span class="builder-reference-requirement"></span></label><p id="builder-reference-help" class="field-help"></p><input id="builder-reference" placeholder="原笔记或进度文件路径"></div>
-          <div id="builder-web-reference-row" class="settings-row" hidden><label for="builder-web-reference">已有内容 <span class="builder-reference-requirement"></span></label><p id="builder-web-reference-help" class="field-help"></p><input id="builder-web-reference" type="file" accept=".md,.txt" multiple></div>
-          <div id="builder-question-row" class="settings-row settings-row-multiline" hidden><label for="builder-question">本次问题</label><textarea id="builder-question" rows="1" placeholder="希望解释什么？"></textarea></div>
-          <div id="builder-paths-row" class="settings-row settings-row-multiline"><label for="builder-paths">补充素材 <span class="builder-field-optional">可选</span></label><p class="field-help">默认使用课程素材页所选课时</p><textarea id="builder-paths" rows="1" placeholder="其他素材路径，每行一个"></textarea></div>
-          <div id="builder-web-materials-row" class="settings-row" hidden><label for="builder-web-materials">字幕文件 <span class="builder-field-optional">可选</span></label><p id="builder-web-materials-help" class="field-help">上传单个视频的字幕，替代课程素材页所选视频</p><input id="builder-web-materials" type="file" accept=".md,.txt,.srt,.vtt"></div>
+          <div class="settings-row"><label for="builder-environment"><span data-i18n="AI 使用方式">AI 使用方式</span></label><select id="builder-environment"><option value="local" data-i18n="本地 agent">本地 agent</option><option value="web" data-i18n="网页 AI">网页 AI</option></select></div>
+          <div class="settings-row"><label for="builder-task"><span data-i18n="任务类型">任务类型</span></label><p id="builder-task-help" class="field-help"></p><select id="builder-task"><option value="notes" data-i18n="整理笔记">整理笔记</option><option value="supplement" data-i18n="补充笔记">补充笔记</option><option value="continue" data-i18n="继续整理">继续整理</option><option value="translate" data-i18n="翻译字幕">翻译字幕</option><option value="review" data-i18n="复习答疑">复习答疑</option></select></div>
+          <div class="settings-row"><span class="settings-row-title"><span data-i18n="课程素材">课程素材</span></span><p id="builder-material-help" class="field-help"><span data-i18n="使用课程素材页所选课时">使用课程素材页所选课时</span></p><span id="builder-material-count" class="builder-material-count"></span></div>
+          <div id="builder-reference-row" class="settings-row" hidden><label for="builder-reference"><span data-i18n="已有内容">已有内容</span> <span class="builder-reference-requirement"></span></label><p id="builder-reference-help" class="field-help"></p><input id="builder-reference" placeholder="原笔记或进度文件路径" data-i18n-placeholder="原笔记或进度文件路径"></div>
+          <div id="builder-web-reference-row" class="settings-row" hidden><label for="builder-web-reference"><span data-i18n="已有内容">已有内容</span> <span class="builder-reference-requirement"></span></label><p id="builder-web-reference-help" class="field-help"></p><input id="builder-web-reference" type="file" accept=".md,.txt" multiple></div>
+          <div id="builder-question-row" class="settings-row settings-row-multiline" hidden><label for="builder-question"><span data-i18n="本次问题">本次问题</span></label><textarea id="builder-question" rows="1" placeholder="希望解释什么？" data-i18n-placeholder="希望解释什么？"></textarea></div>
+          <div id="builder-paths-row" class="settings-row settings-row-multiline"><label for="builder-paths"><span data-i18n="补充素材">补充素材</span> <span class="builder-field-optional"><span data-i18n="可选">可选</span></span></label><p class="field-help"><span data-i18n="默认使用课程素材页所选课时">默认使用课程素材页所选课时</span></p><textarea id="builder-paths" rows="1" placeholder="其他素材路径，每行一个" data-i18n-placeholder="其他素材路径，每行一个"></textarea></div>
+          <div id="builder-web-materials-row" class="settings-row" hidden><label for="builder-web-materials"><span data-i18n="字幕文件">字幕文件</span> <span class="builder-field-optional"><span data-i18n="可选">可选</span></span></label><p id="builder-web-materials-help" class="field-help"><span data-i18n="上传单个视频的字幕，替代课程素材页所选视频">上传单个视频的字幕，替代课程素材页所选视频</span></p><input id="builder-web-materials" type="file" accept=".md,.txt,.srt,.vtt"></div>
         </div>
         <div class="settings-group builder-delivery">
           <div class="builder-delivery-row">
@@ -25,20 +25,20 @@
               <div class="builder-delivery-heading"><strong id="builder-delivery-name">course-notes</strong><span id="builder-install-state" class="builder-delivery-state" aria-live="polite"></span><span id="builder-delivery-guide" class="field-help" hidden></span></div>
             </div>
             <div class="builder-delivery-actions">
-              <button id="copy-study-prompt" class="builder-delivery-primary" type="button"><span id="builder-action-icon" class="icon icon-copy" aria-hidden="true"></span><span id="builder-copy-label">复制任务指令</span></button>
-              <button id="builder-preview-task" class="text-button" type="button" aria-controls="builder-preview">预览</button>
-              <button id="builder-delivery-more" class="text-button builder-delivery-more" type="button" aria-label="更多操作" aria-haspopup="menu" aria-expanded="false" aria-controls="builder-delivery-menu">⋯</button>
-              <div id="builder-delivery-menu" class="builder-delivery-menu" popover="auto" role="menu" aria-label="更多操作">
+              <button id="copy-study-prompt" class="builder-delivery-primary" type="button"><span id="builder-action-icon" class="icon icon-copy" aria-hidden="true"></span><span id="builder-copy-label"><span data-i18n="复制任务指令">复制任务指令</span></span></button>
+              <button id="builder-preview-task" class="text-button" type="button" aria-controls="builder-preview"><span data-i18n="预览">预览</span></button>
+              <button id="builder-delivery-more" class="text-button builder-delivery-more" type="button" aria-label="更多操作" aria-haspopup="menu" aria-expanded="false" aria-controls="builder-delivery-menu" data-i18n-aria-label="更多操作">⋯</button>
+              <div id="builder-delivery-menu" class="builder-delivery-menu" popover="auto" role="menu" aria-label="更多操作" data-i18n-aria-label="更多操作">
                 <div id="builder-local-actions">
-                  <button id="builder-install" type="button" role="menuitem">导出并复制安装指令</button>
-                  <button id="builder-download" type="button" role="menuitem">单独下载技能包</button>
-                  <button id="builder-sync" type="button" role="menuitem">同步到目录</button>
-                  <button id="builder-confirm-installed" type="button" role="menuitem" hidden>确认已安装当前技能</button>
+                  <button id="builder-install" type="button" role="menuitem"><span data-i18n="导出并复制安装指令">导出并复制安装指令</span></button>
+                  <button id="builder-download" type="button" role="menuitem"><span data-i18n="单独下载技能包">单独下载技能包</span></button>
+                  <button id="builder-sync" type="button" role="menuitem"><span data-i18n="同步到目录">同步到目录</span></button>
+                  <button id="builder-confirm-installed" type="button" role="menuitem" hidden><span data-i18n="确认已安装当前技能">确认已安装当前技能</span></button>
                 </div>
                 <div id="builder-web-actions" hidden>
-                  <button id="builder-export-web" type="button" role="menuitem">单独导出材料</button>
-                  <div id="builder-format-row" class="builder-delivery-format"><label for="builder-format">导出格式</label><select id="builder-format"><option value="md">Markdown</option><option value="zip">ZIP</option></select></div>
-                  <p class="builder-format-help">ZIP 适用于支持解压的网页 AI</p>
+                  <button id="builder-export-web" type="button" role="menuitem"><span data-i18n="单独导出材料">单独导出材料</span></button>
+                  <div id="builder-format-row" class="builder-delivery-format"><label for="builder-format"><span data-i18n="导出格式">导出格式</span></label><select id="builder-format"><option value="md">Markdown</option><option value="zip">ZIP</option></select></div>
+                  <p class="builder-format-help"><span data-i18n="ZIP 适用于支持解压的网页 AI">ZIP 适用于支持解压的网页 AI</span></p>
                 </div>
               </div>
             </div>
@@ -47,54 +47,54 @@
         </div>
       </section>
       <section class="preference-section" aria-labelledby="builder-output-title">
-        <h2 id="builder-output-title" class="preference-group-title">整理方式</h2>
+        <h2 id="builder-output-title" class="preference-group-title"><span data-i18n="整理方式">整理方式</span></h2>
         <div class="settings-group">
-          <div class="settings-row"><label for="builder-goal">学习目标</label><p class="field-help">告诉 AI 这份笔记主要用来做什么</p><input id="builder-goal" placeholder="理解原理、准备考试或完成项目"></div>
-          <div class="settings-row"><label for="builder-language">笔记语言</label><p class="field-help">正文语言，术语保留必要的原名</p><input id="builder-language" required></div>
-          <div class="settings-row"><label for="builder-granularity">整理粒度</label><p id="builder-granularity-help" class="field-help">分组采用本次任务或课程清单的结果</p><select id="builder-granularity"><option value="group">每组课时一篇</option><option value="video">每个视频一篇</option></select></div>
-          <div class="settings-row"><label for="builder-folder">笔记根目录</label><p class="field-help">按课程在此目录下建立文件夹</p><input id="builder-folder" required spellcheck="false"></div>
-          <div class="settings-row"><label for="builder-naming">文件命名</label><input id="builder-naming" required spellcheck="false"></div>
+          <div class="settings-row"><label for="builder-goal"><span data-i18n="学习目标">学习目标</span></label><p class="field-help"><span data-i18n="告诉 AI 这份笔记主要用来做什么">告诉 AI 这份笔记主要用来做什么</span></p><input id="builder-goal" placeholder="理解原理、准备考试或完成项目" data-i18n-placeholder="理解原理、准备考试或完成项目"></div>
+          <div class="settings-row"><label for="builder-language"><span data-i18n="笔记语言">笔记语言</span></label><p class="field-help"><span data-i18n="正文语言，术语保留必要的原名">正文语言，术语保留必要的原名</span></p><input id="builder-language" required></div>
+          <div class="settings-row"><label for="builder-granularity"><span data-i18n="整理粒度">整理粒度</span></label><p id="builder-granularity-help" class="field-help"><span data-i18n="分组采用本次任务或课程清单的结果">分组采用本次任务或课程清单的结果</span></p><select id="builder-granularity"><option value="group" data-i18n="每组课时一篇">每组课时一篇</option><option value="video" data-i18n="每个视频一篇">每个视频一篇</option></select></div>
+          <div class="settings-row"><label for="builder-folder"><span data-i18n="笔记根目录">笔记根目录</span></label><p class="field-help"><span data-i18n="按课程在此目录下建立文件夹">按课程在此目录下建立文件夹</span></p><input id="builder-folder" required spellcheck="false"></div>
+          <div class="settings-row"><label for="builder-naming"><span data-i18n="文件命名">文件命名</span></label><input id="builder-naming" required spellcheck="false"></div>
         </div>
       </section>
       <section class="preference-section" aria-labelledby="builder-modules-title">
-        <div class="builder-section-heading"><h2 id="builder-modules-title" class="preference-group-title">笔记结构</h2><span id="builder-module-count" class="builder-count"></span></div>
+        <div class="builder-section-heading"><h2 id="builder-modules-title" class="preference-group-title"><span data-i18n="笔记结构">笔记结构</span></h2><span id="builder-module-count" class="builder-count"></span></div>
         <div id="builder-modules" class="settings-group"></div>
-        <button id="builder-add-module" class="text-button" type="button">＋ 添加自定义模块</button>
+        <button id="builder-add-module" class="text-button" type="button"><span data-i18n="＋ 添加自定义模块">＋ 添加自定义模块</span></button>
       </section>
       <section class="preference-section" aria-labelledby="builder-properties-title">
-        <h2 id="builder-properties-title" class="preference-group-title">笔记属性</h2>
+        <h2 id="builder-properties-title" class="preference-group-title"><span data-i18n="笔记属性">笔记属性</span></h2>
         <div id="builder-properties" class="settings-group"></div>
         <div id="builder-custom-properties" class="settings-group" hidden></div>
-        <button id="builder-add-property" class="text-button" type="button">＋ 添加自定义属性</button>
+        <button id="builder-add-property" class="text-button" type="button"><span data-i18n="＋ 添加自定义属性">＋ 添加自定义属性</span></button>
       </section>
       <section class="preference-section" aria-labelledby="builder-writing-title">
-        <h2 id="builder-writing-title" class="preference-group-title">写作与回看</h2>
+        <h2 id="builder-writing-title" class="preference-group-title"><span data-i18n="写作与回看">写作与回看</span></h2>
         <div class="settings-group">
-          <div class="settings-row"><label for="builder-links">视频回看链接</label><p class="field-help">链接使用来源可确认的视频和时间</p><select id="builder-links"><option value="heading">放在知识点标题旁</option><option value="paragraph">放在对应段落末尾</option><option value="sources">集中放在来源栏目</option></select></div>
-          <div class="settings-row"><label for="builder-external">补充外部资料</label><p class="field-help">补充时注明出处，与课程内容区分</p><input id="builder-external" class="settings-toggle" type="checkbox" role="switch"></div>
-          <div class="settings-row"><label for="builder-progress">生成整理进度</label><p class="field-help">用整理进度.md 记录已处理范围和成品位置</p><input id="builder-progress" class="settings-toggle" type="checkbox" role="switch"></div>
-          <div class="settings-row settings-row-multiline"><label for="builder-instructions">其他写作偏好</label><p class="field-help">写入 skill，作为各模块共用的写作要求</p><textarea id="builder-instructions" rows="1" placeholder="例如：正文使用连贯段落，少用列表"></textarea></div>
+          <div class="settings-row"><label for="builder-links"><span data-i18n="视频回看链接">视频回看链接</span></label><p class="field-help"><span data-i18n="链接使用来源可确认的视频和时间">链接使用来源可确认的视频和时间</span></p><select id="builder-links"><option value="heading" data-i18n="放在知识点标题旁">放在知识点标题旁</option><option value="paragraph" data-i18n="放在对应段落末尾">放在对应段落末尾</option><option value="sources" data-i18n="集中放在来源栏目">集中放在来源栏目</option></select></div>
+          <div class="settings-row"><label for="builder-external"><span data-i18n="补充外部资料">补充外部资料</span></label><p class="field-help"><span data-i18n="补充时注明出处，与课程内容区分">补充时注明出处，与课程内容区分</span></p><input id="builder-external" class="settings-toggle" type="checkbox" role="switch"></div>
+          <div class="settings-row"><label for="builder-progress"><span data-i18n="生成整理进度">生成整理进度</span></label><p class="field-help"><span data-i18n="用整理进度.md 记录已处理范围和成品位置">用整理进度.md 记录已处理范围和成品位置</span></p><input id="builder-progress" class="settings-toggle" type="checkbox" role="switch"></div>
+          <div class="settings-row settings-row-multiline"><label for="builder-instructions"><span data-i18n="其他写作偏好">其他写作偏好</span></label><p class="field-help"><span data-i18n="写入 skill，作为各模块共用的写作要求">写入 skill，作为各模块共用的写作要求</span></p><textarea id="builder-instructions" rows="1" placeholder="例如：正文使用连贯段落，少用列表" data-i18n-placeholder="例如：正文使用连贯段落，少用列表"></textarea></div>
         </div>
       </section>
     </form>
     <section id="builder-preview" class="note-preferences preference-section" aria-labelledby="builder-preview-title">
-      <div class="builder-section-heading"><h2 id="builder-preview-title" class="preference-group-title">文件预览</h2><span id="builder-file-name" class="builder-file-name"></span></div>
-      <p class="builder-section-help">选择文件查看完整内容</p>
-      <div class="builder-file-viewer"><nav id="builder-file-list" aria-label="生成文件列表"></nav><pre id="builder-source" class="builder-source" tabindex="0" aria-label="当前生成文件内容"></pre></div>
+      <div class="builder-section-heading"><h2 id="builder-preview-title" class="preference-group-title"><span data-i18n="文件预览">文件预览</span></h2><span id="builder-file-name" class="builder-file-name"></span></div>
+      <p class="builder-section-help"><span data-i18n="选择文件查看完整内容">选择文件查看完整内容</span></p>
+      <div class="builder-file-viewer"><nav id="builder-file-list" aria-label="生成文件列表" data-i18n-aria-label="生成文件列表"></nav><pre id="builder-source" class="builder-source" tabindex="0" aria-label="当前生成文件内容" data-i18n-aria-label="当前生成文件内容"></pre></div>
     </section>
     </div>
-    <nav class="notes-section-nav" aria-label="整理笔记页内导航">
-      <a href="#builder-delivery-title" aria-current="location">本次任务</a>
-      <a href="#builder-output-title">整理方式</a>
-      <a href="#builder-modules-title">笔记结构</a>
-      <a href="#builder-properties-title">笔记属性</a>
-      <a href="#builder-writing-title">写作与回看</a>
-      <a href="#builder-preview-title">文件预览</a>
+    <nav class="notes-section-nav" aria-label="整理笔记页内导航" data-i18n-aria-label="整理笔记页内导航">
+      <a href="#builder-delivery-title" aria-current="location"><span data-i18n="本次任务">本次任务</span></a>
+      <a href="#builder-output-title"><span data-i18n="整理方式">整理方式</span></a>
+      <a href="#builder-modules-title"><span data-i18n="笔记结构">笔记结构</span></a>
+      <a href="#builder-properties-title"><span data-i18n="笔记属性">笔记属性</span></a>
+      <a href="#builder-writing-title"><span data-i18n="写作与回看">写作与回看</span></a>
+      <a href="#builder-preview-title"><span data-i18n="文件预览">文件预览</span></a>
     </nav>
     </div>
   </div>
   <footer class="preferences-footer">
-    <div class="settings-footer-info"><div class="settings-feedback" hidden><p id="note-status" role="status" aria-live="polite"></p><button class="settings-feedback-close" type="button" aria-label="关闭提示">×</button></div></div>
-    <span id="builder-save-status" class="builder-save-status" role="status" aria-live="polite">设置已保存</span>
+    <div class="settings-footer-info"><div class="settings-feedback" hidden><p id="note-status" role="status" aria-live="polite"></p><button class="settings-feedback-close" type="button" aria-label="关闭提示" data-i18n-aria-label="关闭提示">×</button></div></div>
+    <span id="builder-save-status" class="builder-save-status" role="status" aria-live="polite"><span data-i18n="设置已保存">设置已保存</span></span>
   </footer>
 </section>

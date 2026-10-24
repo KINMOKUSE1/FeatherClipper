@@ -13,7 +13,6 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
     try { await send({ type: "video-seek", url: link.href }); }
     catch (error) { status(error.message, true); }
   });
-  const statusLabels = { pending: ui.pending, running: ui.running, saved: ui.saved, exists: ui.exists, missing: ui.missing, failed: ui.failed };
   let meta = null, pages = [], running = false, loading = false, stopping = false;
   let previewId = "", previewRun = 0, previewLoading = false;
   let chapterFilter = "all";
@@ -29,8 +28,9 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
     stopping = true;
     syncControls();
   }
+  let importLocale = null;
   function request(action, extra = {}) {
-    return send({ type: "course-request", action, meta, base: $("folder").value,
+    return send({ type: "course-request", action, locale: importLocale || UiText.i18n.outputLocale(), meta, base: $("folder").value,
       ...(subtitleLanguage && ["preview", "import"].includes(action) ? { subtitleLanguage } : {}), ...extra });
   }
   async function updateIndex() {
@@ -115,8 +115,8 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
       const chapterLabel = document.createElement("label");
       chapterLabel.className = "chapter-edit"; chapterLabel.append(chapter); cells[3].append(chapterLabel);
       const badge = document.createElement("span"); badge.className = `badge ${page.status}`;
-      badge.textContent = statusLabels[page.status] || ui.pending; cells[4].append(badge);
-      if (page.error) badge.title = page.error;
+      badge.textContent = ui[page.status] || ui.pending; cells[4].append(badge);
+      if (page.error) badge.title = UiText.i18n.error(page.error);
       $("parts").append(row);
     }
   }
@@ -242,7 +242,7 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
     if (!selected.length) { status(ui.nothingSelected); return; }
     await navigator.locks.request(`boc-course:${meta.bvid}`, { ifAvailable: true }, async lock => {
       if (!lock) { status(ui.locked, true); return; }
-      stopping = false; running = true; render();
+      stopping = false; running = true; importLocale = UiText.i18n.outputLocale(); render();
       importAction.progress(0, selected.length);
       let done = 0, fatalError = null;
       const counts = {};
@@ -260,7 +260,7 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
         }
         reportImportResult(fatalError ? ui.paused : stopping ? ui.stopped : ui.complete, counts, selected.length - done, fatalError);
       } catch (error) { reportImportResult(ui.interrupted, counts, selected.length - done, error); }
-      finally { running = false; render(); }
+      finally { running = false; importLocale = null; render(); }
     });
   }
   $("load").addEventListener("click", () => loadCourse().catch(error => status(error.message, true)));
@@ -323,6 +323,7 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
   document.getElementById("empty-load").addEventListener("click", () => openSource());
   document.getElementById("folder-edit").addEventListener("click", () => openSource(true));
   function getState() { return { meta, pages, running, loading, stopping, previewLoading, previewId, activeAsrPage, currentPage, folder: $("folder").value }; }
-  function setImporting(value) { running = value; if (value) stopping = false; render(); }
+  function setImporting(value) { running = value; importLocale = value ? UiText.i18n.outputLocale() : null; if (value) stopping = false; render(); }
+  UiText.i18n.subscribe(() => { renderFilters(); render(); });
   return { init, loadCourse, runQueue, stopImport, getState, request, persist, updateIndex, render, setImporting };
 };
