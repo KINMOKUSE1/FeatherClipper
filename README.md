@@ -1,10 +1,10 @@
-# Vid2Notes
+# FeatherClipper
 
 一个收集网课素材，并借助 AI 按个人偏好整理成学习笔记的轻量浏览器扩展。
 
 ---
 
-Vid2Notes 面向课程学习，支持 Chrome / Edge，适用于单个视频、B站分 P 和 YouTube 播放列表。从字幕预览、批量导入，到音频转写和个性化笔记整理，在同一个工作台完成素材准备。
+FeatherClipper 面向课程学习，支持 Chrome / Edge，适用于单个视频、B站分 P 和 YouTube 播放列表。从字幕预览、批量导入，到音频转写和个性化笔记整理，在同一个工作台完成素材准备。
 
 [安装与使用](#开始使用) · [使用说明](./使用说明.md) · [开发指南](./docs/开发指南.md)
 
@@ -28,7 +28,7 @@ Vid2Notes 面向课程学习，支持 Chrome / Edge，适用于单个视频、B�
 
 ## 开始使用
 
-1. Windows 用户下载并解压安装包，双击 `安装.cmd`，按提示在 Chrome / Edge 中加载扩展；也可手动加载源码中的 `extension/` 文件夹
+1. 下载源码，在 Chrome / Edge 的扩展管理页开启开发者模式，加载 `extension/` 文件夹
 2. 在 Obsidian 中安装并启用 Local REST API，在扩展中填写连接信息
 3. 打开视频，选择课时并导入素材；进入“整理笔记”，配置规则后，将材料和指令交给 AI
 

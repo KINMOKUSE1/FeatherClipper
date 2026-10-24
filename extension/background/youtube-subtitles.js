@@ -16,11 +16,35 @@ function youtubePrepareSubtitleHeaders() {
   return youtubeSubtitleHeadersReady;
 }
 
-function youtubePickSubtitle(player) {
-  const renderer = player.captions?.playerCaptionsTracklistRenderer;
-  const tracks = renderer?.captionTracks;
+function youtubeSubtitleTracks(player) {
+  const tracks = player.captions?.playerCaptionsTracklistRenderer?.captionTracks;
   if (tracks !== undefined && !Array.isArray(tracks)) throw new Error("YouTube 字幕列表响应无效，请重试");
-  if (!tracks?.length) return null;
+  return (tracks || []).map((track, index) => {
+    const name = track.name?.simpleText || track.name?.runs?.map(run => run.text || "").join("") || track.languageCode || "字幕";
+    return { ...track, id: track.vssId || `${track.kind || "manual"}:${track.languageCode || ""}:${index}`,
+      lan: track.languageCode || "", lanDoc: track.kind === "asr" && !/自动生成|auto.generated/i.test(name) ? `${name}（自动生成）` : name,
+      source: track.kind === "asr" ? "youtube-auto-caption" : "youtube-caption" };
+  });
+}
+
+function youtubePickSubtitle(player, trackId = "", subtitleLanguage = "", tracks = youtubeSubtitleTracks(player)) {
+  const renderer = player.captions?.playerCaptionsTracklistRenderer;
+  if (!tracks.length) return null;
+  if (trackId) {
+    const selected = tracks.find(track => track.id === trackId);
+    if (!selected) throw new Error("所选字幕暂不可用，请重新读取视频或选择其他语言");
+    return selected;
+  }
+  if (subtitleLanguage) {
+    const normalize = value => String(value || "").replace(/_/g, "-").toLowerCase();
+    const language = normalize(subtitleLanguage);
+    const selected = tracks.filter(track => {
+      const code = normalize(track.lan);
+      return code === language || ((!code.includes("-") || !language.includes("-")) && code.split("-")[0] === language.split("-")[0]);
+    });
+    if (!selected.length) throw new Error("当前课时没有所选语言的字幕");
+    return selected.find(track => track.kind !== "asr") || selected[0];
+  }
   const family = track => String(track.languageCode || "").replace(/_/g, "-").toLowerCase().split("-")[0];
   const chinese = tracks.filter(track => family(track) === "zh");
   if (chinese.length) return chinese.find(track => track.kind !== "asr") || chinese[0];
@@ -59,7 +83,7 @@ function youtubeParseSubtitle(xml) {
   return body;
 }
 
-async function youtubeSubtitleRead(videoId, signal) {
+async function youtubeSubtitleRead(videoId, signal, trackId = "", subtitleLanguage = "") {
   let stage = "页面信息";
   const request = async (url, options = {}) => {
     signal.throwIfAborted();
@@ -85,8 +109,10 @@ async function youtubeSubtitleRead(videoId, signal) {
     if (details?.videoId !== videoId || !details.title?.trim()) throw new Error("YouTube 字幕信息与当前视频不一致，请重新读取");
     const meta = { platform: "youtube", videoId, bvid: `YT_${videoId}`, title: details.title, author: details.author || "",
       pages: [{ cid: videoId, page: 1, part: details.title, duration: Number(details.lengthSeconds) || 0 }] };
-    const track = youtubePickSubtitle(player);
-    if (!track) return { meta, missing: true, body: [] };
+    const tracks = youtubeSubtitleTracks(player);
+    const available = tracks.map(({ id, lan, lanDoc }) => ({ id, lan, lanDoc }));
+    const track = youtubePickSubtitle(player, trackId, subtitleLanguage, tracks);
+    if (!track) return { meta, tracks: available, missing: true, body: [] };
     let url;
     try { url = new URL(track.baseUrl); } catch { throw new Error("YouTube 字幕地址无效，请重试"); }
     if (url.protocol !== "https:" || url.hostname !== "www.youtube.com" || url.pathname !== "/api/timedtext") throw new Error("YouTube 字幕地址无效，请重试");
@@ -94,10 +120,9 @@ async function youtubeSubtitleRead(videoId, signal) {
     url.searchParams.delete("fmt");
     stage = "字幕文件";
     const body = youtubeParseSubtitle(await (await request(url.href)).text());
-    return { meta, track: { lan: track.languageCode || "", lanDoc: track.name?.simpleText || track.name?.runs?.map(run => run.text || "").join("") || track.languageCode || "字幕",
-      source: track.kind === "asr" ? "youtube-auto-caption" : "youtube-caption" }, body };
+    return { meta, tracks: available, track: { id: track.id, lan: track.lan, lanDoc: track.lanDoc, source: track.source }, body };
   } catch (error) {
-    if (signal.aborted) throw new Error("字幕获取超时（5 秒），请重试");
+    if (signal.aborted) throw new Error("字幕获取超时（8 秒），请重试");
     // Native fetch/JSON errors can contain signed URLs or response fragments.
     if (error.name === "TypeError" || error.name === "SyntaxError") throw new Error(`YouTube ${stage}读取失败，请重试`);
     throw error;

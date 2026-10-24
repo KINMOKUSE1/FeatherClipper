@@ -14,7 +14,7 @@ from unittest.mock import patch
 import sys
 
 SOURCE = Path(__file__).resolve().parents[1] / "asr/server.py"
-spec = importlib.util.spec_from_file_location("vid2notes_asr", SOURCE)
+spec = importlib.util.spec_from_file_location("featherclipper_asr", SOURCE)
 server_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(server_module)
 
@@ -27,7 +27,7 @@ class LocalServiceTests(unittest.TestCase):
             thread = threading.Thread(target=service.serve_forever, daemon=True)
             thread.start()
             base = f"http://127.0.0.1:{service.server_port}"
-            headers = {"X-Vid2Notes-Token": "test-token"}
+            headers = {"X-FeatherClipper-Token": "test-token"}
             try:
                 request = urllib.request.Request(base + "/jobs", data=json.dumps({
                     "bvid": "BVonline123", "cid": "999", "audio_url": "https://example.bilivideo.com/audio",
@@ -123,7 +123,7 @@ class LocalServiceTests(unittest.TestCase):
             base = f"http://127.0.0.1:{service.server_port}"
             try:
                 health = json.load(urllib.request.urlopen(base + "/health"))
-                self.assertEqual(health["service"], "vid2notes-asr")
+                self.assertEqual(health["service"], "featherclipper-asr")
                 self.assertTrue(health["model_ready"])
                 self.assertTrue(health["audio_backups"])
                 self.assertTrue(health["youtube_audio"])
@@ -132,17 +132,17 @@ class LocalServiceTests(unittest.TestCase):
                 self.assertEqual(denied.exception.code, 401)
                 preflight = urllib.request.Request(base + "/pair", method="OPTIONS", headers={"Origin": "chrome-extension://" + "a" * 32})
                 with urllib.request.urlopen(preflight) as response:
-                    self.assertEqual(response.headers["Access-Control-Allow-Headers"], "Content-Type, X-Vid2Notes-Token")
-                paired = urllib.request.Request(base + "/pair", headers={"X-Vid2Notes-Token": "secret-token"})
+                    self.assertEqual(response.headers["Access-Control-Allow-Headers"], "Content-Type, X-FeatherClipper-Token")
+                paired = urllib.request.Request(base + "/pair", headers={"X-FeatherClipper-Token": "secret-token"})
                 self.assertTrue(json.load(urllib.request.urlopen(paired))["connected"])
-                bad_job = urllib.request.Request(base + "/jobs", data=json.dumps({"bvid": "BV123", "cid": "1", "audio_url": "https://evil.test/audio"}).encode(), headers={"X-Vid2Notes-Token": "secret-token"})
+                bad_job = urllib.request.Request(base + "/jobs", data=json.dumps({"bvid": "BV123", "cid": "1", "audio_url": "https://evil.test/audio"}).encode(), headers={"X-FeatherClipper-Token": "secret-token"})
                 with self.assertRaises(urllib.error.HTTPError) as rejected:
                     urllib.request.urlopen(bad_job)
                 self.assertEqual(rejected.exception.code, 400)
-                youtube_job = urllib.request.Request(base + "/jobs", data=json.dumps({"bvid": "YT_GWwL_pLuX-U", "cid": "GWwL_pLuX-U", "audio_url": "https://rr1.googlevideo.com/audio"}).encode(), headers={"X-Vid2Notes-Token": "secret-token"})
+                youtube_job = urllib.request.Request(base + "/jobs", data=json.dumps({"bvid": "YT_GWwL_pLuX-U", "cid": "GWwL_pLuX-U", "audio_url": "https://rr1.googlevideo.com/audio"}).encode(), headers={"X-FeatherClipper-Token": "secret-token"})
                 with patch.object(server_module, "run_job"):
                     self.assertEqual(json.load(urllib.request.urlopen(youtube_job))["status"], "queued")
-                    playlist_job = urllib.request.Request(base + "/jobs", data=json.dumps({"bvid": "YTPL_PLKq1TCpsv3Y4", "cid": "abcdef12345", "audio_url": "https://rr1.googlevideo.com/audio"}).encode(), headers={"X-Vid2Notes-Token": "secret-token"})
+                    playlist_job = urllib.request.Request(base + "/jobs", data=json.dumps({"bvid": "YTPL_PLKq1TCpsv3Y4", "cid": "abcdef12345", "audio_url": "https://rr1.googlevideo.com/audio"}).encode(), headers={"X-FeatherClipper-Token": "secret-token"})
                     self.assertEqual(json.load(urllib.request.urlopen(playlist_job))["status"], "queued")
             finally:
                 service.shutdown()

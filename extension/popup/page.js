@@ -189,14 +189,12 @@ async function preview() {
   $("subtitle-track").textContent = "";
   $("preview-label").textContent = ui.readingSubtitles;
   try {
-    const result = await send({ type: "course-request", action: "preview", meta, page, ...(meta.platform !== "youtube" ? { trackId: selectedTrackId } : {}) });
-    if (meta.platform !== "youtube") {
-      subtitleTracks = result.tracks || [];
-      $("subtitle-language-switch").hidden = subtitleTracks.length < 2;
-      if (result.track?.id) selectedTrackId = result.track.id;
-      $("subtitle-language-label").textContent = result.track?.lanDoc || result.track?.lan || ui.automatic;
-      renderLanguageMenu();
-    }
+    const result = await send({ type: "course-request", action: "preview", meta, page, trackId: selectedTrackId });
+    subtitleTracks = result.tracks || [];
+    $("subtitle-language-switch").hidden = subtitleTracks.length < 2;
+    if (result.track?.id) selectedTrackId = result.track.id;
+    $("subtitle-language-label").textContent = result.track?.lanDoc || result.track?.lan || ui.automatic;
+    renderLanguageMenu();
     $("subtitle-track").hidden = !$("subtitle-language-switch").hidden;
     $("subtitle-track").textContent = result.track?.lanDoc || result.track?.lan || "";
     hasSubtitle = Boolean(result.body?.length);
@@ -212,7 +210,7 @@ async function preview() {
     }
   } catch (error) {
     subtitleReadFailed = true; subtitleError = error.message;
-    if (meta.platform !== "youtube") renderLanguageMenu();
+    renderLanguageMenu();
     $("subtitles").textContent = format(ui.subtitleError, { error: error.message });
     $("preview-label").textContent = ui.subtitleFailed;
     $("preview-panel").open = true;
@@ -283,7 +281,7 @@ $("asr-open").addEventListener("click", async () => {
   if (meta.playlistId) target.searchParams.set("playlistId", meta.playlistId);
   target.searchParams.set("p", page.page);
   target.searchParams.set("asr", "1");
-  if (meta.platform !== "youtube" && subtitleLanguage) target.searchParams.set("subtitleLanguage", subtitleLanguage);
+  if (subtitleLanguage) target.searchParams.set("subtitleLanguage", subtitleLanguage);
   addSubtitleHandoff(target);
   await chrome.tabs.create({ url: target.href }); window.close();
 });
@@ -294,7 +292,7 @@ $("import").addEventListener("click", async () => {
     return;
   }
   showJob({ status: "running" });
-  try { showJob(await send({ type: "quick-import", bvid: meta.bvid, cid: page.cid, meta, base, ...(meta.platform !== "youtube" ? { trackId: subtitle?.track?.id || selectedTrackId } : {}) })); }
+  try { showJob(await send({ type: "quick-import", bvid: meta.bvid, cid: page.cid, meta, base, trackId: subtitle?.track?.id || selectedTrackId })); }
   catch (error) { showJob({ status: "failed", error: error.message }); }
 });
 chrome.storage.onChanged.addListener((changes, area) => {
@@ -303,7 +301,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 async function openWorkspace(selectAll = false) {
   const target = new URL(chrome.runtime.getURL("workbench/index.html"));
   if (meta && page) { target.searchParams.set(meta.platform === "youtube" ? "youtubeId" : "bvid", meta.platform === "youtube" ? meta.videoId : meta.bvid); if (meta.playlistId) target.searchParams.set("playlistId", meta.playlistId); target.searchParams.set("p", page.page); }
-  if (meta && meta.platform !== "youtube" && subtitleLanguage) target.searchParams.set("subtitleLanguage", subtitleLanguage);
+  if (meta && subtitleLanguage) target.searchParams.set("subtitleLanguage", subtitleLanguage);
   if (selectAll) target.searchParams.set("scope", "all");
   addSubtitleHandoff(target);
   await chrome.tabs.create({ url: target.href }); window.close();

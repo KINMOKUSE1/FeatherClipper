@@ -21,12 +21,12 @@ try {
     if (-not [System.IO.Path]::IsPathRooted($InstallDir)) { throw '请选择完整的安装目录路径' }
     $installRoot = [System.IO.Path]::GetFullPath($InstallDir).TrimEnd('\')
     if ($installRoot -eq [System.IO.Path]::GetPathRoot($installRoot).TrimEnd('\')) { throw '请在磁盘中选择一个文件夹，不要直接安装到磁盘根目录' }
-    $marker = Join-Path $installRoot '.vid2notes-asr'
+    $marker = Join-Path $installRoot '.featherclipper-asr'
     $configPath = Join-Path $installRoot 'config.json'
     $existing = (Test-Path -LiteralPath $configPath) -and (Test-Path -LiteralPath (Join-Path $installRoot 'server.py'))
     if ((Test-Path -LiteralPath $installRoot) -and -not (Test-Path -LiteralPath $marker) -and -not $existing -and
         (Get-ChildItem -LiteralPath $installRoot -Force | Select-Object -First 1)) {
-        throw '请选择空文件夹，或已有的 Vid2Notes 本地转写安装目录'
+        throw '请选择空文件夹，或已有的 FeatherClipper 本地转写安装目录'
     }
     $config = $null
     if (Test-Path -LiteralPath $configPath) {
@@ -34,7 +34,7 @@ try {
         catch { throw '无法读取原连接配置，请检查安装目录中的 config.json' }
     }
     New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
-    [System.IO.File]::WriteAllText($marker, 'Vid2Notes local transcription')
+    [System.IO.File]::WriteAllText($marker, 'FeatherClipper local transcription')
     foreach ($name in @('tools', 'python', 'cache', 'tmp', 'model')) {
         New-Item -ItemType Directory -Path (Join-Path $installRoot $name) -Force | Out-Null
     }

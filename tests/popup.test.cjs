@@ -135,8 +135,12 @@ async function exportHarness({ languages = false, youtube = false } = {}) {
           pages: youtube ? [{ cid: message.youtubeId, page: 1, part: 'Export lesson' }] : [{ cid: '1', page: 1, part: '1. Export: Lesson' }, { cid: '2', page: 2, part: '2. Other' }]
         } };
         if (message.action === 'preview' && context.trackFail) return { ok: false, error: 'Selected subtitle unavailable' };
-        if (message.action === 'preview') return { ok: true, tracks: context.missing ? [] : languages ? [{ id: 'zh', lan: 'zh', lanDoc: '中文' }, { id: 'en', lan: 'en', lanDoc: 'English' }] : [], track: languages && message.trackId !== 'en' ? { id: 'zh', lan: 'zh', lanDoc: '中文' } : { id: 'en', lan: 'en', lanDoc: 'English' },
-          missing: context.missing, body: context.missing ? [] : Array.from({ length: 20 }, (_, i) => ({ from: i * 40, to: i * 40 + 1, content: `Line ${i + 1}.` })) };
+        if (message.action === 'preview') {
+          const tracks = context.missing || !languages ? [] : [{ id: 'zh', lan: 'zh', lanDoc: '中文' }, { id: 'en', lan: 'en', lanDoc: 'English' }, ...(youtube ? [{ id: 'en-auto', lan: 'en', lanDoc: 'English（自动生成）' }] : [])];
+          const track = tracks.find(t => t.id === message.trackId) || tracks[0] || { id: 'en', lan: 'en', lanDoc: 'English' };
+          return { ok: true, tracks, track, missing: context.missing,
+            body: context.missing ? [] : Array.from({ length: 20 }, (_, i) => ({ from: i * 40, to: i * 40 + 1, content: `Line ${i + 1}.` })) };
+        }
         throw new Error('Unexpected request');
       } }
     }
@@ -303,4 +307,32 @@ test('popup carries only its latest completed missing or failed preview to both 
     h.context.missing = false; await h.context.loadVideo(); await h.context.openWorkspace();
     assert.equal(new URL(h.opened.at(-1).url).searchParams.has('subtitlePreview'), false);
   }
+});
+
+
+test('YouTube uses the existing track menu for previews, exports, imports and workbench language handoff', async () => {
+  const h = await exportHarness({ languages: true, youtube: true });
+  assert.equal(h.get('subtitle-language-switch').hidden, false);
+  const menu = h.get('subtitle-language-menu');
+  assert.equal(menu.children.length, 4);
+  await menu.children.find(o => o.textContent === 'English（自动生成）').listeners.click();
+  assert.equal(h.messages.filter(m => m.action === 'preview').at(-1).trackId, 'en-auto');
+  assert.equal(h.get('subtitle-language-label').textContent, 'English（自动生成）');
+  await h.get('copy-subtitle').listeners.click();
+  await h.get('download-subtitle').listeners.click();
+  assert.match(h.copied[0], /subtitle_lang: "English（自动生成）"/);
+  assert.match(decodeURIComponent(h.downloads[0].url), /subtitle_lang: "English（自动生成）"/);
+  await h.get('import').listeners.click();
+  assert.equal(h.messages.find(m => m.type === 'quick-import').trackId, 'en-auto');
+  await h.context.openWorkspace();
+  assert.equal(new URL(h.opened.at(-1).url).searchParams.get('subtitleLanguage'), 'en');
+  await menu.children.find(o => o.textContent === '自动选择').listeners.click();
+  assert.equal(h.messages.filter(m => m.action === 'preview').at(-1).trackId, '');
+  await h.context.openWorkspace();
+  assert.equal(new URL(h.opened.at(-1).url).searchParams.has('subtitleLanguage'), false);
+  h.context.trackFail = true;
+  await menu.children.find(o => o.textContent === 'English').listeners.click();
+  assert.equal(h.get('copy-subtitle').disabled, true);
+  assert.equal(h.get('import').disabled, true);
+  assert.equal(h.get('subtitle-language-menu').children.length, 4, 'other tracks remain selectable after failure');
 });

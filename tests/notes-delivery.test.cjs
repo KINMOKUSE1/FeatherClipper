@@ -8,35 +8,6 @@ const copy = require('../extension/shared/ui-text.js');
 const course = require('../extension/shared/course.js');
 const collectMaterials = require('../extension/workbench/notes/materials.js');
 
-function migrateNoteStorage(values) {
-  const source = fs.readFileSync(require.resolve('../extension/workbench/notes/page.js'), 'utf8');
-  const code = source.slice(source.indexOf('  const storageKey ='), source.indexOf('  const get ='));
-  vm.runInNewContext(code, { localStorage: {
-    getItem: key => values.has(key) ? values.get(key) : null,
-    setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key)
-  } });
-}
-
-test('stored note preferences and installation state move to the new keys exactly once', () => {
-  const suffixes = ['skill-builder:v1', 'notes-delivery:v1', 'notes-installed:v1', 'notes-install-method:v1', 'notes-exported:v1'];
-  const previousPrefix = 'course-cove:';
-  const values = new Map(suffixes.map((suffix, index) => [previousPrefix + suffix, `原有值 ${index}\n保留内容`]));
-  migrateNoteStorage(values);
-  assert.equal(values.size, suffixes.length);
-  suffixes.forEach((suffix, index) => {
-    assert.equal(values.get('vid2notes:' + suffix), `原有值 ${index}\n保留内容`);
-    assert.equal(values.has(previousPrefix + suffix), false);
-  });
-  const migrated = [...values]; migrateNoteStorage(values);
-  assert.deepEqual([...values], migrated);
-});
-
-test('migration preserves newer preferences when both key versions are present', () => {
-  const values = new Map([['course-cove:skill-builder:v1', '原有偏好'], ['vid2notes:skill-builder:v1', '当前偏好']]);
-  migrateNoteStorage(values);
-  assert.deepEqual([...values], [['vid2notes:skill-builder:v1', '当前偏好']]);
-});
-
 function boot(environment = 'web', directoryPicker = false) {
   const nodes = new Map(), downloads = [], clipboard = [], messages = [], blobs = new Map(), storage = new Map(), previews = [], written = new Map();
   const control = { clipboardError: null, beforeClipboard: null, beforeMaterial: null, directoryCalls: 0, writeError: null, extraMaterials: [] };

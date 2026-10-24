@@ -2,18 +2,9 @@
 window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
   const ui = UiText.notes, format = UiText.format;
   const core = window.NoteGenerator;
-  const storageKey = "vid2notes:skill-builder:v1", deliveryKey = "vid2notes:notes-delivery:v1";
-  const installationKey = "vid2notes:notes-installed:v1";
-  const installationMethodKey = "vid2notes:notes-install-method:v1", exportedSkillKey = "vid2notes:notes-exported:v1";
-  // 升级时搬移旧配置；已有新配置优先，写入成功后再删除旧键。
-  for (const key of [storageKey, deliveryKey, installationKey, installationMethodKey, exportedSkillKey]) {
-    const previousKey = key.replace("vid2notes:", "course-cove:");
-    const previous = localStorage.getItem(previousKey);
-    if (previous !== null) {
-      if (localStorage.getItem(key) === null) localStorage.setItem(key, previous);
-      localStorage.removeItem(previousKey);
-    }
-  }
+  const storageKey = "featherclipper:skill-builder:v1", deliveryKey = "featherclipper:notes-delivery:v1";
+  const installationKey = "featherclipper:notes-installed:v1";
+  const installationMethodKey = "featherclipper:notes-install-method:v1", exportedSkillKey = "featherclipper:notes-exported:v1";
   const get = id => document.getElementById(id);
   const form = get("skill-builder-form");
   const resourceBase = new URL("notes/rules/", assetBase);

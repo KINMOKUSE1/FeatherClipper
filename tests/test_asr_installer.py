@@ -62,7 +62,7 @@ class InstallerWorkerTests(unittest.TestCase):
     def prepare(self, name):
         home = self.root / name
         (home / "tools").mkdir(parents=True)
-        (home / ".vid2notes-asr").write_text("Vid2Notes local transcription")
+        (home / ".featherclipper-asr").write_text("FeatherClipper local transcription")
         shutil.copy2(self.runner, home / "tools/uv.exe")
         return home
 
@@ -128,7 +128,7 @@ class InstallerWorkerTests(unittest.TestCase):
         shutil.copytree(ROOT / "asr/languages", payload / "languages")
         # Keep the real wizard and worker, but isolate install registration and shortcuts.
         script = (payload / "installer.iss").read_text(encoding="utf-8")
-        script = re.sub(r"^AppId=.*$", "AppId=Vid2Notes-ASR-OfflineTest", script, flags=re.M)
+        script = re.sub(r"^AppId=.*$", "AppId=FeatherClipper-ASR-OfflineTest", script, flags=re.M)
         script = script.replace("[Setup]", "[Setup]\nUninstallable=no\nCreateUninstallRegKey=no")
         script = re.sub(r"\[Icons\][\s\S]*?(?=\[Run\])", "", script)
         script = re.sub(r"\[UninstallDelete\][\s\S]*?(?=\[Code\])", "", script)
@@ -137,7 +137,7 @@ class InstallerWorkerTests(unittest.TestCase):
         self.assertEqual(compiled.returncode, 0, compiled.stdout.decode(errors="replace"))
         home = self.prepare("native-install")
         log = payload / "setup-test.log"
-        result = subprocess.run([str(payload / "vid2notes-asr-setup.exe"), "/VERYSILENT", "/SUPPRESSMSGBOXES",
+        result = subprocess.run([str(payload / "featherclipper-asr-setup.exe"), "/VERYSILENT", "/SUPPRESSMSGBOXES",
                                  "/NORESTART", f"/DIR={home}", f"/LOG={log}"], capture_output=True, timeout=45)
         self.assertEqual(result.returncode, 0, log.read_text(encoding="utf-8-sig") if log.exists() else "No setup log")
         self.assertTrue((home / "server.py").is_file())

@@ -27,7 +27,7 @@ function boot({ tracks = [caption('en')], status = 'OK', id = videoId, xml = '<t
     }
   });
   vm.runInContext(service + '\n' + dispatch, context);
-  return { context, calls, rules, player, timers, signals: controllerSignals, advance: value => { now = value; }, read: purpose => context.youtubeRead(videoId, true, false, '', purpose) };
+  return { context, calls, rules, player, timers, signals: controllerSignals, advance: value => { now = value; }, read: (purpose, trackId = '', language = '') => context.youtubeRead(videoId, true, false, '', purpose, trackId, language) };
 }
 
 test('background captions use three credential-free HTTP requests, preserve times and never touch tabs', async () => {
@@ -96,13 +96,13 @@ test('XML parsing handles double-encoded entities, Unicode, markup and the entir
   }
 });
 
-test('five-second total timeout aborts the active fetch at every network stage', async () => {
+test('eight-second total timeout aborts the active fetch at every network stage', async () => {
   for (const stalled of ['watch', 'player', 'caption']) {
     const h = boot({ stalled, fakeClock: true });
-    const request = h.read('preview'), rejected = assert.rejects(request, /字幕获取超时（5 秒）/);
+    const request = h.read('preview'), rejected = assert.rejects(request, /字幕获取超时（8 秒）/);
     await new Promise(setImmediate);
-    assert.deepEqual(h.timers.map(timer => timer.ms), [5000]);
-    h.advance(5000); h.timers[0].fn(); await rejected;
+    assert.deepEqual(h.timers.map(timer => timer.ms), [8000]);
+    h.advance(8000); h.timers[0].fn(); await rejected;
     assert.ok(h.signals.every(signal => signal.aborted));
   }
 });
@@ -140,4 +140,44 @@ test('failed preview invalidates previous successful preview and retry obtains c
 test('identical concurrent previews share only their in-flight request', async () => {
   const h = boot(); await Promise.all([h.read('preview'), h.read('preview')]); assert.equal(h.calls.length, 3);
   await h.read('preview'); assert.equal(h.calls.length, 6);
+});
+
+
+test('explicit YouTube tracks override automatic selection and expose only safe menu metadata', async () => {
+  const tracks = [{ ...caption('zh-Hans'), vssId: '.zh-Hans' }, { ...caption('en'), vssId: '.en' }, { ...caption('en'), kind: 'asr', vssId: 'a.en' }];
+  const h = boot({ tracks });
+  const result = await h.read('preview', 'a.en');
+  assert.equal(result.track.id, 'a.en');
+  assert.equal(result.track.source, 'youtube-auto-caption');
+  assert.match(result.track.lanDoc, /自动生成/);
+  assert.deepEqual(result.tracks.map(t => t.id), ['.zh-Hans', '.en', 'a.en']);
+  assert.ok(result.tracks.every(t => Object.keys(t).sort().join(',') === 'id,lan,lanDoc'));
+  assert.equal(new URL(h.calls.at(-1).url).searchParams.get('lang'), 'en');
+  assert.equal((await h.read('preview', '.en')).track.source, 'youtube-caption');
+});
+
+test('YouTube language handoff prefers manual tracks and does not replace unavailable selections', async () => {
+  const tracks = [{ ...caption('zh-Hans'), vssId: '.zh' }, { ...caption('en-US'), vssId: 'a.en', kind: 'asr' }, { ...caption('en-US'), vssId: '.en' }];
+  const h = boot({ tracks });
+  assert.equal((await h.read('preview', '', 'en')).track.id, '.en');
+  for (const [trackId, language] of [['gone', ''], ['', 'ja']]) {
+    const missing = boot({ tracks });
+    await assert.rejects(missing.read('preview', trackId, language), /所选字幕暂不可用|没有所选语言/);
+    assert.equal(missing.calls.some(c => c.stage === 'caption'), false);
+  }
+  assert.equal((await boot({ tracks: [] }).read('preview', '', 'en')).missing, true);
+});
+
+test('YouTube imports and concurrent reads never reuse a different selected track', async () => {
+  const tracks = [{ ...caption('en'), vssId: '.en' }, { ...caption('ja'), vssId: '.ja' }];
+  const h = boot({ tracks });
+  await h.read('preview', '.en');
+  assert.equal((await h.read('import', '.ja')).track.id, '.ja');
+  assert.equal(h.calls.length, 6);
+  await h.read('preview', '.ja'); await h.read('import', '.ja');
+  assert.equal(h.calls.length, 9);
+  const parallel = boot({ tracks });
+  const results = await Promise.all([parallel.read('preview', '.en'), parallel.read('preview', '.ja')]);
+  assert.deepEqual(results.map(r => r.track.id), ['.en', '.ja']);
+  assert.equal(parallel.calls.length, 6);
 });

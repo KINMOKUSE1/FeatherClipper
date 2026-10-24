@@ -7,7 +7,7 @@ import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-NAME = "vid2notes-asr-setup.exe"
+NAME = "featherclipper-asr-setup.exe"
 
 
 def find_compiler(explicit=None):

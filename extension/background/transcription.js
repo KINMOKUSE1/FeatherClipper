@@ -29,7 +29,7 @@ async function asrRequest(path, method = "GET", body, token = "") {
   try {
     response = await fetch(`${ASR_BASE}${path}`, {
       method,
-      headers: { ...(body ? { "Content-Type": "application/json" } : {}), ...(token ? { "X-Vid2Notes-Token": token } : {}) },
+      headers: { ...(body ? { "Content-Type": "application/json" } : {}), ...(token ? { "X-FeatherClipper-Token": token } : {}) },
       body: body ? JSON.stringify(body) : undefined,
       signal: AbortSignal.timeout(15000),
     });
@@ -72,7 +72,7 @@ async function asrComponentStatus() {
   let health;
   try { health = await asrRequest("/health"); }
   catch { return { installed: false, connected: false, paired, error: "本地转写服务未启动。启动后点击“重新检测”。" }; }
-  if (health.service !== "vid2notes-asr" || health.version !== 1) {
+  if (health.service !== "featherclipper-asr" || health.version !== 1) {
     return { installed: true, connected: false, paired, error: "本地转写组件或模型尚未准备好。" };
   }
   if (health.audio_backups !== true) {

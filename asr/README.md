@@ -1,4 +1,4 @@
-# Vid2Notes 本地转写组件
+# FeatherClipper 本地转写组件
 
 此目录只负责本地模型转写。Groq 和硅基流动的音轨下载、解码、切分和 API 调用在浏览器扩展内完成，不需要此组件。
 
@@ -18,7 +18,7 @@
 
 ## 构建安装程序
 
-安装 Inno Setup 6.5+ 后运行 `python scripts/build_asr_installer.py`，或用 `--iscc` 指定编译器路径。输出为 `downloads/vid2notes-asr-setup.exe`，并复制到扩展的下载入口。安装程序本身不附带模型和 Python。
+安装 Inno Setup 6.5+ 后运行 `python scripts/build_asr_installer.py`，或用 `--iscc` 指定编译器路径。输出为 `downloads/featherclipper-asr-setup.exe`，并复制到扩展的下载入口。安装程序本身不附带模型和 Python。
 
 - `installer.iss`：安装页面、进度与日志、快捷方式、完成页和卸载
 - `setup-runtime.ps1`：由安装向导在后台调用的运行环境安装逻辑

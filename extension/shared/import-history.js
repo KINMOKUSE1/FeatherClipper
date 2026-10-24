@@ -1,6 +1,6 @@
 /* 按视频保存导入结果，读取时按课程归并；不保存字幕正文。 */
 (function (root) {
-  const prefix = "vid2notes:import-history:";
+  const prefix = "featherclipper:import-history:";
   function create(meta, page, base, result, importedAt = Date.now()) {
     if (!["saved", "exists"].includes(result.status) || !result.path) return null;
     const platform = meta.platform || "bilibili";

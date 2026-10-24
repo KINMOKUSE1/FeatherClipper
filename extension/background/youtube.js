@@ -153,7 +153,7 @@ async function youtubePageRead(videoId, includeAudio, playlistId) {
         const diagnostic = JSON.stringify(states.map(({ candidate, status }) => ({ source: candidate.source, status,
           idSource: candidate.evidence.idSource, ids: [...new Set(candidate.evidence.ids)] })));
         if (diagnostic !== lastDiagnostic) {
-          console.debug("[Vid2Notes YouTube] playlist", playlistId, diagnostic);
+          console.debug("[FeatherClipper YouTube] playlist", playlistId, diagnostic);
           lastDiagnostic = diagnostic;
         }
         if (accepted || Date.now() >= deadline) break;
@@ -192,7 +192,7 @@ async function youtubeTab(videoId, playlistId) {
   let tab = tabs.filter(matches).sort((a, b) => Number(b.status === "complete") - Number(a.status === "complete") || Number(b.active) - Number(a.active))[0];
   if (tab?.status === "complete") return tab;
   if (!tab) {
-    const key = "vid2notes-youtube-tab";
+    const key = "featherclipper-youtube-tab";
     const saved = (await chrome.storage.session.get(key))[key];
     const helper = saved && await chrome.tabs.get(saved.id).catch(() => null);
     const url = `https://www.youtube.com/watch?v=${videoId}${playlistId ? `&list=${playlistId}` : ""}`;
@@ -213,19 +213,19 @@ async function youtubeTab(videoId, playlistId) {
 const youtubePendingReads = new Map();
 let youtubeReadQueue = Promise.resolve();
 let youtubePreview = null;
-async function youtubeRead(videoId, includeBody = false, includeAudio = false, playlistId = "", purpose = "read") {
+async function youtubeRead(videoId, includeBody = false, includeAudio = false, playlistId = "", purpose = "read", trackId = "", subtitleLanguage = "") {
   if (!/^[\w-]{11}$/.test(videoId || "")) throw new Error("请输入有效的 YouTube 视频链接。");
   if (playlistId && !/^[\w-]{8,60}$/.test(playlistId)) throw new Error("YouTube 播放列表链接无效。");
-  const resultKey = `${videoId}:${includeBody}:${includeAudio}:${playlistId}`;
+  const resultKey = `${videoId}:${includeBody}:${includeAudio}:${playlistId}:${JSON.stringify([trackId, subtitleLanguage])}`;
   const requestKey = `${resultKey}:${purpose}`;
   if (youtubePendingReads.has(requestKey)) return youtubePendingReads.get(requestKey);
   const metadataOnly = !includeBody && !includeAudio;
   const timed = metadataOnly || includeBody;
-  const milliseconds = includeBody ? 5000 : 12000;
+  const milliseconds = includeBody ? 8000 : 12000;
   const expires = Date.now() + milliseconds;
   let timer;
   const controller = includeBody ? new AbortController() : null;
-  const timeoutError = () => new Error(includeBody ? "字幕获取超时（5 秒），请重试" : "视频信息读取超时，请在视频页加载完成后点击“读取”重试。");
+  const timeoutError = () => new Error(includeBody ? "字幕获取超时（8 秒），请重试" : "视频信息读取超时，请在视频页加载完成后点击“读取”重试。");
   const timeout = timed ? new Promise((resolve, reject) => { timer = setTimeout(() => { controller?.abort(); reject(timeoutError()); }, milliseconds); }) : null;
   const run = async existingTab => {
     if (timed && Date.now() >= expires) throw timeoutError();
@@ -238,7 +238,7 @@ async function youtubeRead(videoId, includeBody = false, includeAudio = false, p
     } else if (includeBody) youtubePreview = null;
     const tab = includeBody ? null : existingTab || await youtubeTab(videoId, playlistId);
     if (timed && Date.now() >= expires) throw timeoutError();
-    const request = includeBody ? youtubeSubtitleRead(videoId, controller.signal) : chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", ...(metadataOnly ? { injectImmediately: true } : {}), func: youtubePageRead, args: [videoId, includeAudio, playlistId] });
+    const request = includeBody ? youtubeSubtitleRead(videoId, controller.signal, trackId, subtitleLanguage) : chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", ...(metadataOnly ? { injectImmediately: true } : {}), func: youtubePageRead, args: [videoId, includeAudio, playlistId] });
     const results = await (timed ? Promise.race([request, timeout]) : request);
     if (timed && Date.now() >= expires) throw timeoutError();
     const result = includeBody ? results : results?.[0]?.result;

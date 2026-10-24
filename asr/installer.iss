@@ -5,11 +5,11 @@
 
 [Setup]
 AppId={{0D9B5EE6-9B9D-4266-9342-7E099B93508A}
-AppName=Vid2Notes 本地转写
+AppName=FeatherClipper 本地转写
 AppVersion={#AppVersion}
-AppPublisher=Vid2Notes
-DefaultDirName={localappdata}\Vid2Notes-ASR
-DefaultGroupName=Vid2Notes
+AppPublisher=FeatherClipper
+DefaultDirName={localappdata}\FeatherClipper-ASR
+DefaultGroupName=FeatherClipper
 DisableProgramGroupPage=yes
 DisableWelcomePage=no
 PrivilegesRequired=lowest
@@ -24,14 +24,14 @@ ExtraDiskSpaceRequired=2147483648
 Compression=lzma2
 SolidCompression=yes
 OutputDir=..\downloads
-OutputBaseFilename=vid2notes-asr-setup
-UninstallDisplayName=Vid2Notes 本地转写
+OutputBaseFilename=featherclipper-asr-setup
+UninstallDisplayName=FeatherClipper 本地转写
 
 [Languages]
 Name: "zhcn"; MessagesFile: "languages\ChineseSimplified.isl"
 
 [Messages]
-WelcomeLabel2=此向导将在所选目录中安装 Vid2Notes 本地转写组件。%n%n安装时联网下载 Python、转写依赖和 small 模型，模型约 461 MiB。选择 GPU 时还会下载约 1.3 GiB 的运行库。%n%n更新已有组件时，请先关闭原来的服务窗口，并选择原安装目录。
+WelcomeLabel2=此向导将在所选目录中安装 FeatherClipper 本地转写组件。%n%n安装时联网下载 Python、转写依赖和 small 模型，模型约 461 MiB。选择 GPU 时还会下载约 1.3 GiB 的运行库。%n%n更新已有组件时，请先关闭原来的服务窗口，并选择原安装目录。
 FinishedLabel=音频处理组件已安装完成。%n%n复制下方连接码，在工作台“音频转写”页面连接组件。以后可从开始菜单启动组件。
 
 [Tasks]
@@ -60,7 +60,7 @@ Type: filesandordirs; Name: "{app}\tools"
 Type: filesandordirs; Name: "{app}\model"
 Type: filesandordirs; Name: "{app}\cache"
 Type: filesandordirs; Name: "{app}\tmp"
-Type: files; Name: "{app}\.vid2notes-asr"
+Type: files; Name: "{app}\.featherclipper-asr"
 
 [Code]
 var

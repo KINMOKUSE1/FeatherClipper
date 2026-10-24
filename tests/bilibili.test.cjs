@@ -133,11 +133,11 @@ test('language preferences select each video track independently, including AI a
 });
 
 
-test('Bilibili nav, signed track list and caption body share one five-second budget', async () => {
+test('Bilibili nav, signed track list and caption body share one eight-second budget', async () => {
   const h = boot(), timeouts = [];
   h.context.AbortSignal = { timeout: ms => { timeouts.push(ms); return AbortSignal.timeout(ms); } };
   await h.read();
-  assert.deepEqual(timeouts, [5000]);
+  assert.deepEqual(timeouts, [8000]);
   assert.equal(h.calls.length, 3);
   assert.ok(h.calls.every(call => call.request.signal === h.calls[0].request.signal));
 });
@@ -146,6 +146,6 @@ test('an expired Bilibili subtitle budget stops before the next API and remains 
   const h = boot(), controller = new AbortController(), original = h.context.fetch;
   h.context.AbortSignal = { timeout: () => controller.signal };
   h.context.fetch = async (...args) => { const result = await original(...args); controller.abort(new DOMException('timeout', 'TimeoutError')); return result; };
-  await assert.rejects(h.read(), /字幕获取超时（5 秒）/);
+  await assert.rejects(h.read(), /字幕获取超时（8 秒）/);
   assert.equal(h.calls.length, 1);
 });

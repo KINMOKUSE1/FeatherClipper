@@ -33,7 +33,7 @@ test('local transcription uses YouTube audio found on the video page', async () 
 test('running old local service asks for restart before transcription', async () => {
   const context = vm.createContext({
     URL, URLSearchParams, AbortSignal,
-    fetch: async () => ({ ok: true, json: async () => ({ service: 'vid2notes-asr', version: 1, model_ready: true }) }),
+    fetch: async () => ({ ok: true, json: async () => ({ service: 'featherclipper-asr', version: 1, model_ready: true }) }),
     chrome: { runtime: { onMessage: { addListener() {} } }, storage: { local: { get: async () => ({ asrToken: 'saved-token' }) } } },
   });
   vm.runInContext(source, context);
@@ -48,7 +48,7 @@ test('saved connection code is reused after service restarts', async () => {
   const context = vm.createContext({
     URL, URLSearchParams, AbortSignal,
     fetch: async (url, options) => { requests.push({ url, options }); return { ok: true, json: async () => url.endsWith('/health')
-      ? { service: 'vid2notes-asr', version: 1, model_ready: true, audio_backups: true }
+      ? { service: 'featherclipper-asr', version: 1, model_ready: true, audio_backups: true }
       : { connected: true } }; },
     chrome: { runtime: { onMessage: { addListener() {} } }, storage: { local: { get: async () => ({ asrToken: 'saved-token' }) } } },
   });
@@ -56,7 +56,7 @@ test('saved connection code is reused after service restarts', async () => {
   const status = await context.asrStatus();
   assert.equal(status.connected, true);
   assert.equal(status.paired, true);
-  assert.deepEqual(Object.entries(requests.find(request => request.url.endsWith('/pair')).options.headers), [['X-Vid2Notes-Token', 'saved-token']]);
+  assert.deepEqual(Object.entries(requests.find(request => request.url.endsWith('/pair')).options.headers), [['X-FeatherClipper-Token', 'saved-token']]);
 });
 
 test('pairing is saved and reused by a new background worker', async () => {
@@ -67,7 +67,7 @@ test('pairing is saved and reused by a new background worker', async () => {
     set: async values => Object.assign(saved, values),
   } } };
   const fetch = async url => ({ ok: true, json: async () => url.endsWith('/health')
-    ? { service: 'vid2notes-asr', version: 1, model_ready: true, audio_backups: true }
+    ? { service: 'featherclipper-asr', version: 1, model_ready: true, audio_backups: true }
     : { connected: true } });
   const createWorker = () => {
     const context = vm.createContext({ URL, URLSearchParams, AbortSignal, fetch, chrome });
@@ -85,7 +85,7 @@ test('temporary connection failure does not ask for the saved code again', async
   const context = vm.createContext({
     URL, URLSearchParams, AbortSignal,
     fetch: async url => url.endsWith('/health')
-      ? { ok: true, json: async () => ({ service: 'vid2notes-asr', version: 1, model_ready: true, audio_backups: true }) }
+      ? { ok: true, json: async () => ({ service: 'featherclipper-asr', version: 1, model_ready: true, audio_backups: true }) }
       : { ok: false, status: 503, json: async () => ({ error: '暂时不可用' }) },
     chrome: { runtime: { onMessage: { addListener() {} } }, storage: { local: { get: async () => ({ asrToken: 'saved-token' }) } } },
   });
@@ -99,7 +99,7 @@ test('only a rejected saved code asks for pairing again', async () => {
   const context = vm.createContext({
     URL, URLSearchParams, AbortSignal,
     fetch: async url => url.endsWith('/health')
-      ? { ok: true, json: async () => ({ service: 'vid2notes-asr', version: 1, model_ready: true, audio_backups: true }) }
+      ? { ok: true, json: async () => ({ service: 'featherclipper-asr', version: 1, model_ready: true, audio_backups: true }) }
       : { ok: false, status: 401, json: async () => ({ error: '连接码不正确。' }) },
     chrome: { runtime: { onMessage: { addListener() {} } }, storage: { local: { get: async () => ({ asrToken: 'saved-token' }) } } },
   });
@@ -123,7 +123,7 @@ function onlineWorker(provider = 'groq', key = 'private-test-key', modelReady = 
     fetch: async (url, options) => {
       requests.push({ url, options });
       return { ok: true, json: async () => url.endsWith('/health')
-        ? { service: 'vid2notes-asr', version: 1, model_ready: modelReady, audio_backups: true, providers: ['local', 'groq', 'siliconflow'] }
+        ? { service: 'featherclipper-asr', version: 1, model_ready: modelReady, audio_backups: true, providers: ['local', 'groq', 'siliconflow'] }
         : url.endsWith('/jobs') ? { id: 'b'.repeat(32), status: 'queued' } : { connected: true } };
     },
     courseBiliJson: async () => ({ data: { dash: { audio: [{ baseUrl: 'https://first.bilivideo.com/audio' }] } } }),

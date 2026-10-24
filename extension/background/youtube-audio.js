@@ -39,11 +39,11 @@ async function youtubeAudioProof(candidate, signal) {
   if (!response.ok || !response.headers.get("content-type")?.includes("application/vnd.yt-ump") || !response.body) return false;
   let status = 0, total = 0;
   const reader = response.body.getReader();
-  const parser = new Vid2NotesSabr.UmpReader({ onPart(type, part) {
-    if (type !== Vid2NotesSabr.UMPPartId.STREAM_PROTECTION_STATUS) return;
+  const parser = new FeatherClipperSabr.UmpReader({ onPart(type, part) {
+    if (type !== FeatherClipperSabr.UMPPartId.STREAM_PROTECTION_STATUS) return;
     const bytes = new Uint8Array(part.totalLength); let offset = 0;
     for (const chunk of part.chunks) { bytes.set(chunk, offset); offset += chunk.length; }
-    status = Vid2NotesSabr.StreamProtectionStatus.decode(bytes).status;
+    status = FeatherClipperSabr.StreamProtectionStatus.decode(bytes).status;
   } });
   try {
     while (!status) {
@@ -85,7 +85,7 @@ async function youtubeAudioSource(videoId, jobId) {
       }
       const candidate = session.candidate;
       if (state?.url && candidate && new URL(candidate.url).searchParams.get("id") === new URL(state.url).searchParams.get("id")) {
-        const native = Vid2NotesSabr.VideoPlaybackAbrRequest.decode(candidate.body);
+        const native = FeatherClipperSabr.VideoPlaybackAbrRequest.decode(candidate.body);
         const token = native.streamerContext?.poToken;
         if (token?.length > 10) {
           sawProof = true;

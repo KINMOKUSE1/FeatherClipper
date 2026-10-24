@@ -6,7 +6,7 @@
 - `vendor.js` is generated local code, loaded by the background worker and audio page; no remote scripts or eval are used
 - Our session acquisition is in `background/youtube-audio.js`; download and duration validation are in `transcription/sabr/audio.js`
 
-To rebuild, download the pinned source, install esbuild 0.28.2 and @bufbuild/protobuf 2.16.0 in a temporary directory, and bundle these exports as a browser IIFE named `Vid2NotesSabr`:
+To rebuild, download the pinned source, install esbuild 0.28.2 and @bufbuild/protobuf 2.16.0 in a temporary directory, and bundle these exports as a browser IIFE named `FeatherClipperSabr`:
 
 ```js
 export { SabrStream } from './src/exports/sabr-stream.ts';

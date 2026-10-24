@@ -18,7 +18,7 @@
   async function download(input, signal) {
     if (!validSession(input)) throw new Error("YouTube 音频会话无效，请重新开始转写");
     signal.throwIfAborted();
-    const p = globalThis.Vid2NotesSabr, native = p.VideoPlaybackAbrRequest.decode(new Uint8Array(input.request));
+    const p = globalThis.FeatherClipperSabr, native = p.VideoPlaybackAbrRequest.decode(new Uint8Array(input.request));
     if (!native.streamerContext?.poToken?.length || !native.videoPlaybackUstreamerConfig?.length) throw new Error("YouTube 音频会话缺少播放校验");
     p.Logger.getInstance().setLogLevels(p.LogLevel.NONE);
     const formats = input.formats.map(p.buildSabrFormat), url = new URL(input.url);

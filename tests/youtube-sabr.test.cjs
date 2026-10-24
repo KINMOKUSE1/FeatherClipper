@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const { webcrypto } = require('node:crypto');
 const sabr = require('../extension/transcription/sabr/audio.js');
 const audio = require('../extension/transcription/audio.js');
-const wire = vm.runInNewContext(fs.readFileSync(require.resolve('../extension/transcription/sabr/vendor.js'), 'utf8') + '\nVid2NotesSabr', { TextEncoder, TextDecoder });
+const wire = vm.runInNewContext(fs.readFileSync(require.resolve('../extension/transcription/sabr/vendor.js'), 'utf8') + '\nFeatherClipperSabr', { TextEncoder, TextDecoder });
 function fixture() {
   const request = wire.VideoPlaybackAbrRequest.decode(new Uint8Array());
   request.videoPlaybackUstreamerConfig = new Uint8Array([1]);
@@ -44,7 +44,7 @@ function downloadHarness(mode) {
     }
     abort() { aborts++; try { this.controller?.error(new Error('stopped')); } catch {} }
   }
-  const context = vm.createContext({ module: { exports: {} }, Vid2NotesSabr: { ...wire, SabrStream: Stream },
+  const context = vm.createContext({ module: { exports: {} }, FeatherClipperSabr: { ...wire, SabrStream: Stream },
     Uint8Array, URL, crypto: webcrypto, btoa, AbortController, AbortSignal, Blob, setTimeout, clearTimeout, ReadableStream });
   vm.runInContext(fs.readFileSync(require.resolve('../extension/transcription/sabr/audio.js'), 'utf8'), context);
   return { download: context.module.exports.download, aborts: () => aborts };

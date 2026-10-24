@@ -43,7 +43,7 @@ window.createNotesDelivery = function ({ model, catalog, feedback, element, read
   get("builder-sync").addEventListener("click", () => run(async () => {
     await save();
     const files = core.buildFiles(model.config, model.resources), snapshot = JSON.stringify(files);
-    const selected = model.directory || await window.parent.showDirectoryPicker({ mode: "readwrite", id: "vid2notes-skills" });
+    const selected = model.directory || await window.parent.showDirectoryPicker({ mode: "readwrite", id: "featherclipper-skills" });
     model.directory = selected.name === "course-notes" ? selected : await selected.getDirectoryHandle("course-notes", { create: true });
     model.installedSnapshot = null; localStorage.removeItem(model.installationKey);
     await window.NoteFiles.writeFiles(model.directory, files);

@@ -183,7 +183,7 @@ test('an explicit YouTube popup transcription handoff survives caption failure',
 
 function handoffSearch(source, result) { return source + '&subtitlePreview=' + encodeURIComponent(JSON.stringify(result)); }
 test('workbench inherits the popup failure for the exact lesson without requesting captions again', async () => {
-  const state = { bvid: 'BV1234567890', cid: '4', status: 'failed', error: '字幕获取超时（5 秒），请重试' };
+  const state = { bvid: 'BV1234567890', cid: '4', status: 'failed', error: '字幕获取超时（8 秒），请重试' };
   const h = boot(handoffSearch('?bvid=BV1234567890&p=4&scope=all', state)); await h.catalog.init();
   assert.equal(h.calls.some(([action]) => action === 'preview'), false);
   assert.equal(h.catalog.getState().pages[3].status, 'failed');
@@ -217,4 +217,17 @@ test('foreign course, foreign lesson and malformed popup handoffs use a fresh pr
   }
   const h = boot('?bvid=BV1234567890&subtitlePreview=invalid'); await h.catalog.init();
   assert.equal(h.calls.filter(([action]) => action === 'preview').length, 1);
+});
+
+
+test('YouTube workbench inherits the selected language for previews and imports and clears it for another video', async () => {
+  const h = boot('?youtubeId=GWwL_pLuX-U&subtitleLanguage=en');
+  await h.catalog.init();
+  assert.equal(h.calls.find(([action]) => action === 'preview')[1].subtitleLanguage, 'en');
+  await h.catalog.request('import', { page: h.catalog.getState().pages[0] });
+  assert.equal(h.calls.find(([action]) => action === 'import')[1].subtitleLanguage, 'en');
+  await h.catalog.loadCourse();
+  assert.equal(h.calls.filter(([action]) => action === 'preview').at(-1)[1].subtitleLanguage, 'en');
+  await h.catalog.loadCourse({ source: 'https://www.youtube.com/watch?v=abcdef12345' });
+  assert.equal('subtitleLanguage' in h.calls.filter(([action]) => action === 'preview').at(-1)[1], false);
 });

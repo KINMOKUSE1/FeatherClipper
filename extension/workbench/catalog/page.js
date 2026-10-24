@@ -31,7 +31,7 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
   }
   function request(action, extra = {}) {
     return send({ type: "course-request", action, meta, base: $("folder").value,
-      ...(meta?.platform !== "youtube" && subtitleLanguage && ["preview", "import"].includes(action) ? { subtitleLanguage } : {}), ...extra });
+      ...(subtitleLanguage && ["preview", "import"].includes(action) ? { subtitleLanguage } : {}), ...extra });
   }
   async function updateIndex() {
     await request("index", { pages });
@@ -161,7 +161,8 @@ window.createCatalogPage = function ({ send, feedback, previewView, importAction
     const parsed = CourseCore.parseSource(source);
     if (!parsed) { status(ui.invalidSource, true); return; }
     currentPage = parsed.page;
-    subtitleLanguage = parsed.platform === "bilibili" ? options.subtitleLanguage ?? (meta?.bvid === parsed.id ? subtitleLanguage : "") : "";
+    const sameCourse = parsed.platform === "youtube" ? meta?.videoId === parsed.id || (parsed.playlistId && meta?.playlistId === parsed.playlistId) : meta?.bvid === parsed.id;
+    subtitleLanguage = options.subtitleLanguage ?? (sameCourse ? subtitleLanguage : "");
     loading = true; previewLoading = false; previewRun++; previewId = "";
     activeAsrPage = null; $("asr-panel").hidden = true;
     render(); syncControls(); status(ui.loading);

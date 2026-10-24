@@ -16,7 +16,7 @@ async function courseBiliJson(url, allowLoggedOut = false, signal) {
     }
     return payload;
   } catch (error) {
-    if (signal?.aborted) throw new Error("字幕获取超时（5 秒），请重试");
+    if (signal?.aborted) throw new Error("字幕获取超时（8 秒），请重试");
     throw error;
   }
 }
@@ -24,7 +24,7 @@ function formatLocalDate(value = Date.now()) {
   const date = new Date(value);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
-async function courseBiliSubtitleTracks(meta, page, signal = AbortSignal.timeout(5000)) {
+async function courseBiliSubtitleTracks(meta, page, signal = AbortSignal.timeout(8000)) {
   if (!/^\d+$/.test(meta.aid || "") || !meta.pages?.some(item => String(item.cid) === String(page.cid))) throw new Error("视频信息不完整，请重新读取目录");
   // 每次刷新重新获取签名信息和登录状态，不缓存字幕列表或正文。
   const nav = await courseBiliJson("https://api.bilibili.com/x/web-interface/nav", true, signal);
@@ -59,7 +59,7 @@ function normalizeSubtitleTracks(tracks) {
   };
   return [...tracks].sort((a, b) => priority(a) - priority(b));
 }
-async function courseReadBiliSubtitle(tracks, page, trackId = "", subtitleLanguage = "", signal = AbortSignal.timeout(5000)) {
+async function courseReadBiliSubtitle(tracks, page, trackId = "", subtitleLanguage = "", signal = AbortSignal.timeout(8000)) {
   const languageOf = value => String(value || "").toLowerCase().replace(/_/g, "-").replace(/^ai-/, "");
   const language = languageOf(subtitleLanguage);
   const selected = trackId ? tracks.filter(track => track.id === trackId) : language ? tracks.filter(track => {
@@ -87,9 +87,9 @@ async function courseReadBiliSubtitle(tracks, page, trackId = "", subtitleLangua
 }
 async function courseSubtitle(meta, page, purpose = "read", trackId = "", subtitleLanguage = "") {
   if (meta.platform === "youtube") {
-    const result = await youtubeRead(page.cid, true, false, "", purpose);
+    const result = await youtubeRead(page.cid, true, false, "", purpose, trackId, subtitleLanguage);
     return result.missing ? null : result;
   }
-  const signal = AbortSignal.timeout(5000);
+  const signal = AbortSignal.timeout(8000);
   return courseReadBiliSubtitle(await courseBiliSubtitleTracks(meta, page, signal), page, trackId, subtitleLanguage, signal);
 }

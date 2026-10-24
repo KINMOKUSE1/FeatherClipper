@@ -1,4 +1,4 @@
-"""Optional loopback service for Vid2Notes's local subtitle transcription."""
+"""Optional loopback service for FeatherClipper's local subtitle transcription."""
 
 import argparse
 import hmac
@@ -279,7 +279,7 @@ def make_handler(home, token):
             self.wfile.write(content)
 
         def authorized(self):
-            supplied = self.headers.get("X-Vid2Notes-Token", "")
+            supplied = self.headers.get("X-FeatherClipper-Token", "")
             if hmac.compare_digest(supplied, token):
                 return True
             self.send_json(401, {"error": "连接码不正确。"})
@@ -300,12 +300,12 @@ def make_handler(home, token):
             self.send_response(204)
             self.send_header("Access-Control-Allow-Origin", origin)
             self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Vid2Notes-Token")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-FeatherClipper-Token")
             self.end_headers()
 
         def do_GET(self):
             if self.path == "/health":
-                self.send_json(200, {"service": "vid2notes-asr", "version": 1,
+                self.send_json(200, {"service": "featherclipper-asr", "version": 1,
                                      "audio_backups": True, "youtube_audio": True,
                                      "gpu_enabled": gpu_requested(home) if (home / "config.json").is_file() else False,
                                      "device": MODEL_DEVICE if MODEL else "pending",
@@ -375,7 +375,7 @@ def make_handler(home, token):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Vid2Notes local ASR companion")
+    parser = argparse.ArgumentParser(description="FeatherClipper local ASR companion")
     parser.add_argument("--home", required=True, type=Path)
     options = parser.parse_args()
     home = options.home.resolve()
@@ -388,7 +388,7 @@ def main():
         server = ExclusiveLocalServer(("127.0.0.1", PORT), make_handler(home, token))
     except OSError as error:
         raise SystemExit(f"本地转写端口 {PORT} 已被占用。请关闭其他“启动本地转写”窗口后重试。({error})") from error
-    print(f"Vid2Notes 本地转写已启动：http://127.0.0.1:{PORT}", flush=True)
+    print(f"FeatherClipper 本地转写已启动：http://127.0.0.1:{PORT}", flush=True)
     print("连接码保存在安装目录的 config.json 中，请勿分享。", flush=True)
     try:
         server.serve_forever()
