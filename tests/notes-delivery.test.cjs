@@ -38,7 +38,8 @@ function boot(environment = 'web', directoryPicker = false) {
   const context = vm.createContext({ window, UiText: copy, CourseCore: { safeName: value => value },
     document: { getElementById: get, body: { append() {} } }, structuredClone, Blob,
     navigator: { clipboard: { writeText: async value => {if (control.clipboardError) throw control.clipboardError; control.beforeClipboard?.();clipboard.push(value);} } },
-    localStorage: { setItem: (key,value) => storage.set(key,value), removeItem: key => storage.delete(key) }, setTimeout: () => 1,
+    Preferences: { set: async (key,value) => { if (control.storageError) throw control.storageError; storage.set(key,value); }, remove: async key => storage.delete(key),
+      update: async values => { if (control.storageError) throw control.storageError; for (const [key,value] of Object.entries(values)) { if (value === null) storage.delete(key); else storage.set(key,value); } } }, setTimeout: () => 1,
     URL: { createObjectURL(blob) { const key = `blob:${blobs.size}`; blobs.set(key,blob); return key; }, revokeObjectURL() {} } });
   vm.runInContext(fs.readFileSync(require.resolve('../extension/workbench/notes/delivery.js'),'utf8'),context);
   window.createNotesDelivery({ model, catalog: {}, feedback: { settings: (_,message) => messages.push(message) }, element,
@@ -157,6 +158,15 @@ test('clipboard failure cannot mark a skill exported or installed', async () => 
   await h.get('copy-study-prompt').handlers.click();
   assert.equal(h.downloads.length,0); assert.equal(h.model.exportedSkillSnapshot,null); assert.equal(h.ready(),false);
   assert.match(h.messages.at(-1),/复制失败.*clipboard denied/); assert.equal(h.model.busy,false);
+});
+
+test('failed preference writes cannot mark a skill exported or installed', async () => {
+  const h = boot('local'); h.control.storageError = new Error('storage full');
+  await h.get('builder-confirm-installed').handlers.click();
+  assert.equal(h.ready(), false); assert.equal(h.model.installedSnapshot, null);
+  await h.get('copy-study-prompt').handlers.click();
+  assert.equal(h.model.exportedSkillSnapshot, null);
+  assert.match(h.messages.at(-1), /storage full/);
 });
 
 test('rules changed while export is pending are not falsely confirmed as the exported rules', async () => {

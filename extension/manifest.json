@@ -3,6 +3,7 @@
   "minimum_chrome_version": "116",
   "name": "FeatherClipper",
   "version": "1.3.5",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAr6/hqS6ziQUyC+bw1uusyiqBPWiwt7M6hSkZ8p8ZhrupsV1KNfLiKeOCSrUdgT26i50eTPhOn0/JYPjso8dXk6oHty3upscj7FLxAph/juAcnVhl7YPpCqT8NgqgGnyDuvjgvOPu8zWhg3nPG0tjAc5dTtnJTp6qkh/dKvvtlYEk+CUcFtftk1W4KK0UtVc2jV3flIQ4PNIa23D9Sz6MIBfRwT6cVhO8a/7cxzlflynqsqYzRrRS9tq8OCTlqbu0/UGQ3DTgB48eNx0wrbQXc5B2ftu2P86bxTQ1mXemen0LMR15pX8sAwUpRrJd9d/y4OF3vauzSWky4wdbagkLtQIDAQAB",
   "description": "__MSG_extensionDescription__",
   "permissions": [
     "storage",

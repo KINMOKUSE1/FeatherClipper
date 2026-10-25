@@ -754,7 +754,26 @@
   "选择界面语言": "Choose your language",
   "之后可在工作台左下角切换": "You can change this later at the bottom left of the workbench",
   "开始使用": "Get started",
-  "语言设置保存失败，请重试": "Could not save the language. Please try again"
+  "语言设置保存失败，请重试": "Could not save the language. Please try again",
+  "数据备份": "Data backup",
+  "设置与导入记录": "Settings and import history",
+  "包含笔记偏好和课程目录；恢复时替换同名设置，合并导入记录": "Includes note preferences and course catalogs; restores matching settings and merges import history",
+  "导出备份": "Export backup",
+  "恢复备份": "Restore backup",
+  "包含连接密钥": "Include connection keys",
+  "Obsidian、在线转写 Key 和本地组件连接码会以明文写入备份": "Obsidian and transcription API keys and the local component token will be saved as plain text",
+  "备份已导出": "Backup exported",
+  "请等待当前导入或课程读取完成后再恢复备份": "Wait for the current import or course loading to finish before restoring",
+  "备份包含无法识别的数据项": "The backup contains unrecognized data",
+  "备份中的设置格式无效": "Invalid settings in the backup",
+  "备份中的笔记偏好格式无效": "Invalid note preferences in the backup",
+  "备份中的技能状态格式无效": "Invalid skill state in the backup",
+  "备份中的转写设置格式无效": "Invalid transcription settings in the backup",
+  "备份中的课程目录格式无效": "Invalid course catalog in the backup",
+  "备份中的导入记录格式无效": "Invalid import history in the backup",
+  "备份中的 Obsidian 地址必须是本机地址": "The Obsidian address in the backup must be a local address",
+  "请选择 FeatherClipper 导出的备份文件": "Choose a backup exported by FeatherClipper",
+  "当前版本无法读取此备份版本": "This backup version is not supported"
 };
   if (typeof module !== "undefined" && module.exports) module.exports = messages;
   else (root.LocaleMessages ||= {})["en"] = messages;

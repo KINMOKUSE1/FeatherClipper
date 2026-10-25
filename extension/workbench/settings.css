@@ -47,10 +47,12 @@
 .configuration-guide .setup-steps li { padding: 14px 0; margin: 0; border-bottom: 1px solid var(--line); }
 .configuration-guide .setup-steps li:last-child { border-bottom: 0; }
 .preference-section { margin-top: 28px; }
-.note-preferences .settings-toggle { position: relative; appearance: none; width: 36px; height: 20px; min-height: 0; padding: 0; border: 0; border-radius: 12px; background: var(--line); justify-self: end; cursor: pointer; }
+.note-preferences .settings-toggle, .configuration-fields .settings-toggle { position: relative; appearance: none; width: 36px; height: 20px; min-height: 0; padding: 0; border: 0; border-radius: 12px; background: var(--line); justify-self: end; cursor: pointer; }
 .settings-toggle::before { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); transition: transform 160ms ease; }
 .note-preferences .settings-toggle:checked { background: var(--accent); }
 .settings-toggle:checked::before { transform: translateX(16px); }
+.configuration-fields .settings-toggle:checked { background: var(--accent); }
+.backup-actions { grid-column: 2; grid-row: 1 / span 2; align-self: center; display: flex; justify-content: flex-end; gap: 12px; }
 @media (max-width: 620px) {
   .settings-group { padding-inline: 12px; border-radius: 12px; }
   .settings-row { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; row-gap: 5px; padding: 12px 0; }
@@ -64,5 +66,6 @@
   .preferences-footer { align-items: flex-start; }
   .preferences-footer .settings-footer-info, .configuration-footer .settings-footer-info { flex-basis: 100%; }
   .configuration-footer .configuration-actions { margin-left: auto; }
+  .backup-actions { grid-column: 1; grid-row: 3; justify-content: flex-start; }
   .preferences-footer .configuration-actions { width: 100%; justify-content: flex-end; }
 }

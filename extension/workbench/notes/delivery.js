@@ -25,15 +25,16 @@ window.createNotesDelivery = function ({ model, catalog, feedback, element, read
     const files = core.buildFiles(model.config, model.resources), snapshot = JSON.stringify(files);
     await navigator.clipboard.writeText(UiText.forLocale(UiText.i18n.outputLocale()).notes.installPrompt);
     downloadSkill(files);
+    await Preferences.set(model.exportedSkillKey, snapshot);
     model.exportedSkillSnapshot = snapshot;
-    localStorage.setItem(model.exportedSkillKey, snapshot);
     showSettingsFeedback("note-status", ui.skillExported);
   }
   async function confirmInstallation() {
-    await save(); model.installedSnapshot = skillSnapshot(); model.installationMethod = "confirmed";
-    localStorage.setItem(model.installationKey, model.installedSnapshot);
-    localStorage.setItem(model.installationMethodKey, model.installationMethod);
-    model.exportedSkillSnapshot = null; localStorage.removeItem(model.exportedSkillKey);
+    await save();
+    const snapshot = skillSnapshot();
+    await Preferences.update({ [model.installationKey]: snapshot, [model.installationMethodKey]: "confirmed", [model.exportedSkillKey]: null });
+    model.installedSnapshot = snapshot; model.installationMethod = "confirmed";
+    model.exportedSkillSnapshot = null;
   }
   get("builder-install").addEventListener("click", () => run(exportSkill));
   get("builder-download").addEventListener("click", () => run(async () => {
@@ -46,11 +47,11 @@ window.createNotesDelivery = function ({ model, catalog, feedback, element, read
     const files = core.buildFiles(model.config, model.resources), snapshot = JSON.stringify(files);
     const selected = model.directory || await window.parent.showDirectoryPicker({ mode: "readwrite", id: "featherclipper-skills" });
     model.directory = selected.name === "course-notes" ? selected : await selected.getDirectoryHandle("course-notes", { create: true });
-    model.installedSnapshot = null; localStorage.removeItem(model.installationKey);
+    model.installedSnapshot = null; await Preferences.remove(model.installationKey);
     await window.NoteFiles.writeFiles(model.directory, files);
+    await Preferences.update({ [model.installationKey]: snapshot, [model.installationMethodKey]: "synced", [model.exportedSkillKey]: null });
     model.installedSnapshot = snapshot; model.installationMethod = "synced";
-    localStorage.setItem(model.installationKey, snapshot); localStorage.setItem(model.installationMethodKey, model.installationMethod);
-    model.exportedSkillSnapshot = null; localStorage.removeItem(model.exportedSkillKey);
+    model.exportedSkillSnapshot = null;
     showSettingsFeedback("note-status", ui.synced);
   }, ui.syncFailed));
   for (const [id, reference] of [["builder-web-materials", false], ["builder-web-reference", true]]) {

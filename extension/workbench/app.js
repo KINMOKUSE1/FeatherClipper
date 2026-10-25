@@ -13,6 +13,7 @@
   }
   async function start() {
     await I18n.ready;
+    await Preferences.init();
     const hosts = [...document.querySelectorAll("[data-page]")];
     const pages = await Promise.all(hosts.map(async host => {
       const response = await fetch(new URL(`${host.dataset.page}/page.html`, assetBase), { cache: "no-store" });
@@ -39,6 +40,7 @@
     const connection = createConnectionPage({ send, feedback, navigate, getCatalog: () => catalog });
     const transcription = createTranscriptionPage({ getCatalog: () => catalog, send, feedback, navigate, importAction, previewView });
     catalog = createCatalogPage({ send, feedback, previewView, importAction, connection, transcription });
+    createBackupPage({ feedback, getCatalog: () => catalog, navigate });
     createHistoryPage({ catalog, feedback, navigate });
     createNotesPage({ catalog, feedback, navigate, assetBase });
     window.WorkbenchApp.loadCourse = catalog.loadCourse;

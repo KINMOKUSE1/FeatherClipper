@@ -9,8 +9,8 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
   const form = get("skill-builder-form");
   const resourceBase = () => new URL(`notes/rules/${UiText.i18n.outputLocale() === "en" ? "en/" : ""}`, assetBase);
   const model = { config: core.defaults(), delivery: core.deliveryDefaults(), resources: null, loaded: false, busy: false, readingFiles: 0,
-    installationKey, installationMethodKey, exportedSkillKey, installedSnapshot: localStorage.getItem(installationKey),
-    installationMethod: localStorage.getItem(installationMethodKey) || "confirmed", exportedSkillSnapshot: localStorage.getItem(exportedSkillKey),
+    installationKey, installationMethodKey, exportedSkillKey, installedSnapshot: Preferences.get(installationKey),
+    installationMethod: Preferences.get(installationMethodKey) || "confirmed", exportedSkillSnapshot: Preferences.get(exportedSkillKey),
     directory: null, uploadedMaterials: [], uploadedReferences: [] };
   let previewFiles = [], previewPath = "SKILL.md";
   const fields = ["goal", "language", "granularity", "folder", "naming", "links", "instructions"];
@@ -118,8 +118,7 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
     try { renderFileList(core.buildFiles(model.config, model.resources)); }
     catch (error) { get("builder-source").textContent = error.message; }
     if (model.loaded) {
-      try { storePreferences(); }
-      catch (error) { get("builder-save-status").textContent = format(ui.saveFailed, { error: error.message }); }
+      storePreferences().catch(error => { get("builder-save-status").textContent = format(ui.saveFailed, { error: error.message }); });
     }
   }
   let draggedModule = null;
@@ -264,12 +263,12 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
       const [entry, agent, workflow, tasks, mermaid, markdown] = await Promise.all(responses.map(response => response.text()));
       model.resources = { entry, agent, workflow, tasks, mermaid, markdown };
     }
-    const saved = localStorage.getItem(storageKey);
+    const saved = Preferences.get(storageKey);
     if (saved) {
         const parsed = JSON.parse(saved);
         model.config = window.NoteDefaults.migrate({ ...core.defaults(), ...parsed }, parsed.outputLocale || "zh-CN", UiText.i18n.outputLocale());
       }
-    const savedDelivery = localStorage.getItem(deliveryKey);
+    const savedDelivery = Preferences.get(deliveryKey);
     if (savedDelivery) model.delivery = { ...core.deliveryDefaults(), ...JSON.parse(savedDelivery) };
     for (const name of fields) get(`builder-${name}`).value = model.config[name];
     for (const name of toggles) get(`builder-${name}`).checked = model.config[name];
@@ -278,14 +277,16 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
     model.loaded = true;
     document.fonts.ready.then(resizeTextareas);
   }
-  function storePreferences() {
-    localStorage.setItem(storageKey, JSON.stringify({ ...model.config, outputLocale: UiText.i18n.outputLocale() }));
-    localStorage.setItem(deliveryKey, JSON.stringify(model.delivery));
+  async function storePreferences() {
+    await Preferences.update({
+      [storageKey]: JSON.stringify({ ...model.config, outputLocale: UiText.i18n.outputLocale() }),
+      [deliveryKey]: JSON.stringify(model.delivery)
+    });
     get("builder-save-status").textContent = ui.autosaved;
   }
   async function save() {
     core.validate(read());
-    storePreferences();
+    await storePreferences();
     return model.config;
   }
   let formWidth = 0;

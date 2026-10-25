@@ -4,6 +4,8 @@ const SETTING_DEFAULTS = { noteFolder: "Clippings/Bilibili", obsidianApiBaseUrl:
 async function getMergedSettings() {
   const keys = Object.keys(SETTING_DEFAULTS);
   const [local, sync] = await Promise.all([chrome.storage.local.get(keys), chrome.storage.sync.get(keys)]);
+  const migrated = Object.fromEntries(keys.filter(key => local[key] === undefined && sync[key] !== undefined).map(key => [key, sync[key]]));
+  if (Object.keys(migrated).length) await chrome.storage.local.set(migrated);
   return { ...SETTING_DEFAULTS, ...sync, ...local };
 }
 function normalizeConnection(settings) {

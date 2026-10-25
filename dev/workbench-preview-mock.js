@@ -188,7 +188,7 @@
     await window.WorkbenchApp.ready;
     if (scenario === "empty") {
       const page = window.frameElement.dataset.page;
-      if (["notes", "history", "asr"].includes(page)) document.getElementById(page === "asr" ? "local-asr-settings" : `${page}-nav`).click();
+      if (["notes", "history", "asr", "backup"].includes(page)) document.getElementById(page === "asr" ? "local-asr-settings" : `${page}-nav`).click();
       return;
     }
     document.getElementById("url").value = scenario === "youtube"
@@ -196,6 +196,6 @@
       : `https://www.bilibili.com/video/BV1ps4y1d73V/?p=${scenario === "single" ? 1 : 4}`;
     await window.WorkbenchApp.loadCourse();
     const page = window.frameElement.dataset.page;
-    if (["notes", "history", "asr"].includes(page)) document.getElementById(page === "asr" ? "local-asr-settings" : `${page}-nav`).click();
+    if (["notes", "history", "asr", "backup"].includes(page)) document.getElementById(page === "asr" ? "local-asr-settings" : `${page}-nav`).click();
   });
 })();

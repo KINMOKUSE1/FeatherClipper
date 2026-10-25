@@ -1,0 +1,19 @@
+<section id="backup-page" class="configuration-page" aria-labelledby="backup-title" hidden>
+  <div class="settings-scroll">
+    <header class="preferences-heading"><h1 id="backup-title" data-i18n="数据备份">数据备份</h1></header>
+    <div class="configuration-fields settings-group">
+      <div class="settings-row">
+        <span class="settings-row-title" data-i18n="设置与导入记录">设置与导入记录</span>
+        <p class="field-help" data-i18n="包含笔记偏好和课程目录；恢复时替换同名设置，合并导入记录">包含笔记偏好和课程目录；恢复时替换同名设置，合并导入记录</p>
+        <div class="backup-actions"><button id="export-backup" class="text-button" type="button" data-i18n="导出备份">导出备份</button><button id="restore-backup" class="text-button" type="button" data-i18n="恢复备份">恢复备份</button></div>
+        <input id="backup-file" type="file" accept=".json,application/json" hidden>
+      </div>
+      <div class="settings-row">
+        <label for="backup-secrets" data-i18n="包含连接密钥">包含连接密钥</label>
+        <p class="field-help" data-i18n="Obsidian、在线转写 Key 和本地组件连接码会以明文写入备份">Obsidian、在线转写 Key 和本地组件连接码会以明文写入备份</p>
+        <input id="backup-secrets" class="settings-toggle" type="checkbox">
+      </div>
+    </div>
+  </div>
+  <footer class="configuration-footer"><div class="settings-footer-info"><div class="settings-feedback" hidden><p id="backup-status" role="status" aria-live="polite"></p><button class="settings-feedback-close" type="button" aria-label="关闭提示" data-i18n-aria-label="关闭提示">×</button></div></div></footer>
+</section>
