@@ -69,7 +69,6 @@ h2 { font-size: 20px; font-weight: 500; }
 /* Official Lucide assets already bundled with the extension. */
 .icon { display: inline-block; width: 16px; height: 16px; flex: none; background: currentColor; mask: var(--icon) center / contain no-repeat; }
 .icon-settings { --icon: url("../shared/icons/lucide/settings-2.svg"); }
-.icon-backup { --icon: url("../shared/icons/lucide/database-backup.svg"); }
 .icon-chapters { --icon: url("../shared/icons/lucide/list-tree.svg"); }
 .icon-history { --icon: url("../shared/icons/lucide/rotate-ccw.svg"); }
 .icon-search { --icon: url("../shared/icons/lucide/search.svg"); }

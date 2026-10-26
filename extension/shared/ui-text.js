@@ -76,10 +76,6 @@
       removed: "记录已移除，字幕文件保留"
     },
     // 连接配置
-    backup: {
-      exported: "备份已导出",
-      wait: "请等待当前导入或课程读取完成后再恢复备份"
-    },
     connection: {
       configured: "已配置",
       unconfigured: "未配置",

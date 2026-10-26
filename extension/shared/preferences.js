@@ -19,9 +19,8 @@
     pending = write;
     return write;
   }
-  const api = { keys, init, update, get: key => values[key] ?? null,
-    set: (key, value) => update({ [key]: value }), remove: key => update({ [key]: null }),
-    flush: () => pending };
+  const api = { init, update, get: key => values[key] ?? null,
+    set: (key, value) => update({ [key]: value }), remove: key => update({ [key]: null }) };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.Preferences = api;
 })(globalThis);

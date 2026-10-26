@@ -2,7 +2,7 @@
 window.createWorkbenchShell = function () {
   const workbenchPages = [
     ["catalog-page", "catalog-nav"], ["history-page", "history-nav"], ["note-preferences-page", "notes-nav"],
-    ["asr-page", "local-asr-settings"], ["connection-page", "settings"], ["backup-page", "backup-nav"]
+    ["asr-page", "local-asr-settings"], ["connection-page", "settings"]
   ];
   function showWorkbenchPage(pageId) {
     for (const [id, navId] of workbenchPages) {

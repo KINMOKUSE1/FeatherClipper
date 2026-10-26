@@ -1,14 +1,40 @@
-# FeatherClipper
+<p align="center">
+  <img src="./extension/shared/icons/icon128.png" width="72" alt="FeatherClipper">
+</p>
 
-简体中文 · [English](./README.en.md)
+<h1 align="center">FeatherClipper</h1>
 
-一个收集网课素材，并借助 AI 按个人偏好整理成学习笔记的轻量浏览器扩展。
+<p align="center">
+  收集网课素材，借助 AI 按个人偏好整理成学习笔记
+</p>
 
----
+<p align="center">
+  <a href="https://github.com/KINMOKUSE1/FeatherClipper/releases">
+    <img src="https://img.shields.io/github/v/release/KINMOKUSE1/FeatherClipper?style=flat-square&label=Release" alt="最新版本">
+  </a>
+  <a href="./LICENSE">
+    <img src="https://img.shields.io/github/license/KINMOKUSE1/FeatherClipper?style=flat-square" alt="MIT License">
+  </a>
+  <img src="https://img.shields.io/badge/Chrome%20%7C%20Edge-supported-526f63?style=flat-square" alt="支持 Chrome 和 Edge">
+</p>
 
-FeatherClipper 面向课程学习，支持 Chrome / Edge，适用于单个视频、B站分 P 和 YouTube 播放列表。从字幕预览、批量导入，到音频转写和个性化笔记整理，在同一个工作台完成素材准备。
+<p align="center">
+  <a href="https://github.com/KINMOKUSE1/FeatherClipper/releases">下载扩展</a> ·
+  <a href="#开始使用">开始使用</a> ·
+  <a href="./使用说明.md">使用说明</a> ·
+  <a href="./docs/开发指南.md">开发指南</a>
+</p>
 
-[安装与使用](#开始使用) · [使用说明](./使用说明.md) · [开发指南](./docs/开发指南.md)
+<p align="center">
+  简体中文 · <a href="./README.en.md">English</a>
+</p>
+
+<br>
+
+<p align="center">
+  <img src="./docs/images/workbench-youtube.png" width="100%" alt="课程工作台：选择课时、核对字幕并批量导入">
+</p>
+
 
 ## 动机
 
@@ -22,12 +48,12 @@ FeatherClipper 面向课程学习，支持 Chrome / Edge，适用于单个视频
 
 ## 功能
 
-- **界面语言**：支持简体中文、English 和繁體中文；英文与繁中模式使用英文生成说明、规则和默认路径，保留原始素材及自定义内容
 - **字幕采集**：识别当前视频和分 P，预览字幕；B站支持切换字幕语言
 - **复制与导出**：复制完整的 Markdown 字幕，或保存为 `.md` 文件
 - **导入记录**：按课程系列归并，展示封面、最近导入时间和已导入数量；可从记录返回课程素材，继续导入剩余视频
 - **个性化笔记**：配置学习目标、语言、笔记结构和 YAML 属性，生成适用于本地 agent 或网页 AI 的整理规则与任务指令
 - **音频转写**：为无字幕视频选择本地模型、Groq 或硅基流动，转写后导入笔记库
+
 
 ## 开始使用
 
@@ -55,4 +81,4 @@ https://github.com/user-attachments/assets/293886fa-db54-4d43-8468-c5f47a63a69a
 
 YouTube 字幕请求流程参考 [youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api)，Obsidian 连接使用 [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api)。
 
-[MIT License](./LICENSE)
+[MIT License](./LICENSE)[[]]

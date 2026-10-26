@@ -40,7 +40,6 @@
     const connection = createConnectionPage({ send, feedback, navigate, getCatalog: () => catalog });
     const transcription = createTranscriptionPage({ getCatalog: () => catalog, send, feedback, navigate, importAction, previewView });
     catalog = createCatalogPage({ send, feedback, previewView, importAction, connection, transcription });
-    createBackupPage({ feedback, getCatalog: () => catalog, navigate });
     createHistoryPage({ catalog, feedback, navigate });
     createNotesPage({ catalog, feedback, navigate, assetBase });
     window.WorkbenchApp.loadCourse = catalog.loadCourse;
