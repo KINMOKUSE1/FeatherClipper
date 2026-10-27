@@ -1,84 +1,92 @@
-<p align="center">
+<div align="center">
   <img src="./extension/shared/icons/icon128.png" width="72" alt="FeatherClipper">
-</p>
 
-<h1 align="center">FeatherClipper</h1>
 
-<p align="center">
-  收集网课素材，借助 AI 按个人偏好整理成学习笔记
-</p>
+# FeatherClipper
 
-<p align="center">
-  <a href="https://github.com/KINMOKUSE1/FeatherClipper/releases">
-    <img src="https://img.shields.io/github/v/release/KINMOKUSE1/FeatherClipper?style=flat-square&label=Release" alt="最新版本">
-  </a>
-  <a href="./LICENSE">
-    <img src="https://img.shields.io/github/license/KINMOKUSE1/FeatherClipper?style=flat-square" alt="MIT License">
-  </a>
-  <img src="https://img.shields.io/badge/Chrome%20%7C%20Edge-supported-526f63?style=flat-square" alt="支持 Chrome 和 Edge">
-</p>
 
-<p align="center">
-  <a href="https://github.com/KINMOKUSE1/FeatherClipper/releases">下载扩展</a> ·
-  <a href="#开始使用">开始使用</a> ·
-  <a href="./使用说明.md">使用说明</a> ·
-  <a href="./docs/开发指南.md">开发指南</a>
-</p>
+**Collect technical tutorials and online course materials, then turn them into study notes tailored to your preferences with AI.**<br>
+**收集技术教程、网课素材，借助 AI 按个人偏好整理成学习笔记.**
 
-<p align="center">
-  简体中文 · <a href="./README.en.md">English</a>
-</p>
 
+[简体中文](./README.zh-CN.md) | English
+
+
+<img src="./docs/images/workbench-youtube.png" width="100%" alt="Course workbench: select lessons, review subtitles, and batch import">
 <br>
-
-<p align="center">
-  <img src="./docs/images/workbench-youtube.png" width="100%" alt="课程工作台：选择课时、核对字幕并批量导入">
-</p>
-
-
-## 动机
-
-目前已有不少开源免费的字幕导入工具，如 [Bilibili-Obsidian-Clipper](https://github.com/haixiong1997/Bilibili-Obsidian-Clipper) 与 [Obsidian Web Clipper](https://github.com/obsidianmd/obsidian-clipper)。在字幕采集的基础上，本项目进一步关注：
-
-- 多 P 课程和播放列表的批量导入
-- 从素材收集到学习笔记整理的完整流程
-- 无字幕视频的音频转写
-
-因此，本项目以 Obsidian 作为课程素材与学习笔记的存储空间，围绕课程学习整合所需功能，支持在线 API 和本地模型音频转写。同时，提供可自定义的结构化 skill / prompt，方便不熟悉 MCP 的用户及网页 AI 用户准备材料，并按个人偏好生成课程笔记。
-
-## 功能
-
-- **字幕采集**：识别当前视频和分 P，预览字幕；B站支持切换字幕语言
-- **复制与导出**：复制完整的 Markdown 字幕，或保存为 `.md` 文件
-- **导入记录**：按课程系列归并，展示封面、最近导入时间和已导入数量；可从记录返回课程素材，继续导入剩余视频
-- **个性化笔记**：配置学习目标、语言、笔记结构和 YAML 属性，生成适用于本地 agent 或网页 AI 的整理规则与任务指令
-- **音频转写**：为无字幕视频选择本地模型、Groq 或硅基流动，转写后导入笔记库
+<br>
+<a href="https://github.com/KINMOKUSE1/FeatherClipper/releases">
+  <img src="https://img.shields.io/github/v/release/KINMOKUSE1/FeatherClipper?style=flat-square&label=Release" alt="Latest release">
+</a>
+<a href="./LICENSE">
+  <img src="https://img.shields.io/github/license/KINMOKUSE1/FeatherClipper?style=flat-square" alt="MIT License">
+</a>
+<img src="https://img.shields.io/badge/Chrome%20%7C%20Edge-supported-526f63?style=flat-square" alt="Supports Chrome and Edge">
 
 
-## 开始使用
 
-1. 下载源码，在 Chrome / Edge 的扩展管理页开启开发者模式，加载 `extension/` 文件夹
-2. 在 Obsidian 中安装并启用 Local REST API，在扩展中填写连接信息
-3. 打开视频，选择课时并导入素材；进入“整理笔记”，配置规则后，将材料和指令交给 AI
+<a href="https://github.com/KINMOKUSE1/FeatherClipper/releases">Download extension</a> ·
+<a href="#getting-started">Getting started</a> ·
+<a href="./USER_GUIDE.md">User guide</a> ·
+<a href="./docs/DEVELOPMENT.md">Development guide</a>
 
-仅复制或导出字幕时，无需连接 Obsidian。本地转写组件按需安装。
+</div>
 
-详细操作见[使用说明](./使用说明.md)。
+> **中文用户请阅读 [README.zh-CN.md](./README.zh-CN.md)，查看完整中文说明。**<br>
+> English readers: the full guide is below.
 
-## 安装
+
+
+
+## What is FeatherClipper?
+
+FeatherClipper is a Chrome / Edge browser extension for technical tutorials and online courses. It supports Bilibili and YouTube subtitle extraction, batch imports of multi-part videos and playlists into Obsidian, and audio transcription for videos without subtitles. Configure note structure and writing rules to suit your preferences, then generate skills, prompts, and task materials for local AI agents or web AI to turn course materials into Markdown study notes.
+
+- **Subtitle collection**: identify the current video and its parts and preview subtitles; Bilibili supports subtitle language selection
+- **Batch import**: select lessons from multi-part Bilibili videos or YouTube playlists and import them into Obsidian
+- **Copy and export**: copy full Markdown subtitles or save them as `.md` files
+- **Import history**: group records by course series, showing covers, the latest import time, and imported counts; return to course materials to import remaining videos
+- **Personalized notes**: configure learning goals, language, note structure, and YAML properties to generate rules and task instructions for local agents or web AI
+- **Audio transcription**: choose a local model, Groq, or SiliconFlow for videos without subtitles and import the transcript into your vault
+
+## Getting started
+
+1. Download the source, enable developer mode in Chrome / Edge's extension manager, and load the `extension/` directory
+2. Install and enable Local REST API in Obsidian, then enter the connection details in the extension
+3. Open a video, select lessons, and import the materials; open “Study notes”, configure the rules, and give the materials and instructions to your AI
+
+> Copying or exporting subtitles does not require Obsidian. Install the local transcription component when needed; online services are recommended.
+
+<div align="center">
+Installation demo:
 
 https://github.com/user-attachments/assets/293886fa-db54-4d43-8468-c5f47a63a69a
 
-## 开发
+See the [user guide](./USER_GUIDE.md) for detailed steps.
+</div>
 
-使用 HTML、CSS 和 JavaScript，开发预览与正式扩展共用一份实现，无需编译。
+## Why FeatherClipper?
 
-目录职责、预览与测试方法见[开发指南](./docs/开发指南.md)。
+You might come across an interesting tutorial without time to watch it and want to save the material for later. You might ask AI to extract the main points before deciding whether to study it in depth. Or you might finish several lessons and need to organize, review, and keep your notes as a starting point for the next study session; ~~or perhaps you have more tokens than you know what to do with and just can't resist spending them (≖ᴗ≖)✧~~
 
-## 致谢与许可
+Collecting and organizing materials do not always happen at the same time. Existing Bilibili and YouTube MCP tools can already retrieve subtitles and work with AI to produce notes. FeatherClipper focuses on connecting these steps: **collect and save video materials in one place, then organize them when needed.**
 
-基于 [Bilibili-Obsidian-Clipper](https://github.com/haixiong1997/Bilibili-Obsidian-Clipper) 二次开发，保留原项目署名。
+Rewriting prompts for every session adds repetitive work and can lead to inconsistent note structure and levels of detail. **FeatherClipper therefore provides skills and prompts you can customize and save, preserving note structure, writing requirements, and personal preferences as reusable rules.**
 
-YouTube 字幕请求流程参考 [youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api)，Obsidian 连接使用 [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api)。
+FeatherClipper also aims to lower the barrier to AI-assisted learning, so self-directed learners unfamiliar with AI tools can get started easily. The project supports local agents and prepares materials and instructions for web AI users, allowing personal rules to be reused and adjusted as learning needs change.
 
-[MIT License](./LICENSE)[[]]
+The project uses Obsidian as the home for materials and study notes. It combines Markdown editing with knowledge management and offers a rich plugin ecosystem that supports AI agent integration. This connects material collection, note organization, reading, and review within one application, completing the learning workflow.
+
+## Development
+
+Built with HTML, CSS, and JavaScript. Development previews share the extension's implementation and require no build step.
+
+See the [development guide](./docs/DEVELOPMENT.md) for directory responsibilities, previews, and tests.
+
+## Credits and license
+
+Based on [Bilibili-Obsidian-Clipper](https://github.com/haixiong1997/Bilibili-Obsidian-Clipper), with the original attribution retained.
+
+YouTube subtitle requests reference [youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api). Obsidian connectivity uses [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api).
+
+[MIT License](./LICENSE)
