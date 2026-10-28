@@ -55,4 +55,4 @@ Local agents save outputs within allowed directories, retain raw materials in th
 
 Web AI delivers completed content as Markdown or downloadable .md files for the user to save in suggested locations. For multi-round delivery, state completed scope, stopping point, and remaining content. Preserve existing content when revising long notes and return the complete revision when finished. Include a suggested progress document when enabled
 
-Completion status refers to the actual scope processed. Report output locations or suggested filenames and items to verify. Review and questions deliver an answer by default; modify notes only when the user explicitly requests it
+Completion status refers to the actual scope processed. Report output locations or suggested filenames and items to verify. Review & Q&A deliver an answer by default; modify notes only when the user explicitly requests it

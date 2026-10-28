@@ -276,7 +276,7 @@ test('notes UI blocks multiple videos and restores local granularity after switc
   for (const name of toggles) h.get(`builder-${name}`).checked = model.config[name];
   const source = fs.readFileSync(require.resolve('../extension/workbench/notes/page.js'), 'utf8');
   const context = vm.createContext({ model, core: generator, ui: copy.notes, UiText: copy, format: copy.format, get: h.get,
-    catalog: { getState: () => ({ pages }) }, fields, deliveryFields, toggles, form: { querySelectorAll: () => [] }, window: { parent: {} } });
+    catalog: { getState: () => ({ pages }) }, fields, deliveryFields, toggles, form: { querySelectorAll: () => [] }, decorateFileInput() {}, window: { parent: {} } });
   const view = vm.runInContext(source.slice(source.indexOf('  function read()'), source.indexOf('  function renderFileList')) + '\n({ read, updateDelivery })', context);
   view.updateDelivery();
   h.get('builder-environment').value = 'web'; view.read(); view.updateDelivery();

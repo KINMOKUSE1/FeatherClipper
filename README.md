@@ -57,10 +57,18 @@ FeatherClipper is a Chrome / Edge browser extension for technical tutorials and 
 
 > Copying or exporting subtitles does not require Obsidian. Install the local transcription component when needed; online services are recommended.
 
+**Manual Installation:**
 <div align="center">
-Installation demo:
 
-https://github.com/user-attachments/assets/293886fa-db54-4d43-8468-c5f47a63a69a
+https://github.com/user-attachments/assets/0da511f3-9114-42ee-9540-cd838d141ff4
+
+See the [user guide](./USER_GUIDE.md) for detailed steps.
+</div>
+
+**Connect to your Obsidian:**
+<div align="center">
+
+https://github.com/user-attachments/assets/bfcf0862-cf3f-4f90-88b8-fd87255233e9
 
 See the [user guide](./USER_GUIDE.md) for detailed steps.
 </div>

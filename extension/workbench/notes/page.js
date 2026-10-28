@@ -16,7 +16,7 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
   const fields = ["goal", "language", "granularity", "folder", "naming", "links", "instructions"];
   const deliveryFields = ["environment", "task", "reference", "question", "paths", "format"];
   const toggles = ["external", "progress"];
-  const { element, action, decorateSelect, positionSelectMenu, resizeTextareas } = createNoteControls(form);
+  const { element, action, decorateSelect, decorateFileInput, positionSelectMenu, resizeTextareas } = createNoteControls(form);
   const { settings: showSettingsFeedback } = feedback;
   function read() {
     for (const name of fields) if (name !== "granularity" || !get("builder-granularity").disabled) model.config[name] = get(`builder-${name}`).value;
@@ -99,6 +99,7 @@ window.createNotesPage = function ({ catalog, feedback, navigate, assetBase }) {
     state.textContent = isReady ? model.installationMethod === "synced" ? ui.syncReady : ui.installed : pending ? ui.pending : state.dataset.state === "dirty" ? ui.dirty : ui.missing;
     const selected = catalog.getState().pages.filter(page => page.selected).length;
     get("builder-material-count").textContent = web && model.uploadedMaterials.length ? ui.uploadedMaterial : selected ? format(ui.materialCount, { count: selected }) : ui.noMaterials;
+    form.querySelectorAll('input[type="file"]').forEach(decorateFileInput);
   }
   function renderFileList(files, selected = previewPath) {
     previewFiles = files; previewPath = files.some(file => file.path === selected) ? selected : files[0].path;

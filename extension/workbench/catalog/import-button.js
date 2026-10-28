@@ -21,7 +21,7 @@ window.createImportButton = function ({ onActivate, clearStatus }) {
   buttonContent.className = "import-button-content";
   buttonContent.append(buttonIcon, buttonLabel, buttonCount);
   importButton.replaceChildren(buttonFill, buttonWash, buttonContent);
-  let importState = "idle", importDone = 0, importTotal = 0, importPhase = ui.phase, importResult = "", importResultDetail = "";
+  let importState = "idle", importDone = 0, importTotal = 0, importPhase = ui.phase, importResult = "", importResultDetail = null;
   let importResultTimer;
   let renderedButtonState = "", contentAnimation = null, outgoingContent = null, washAnimation = null, countAnimation = null;
   const reducedButtonMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -69,10 +69,11 @@ window.createImportButton = function ({ onActivate, clearStatus }) {
       : ["warning", "error"].includes(buttonState) ? "import-button-result" : "icon icon-save";
     if (["warning", "error"].includes(buttonState)) buttonIcon.textContent = "!";
     if (buttonLabel.textContent !== text) buttonLabel.textContent = text;
+    const detail = resultDetail();
     importButton.setAttribute("aria-label", busy
-      ? format(ui.progressLabel, { text, done: importDone, total: importTotal, cancel: stopping ? "" : ui.cancelSuffix }) : importResultDetail || text);
+      ? format(ui.progressLabel, { text, done: importDone, total: importTotal, cancel: stopping ? "" : ui.cancelSuffix }) : detail || text);
     importButton.setAttribute("aria-busy", String(busy));
-    importButton.title = busy ? stopping ? ui.stoppingHint : ui.cancelHint : importResultDetail;
+    importButton.title = busy ? stopping ? ui.stoppingHint : ui.cancelHint : detail;
     if (outgoing) {
       outgoingContent = outgoing;
       importButton.append(outgoing);
@@ -98,29 +99,33 @@ window.createImportButton = function ({ onActivate, clearStatus }) {
   });
   function resetImportButton() {
     clearTimeout(importResultTimer);
-    importState = "idle"; importDone = 0; importTotal = 0; importResult = ""; importResultDetail = "";
+    importState = "idle"; importDone = 0; importTotal = 0; importResult = ""; importResultDetail = null;
     renderImportAction();
   }
   function setImportProgress(done, total, phase = ui.phase) {
     clearTimeout(importResultTimer);
     importState = "running"; importDone = done; importTotal = total; importPhase = phase;
-    importResult = ""; importResultDetail = "";
+    importResult = ""; importResultDetail = null;
     renderImportAction();
+  }
+  function resultDetail() {
+    if (!importResultDetail) return "";
+    const { label, counts, remaining, error, detail } = importResultDetail;
+    const summary = [[ui.summarySaved, counts.saved], [ui.summaryExists, counts.exists], [ui.summaryMissing, counts.missing], [ui.summaryFailed, counts.failed], [ui.summaryRemaining, remaining]]
+      .filter(([, count]) => count > 0).map(([name, count]) => `${name} ${count}`);
+    return [[UiText.i18n.error(label), ...summary].join(" · "), UiText.i18n.error(error), UiText.i18n.error(detail)].filter(Boolean).join("\n");
   }
   function reportImportResult(label, counts, remaining, error = null, detail = "", canceled = false) {
     if (canceled && !error) label = ui.canceled;
-    const summary = [[ui.summarySaved, counts.saved], [ui.summaryExists, counts.exists], [ui.summaryMissing, counts.missing], [ui.summaryFailed, counts.failed], [ui.summaryRemaining, remaining]]
-      .filter(([, count]) => count > 0).map(([name, count]) => `${name} ${count}`);
-    const text = [[label, ...summary].join(" · "), error?.message, detail].filter(Boolean).join("\n");
     clearStatus();
     importState = error || counts.failed ? "error" : canceled ? "canceled" : remaining || counts.missing ? "warning" : "complete";
     importResult = error ? label : canceled ? format(ui.canceledCount, { done: importDone, total: importTotal }) : remaining ? `${label} ${importDone}/${importTotal}`
       : counts.failed ? format(ui.failedCount, { count: counts.failed }) : counts.missing ? format(ui.missingCount, { count: counts.missing })
       : counts.saved ? format(ui.savedCount, { count: counts.saved }) : counts.exists ? format(ui.existsCount, { count: counts.exists }) : label;
-    importResultDetail = text;
+    importResultDetail = { label, counts: { ...counts }, remaining, error: error?.message, detail };
     renderImportAction();
     importResultTimer = setTimeout(resetImportButton, 4800);
-    return text;
+    return resultDetail();
   }
   return { render: renderImportAction, reset: resetImportButton, progress: setImportProgress, result: reportImportResult };
 };

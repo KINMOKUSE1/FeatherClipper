@@ -8,7 +8,7 @@ let subtitleMissing = false, subtitleReadFailed = false, subtitleError = "";
 let subtitle = null, exporting = false;
 let subtitleTracks = [], selectedTrackId = "", subtitleLanguage = "", languageMenuOpen = false;
 function status(text, error = false) {
-  $("status").textContent = text; $("status").classList.toggle("error", error);
+  $("status").textContent = UiText.i18n.error(text); $("status").classList.toggle("error", error);
 }
 async function send(message) {
   const result = await chrome.runtime.sendMessage(message);
@@ -52,7 +52,7 @@ function controls() {
   $("save-menu-toggle").hidden = all;
   $("save-menu-toggle").disabled = $("copy-subtitle").disabled = $("download-subtitle").disabled = locked || !page || !hasSubtitle || all;
   if ($("save-menu-toggle").disabled) closeSaveMenu();
-  $("import-label").textContent = busy ? ui.saving : all ? format(ui.saveCourse, { count: meta.pages.length, unit: meta.platform === "youtube" ? ui.videoUnit : "P" }) : meta?.pages.length > 1 ? ui.saveCurrent : ui.save;
+  $("import-label").textContent = busy ? ui.saving : all ? format(ui.saveCourse, { count: meta.pages.length, unit: meta.platform === "youtube" ? ui.videoUnit : ui.partUnit }) : meta?.pages.length > 1 ? ui.saveCurrent : ui.save;
   $("scope-current").disabled = $("scope-all").disabled = locked;
   $("subtitle-language").disabled = locked;
   if (locked) closeLanguageMenu();
@@ -239,7 +239,7 @@ async function loadVideo() {
     if (run !== videoRun) return;
     base = storedBase[baseKey] || data.folder;
     const series = meta.pages.length > 1;
-    const unit = meta.platform === "youtube" ? ui.videoUnit : "P";
+    const unit = meta.platform === "youtube" ? ui.videoUnit : ui.partUnit;
     $("video-meta").textContent = format(ui.videoMeta, { platform: meta.platform === "youtube" ? "YouTube" : "Bilibili", description: series ? format(ui.series, { count: meta.pages.length, unit }) : ui.singleVideo });
     $("course-name").textContent = meta.title;
     $("part-name").textContent = page.part;
@@ -354,8 +354,8 @@ UiText.i18n.subscribe(() => {
   }
   if (meta) {
     const count = meta.pages.length;
-    $("video-meta").textContent = format(ui.videoMeta, { platform: meta.platform === "youtube" ? "YouTube" : UiText.i18n.t("B站"), description: count > 1 ? format(ui.series, { count, unit: meta.platform === "youtube" ? ui.videoUnit : "P" }) : ui.singleVideo });
-    $("scope-all").textContent = format(ui.wholeCourse, { count, unit: meta.platform === "youtube" ? ui.videoUnit : "P" });
+    $("video-meta").textContent = format(ui.videoMeta, { platform: meta.platform === "youtube" ? "YouTube" : UiText.i18n.t("B站"), description: count > 1 ? format(ui.series, { count, unit: meta.platform === "youtube" ? ui.videoUnit : ui.partUnit }) : ui.singleVideo });
+    $("scope-all").textContent = format(ui.wholeCourse, { count, unit: meta.platform === "youtube" ? ui.videoUnit : ui.partUnit });
     $("workspace-label").textContent = count > 1 ? ui.chooseLessons : ui.openWorkbench;
   }
 });

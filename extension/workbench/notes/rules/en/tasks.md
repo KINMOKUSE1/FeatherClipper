@@ -30,7 +30,7 @@ Preserve manual annotations and record additions and resolved issues. Present so
 
 Read the original notes before merging; obtain them first if unavailable. Web tasks supplement content for the current source, retain original content, and revise and deliver in rounds following workflow.md
 
-## Review and questions
+## Review & Q&A
 
 Organize explanations, knowledge outlines, or exercises around the current question or exam/project goal. Use examples from provided course materials and existing notes to explain conditions and reasons, labeling supplementary examples clearly
 

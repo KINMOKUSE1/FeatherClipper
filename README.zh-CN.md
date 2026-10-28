@@ -56,10 +56,18 @@ FeatherClipper 是一款面向技术教程和在线课程的 Chrome / Edge 浏�
 
 > 仅复制或导出字幕时，无需连接 Obsidian。本地转写组件按需安装，推荐使用在线服务。
 
+**手动安装：**
 <div align="center">
-安装演示：
 
-https://github.com/user-attachments/assets/293886fa-db54-4d43-8468-c5f47a63a69a
+https://github.com/user-attachments/assets/dac5f572-6b64-4e94-835a-c1d2c3461975
+
+详细操作见[使用说明](./使用说明.md)。
+</div>
+
+**连接 Obsidian:**
+<div align="center">
+
+https://github.com/user-attachments/assets/bfcf0862-cf3f-4f90-88b8-fd87255233e9
 
 详细操作见[使用说明](./使用说明.md)。
 </div>

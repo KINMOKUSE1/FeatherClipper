@@ -122,3 +122,27 @@ test('known product errors translate while unknown provider messages remain inta
   assert.equal(language.error('Provider said: insufficient_quota'), 'Provider said: insufficient_quota');
   await language.setLocale('zh-CN', false);
 });
+
+test('English counts use the controlling count and preserve inserted user text', async () => {
+  await language.setLocale('en', false);
+  const progress = total => copy.format(copy.importButton.progressLabel, { text: 'Import in progress', done: 0, total, cancel: '' });
+  assert.equal(progress(1), 'Import in progress; processed 0 of 1 lesson');
+  assert.equal(progress(2), 'Import in progress; processed 0 of 2 lessons');
+  assert.equal(progress(0), 'Import in progress; processed 0 of 0 lessons');
+  assert.equal(copy.format(copy.history.progressLabel, { imported: 1, total: 1 }), 'Imported 1 of 1 video');
+  assert.equal(copy.format(copy.popup.series, { count: 1, unit: copy.popup.partUnit }), 'Course series · 1 part');
+  assert.equal(copy.format(copy.popup.series, { count: 2, unit: copy.popup.partUnit }), 'Course series · 2 parts');
+  assert.equal(copy.format(copy.catalog.youtubeMeta, { author: 'videos and lessons', count: 1 }), 'videos and lessons · Videos: 1');
+  await language.setLocale('zh-TW', false);
+  assert.equal(copy.format(copy.importButton.progressLabel, { text: '匯入中', done: 0, total: 1, cancel: '' }), '匯入中，已處理 0 個，共 1 個課時');
+  await language.setLocale('zh-CN', false);
+});
+
+test('traditional product copy uses complete characters without changing executable names', async () => {
+  for (const [key, value] of Object.entries(tw)) assert.doesNotMatch(value, /復制|粘貼|稍后|這里|在那里/, key);
+  assert.match(tw['本地转写组件未启动。请运行安装目录中的“启动本地转写.cmd”。'], /启动本地转写\.cmd/);
+  await language.setLocale('en', false);
+  assert.equal(language.t('字幕文件'), 'Subtitle file');
+  assert.equal(language.error('YouTube 字幕文件读取失败，请重试'), 'Could not read the YouTube subtitle file. Please retry');
+  await language.setLocale('zh-CN', false);
+});

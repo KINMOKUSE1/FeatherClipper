@@ -104,8 +104,8 @@ test('popup keeps single-video saves separate from explicit whole-course handoff
   assert.equal(get('import').disabled, true);
 });
 
-async function exportHarness({ languages = false, youtube = false } = {}) {
-  const elements = new Map(), messages = [], copied = [], downloads = [], opened = [];
+async function exportHarness({ languages = false, youtube = false, jobState = null, importState = null } = {}) {
+  const elements = new Map(), messages = [], copied = [], downloads = [], opened = [], storageListeners = [];
   const element = () => ({ set textContent(value) { this.text = value; this.children = []; }, get textContent() { return this.text || ''; }, value: '', children: [], attributes: {}, listeners: {}, style: {}, offsetWidth: 150, offsetHeight: 112, classList: { toggle() {} },
     focus() {}, contains() { return false; },
     getBoundingClientRect() { return { left: 120, top: 220, bottom: 240 }; },
@@ -124,12 +124,12 @@ async function exportHarness({ languages = false, youtube = false } = {}) {
     chrome: {
       downloads: { download: async options => { downloads.push(options); return 1; } },
       tabs: { query: async () => [{ url: youtube ? 'https://www.youtube.com/watch?v=GWwL_pLuX-U' : 'https://www.bilibili.com/video/BV1ps4y1d73V/' }], create: async tab => opened.push(tab) },
-      storage: { local: { get: async () => ({}) }, onChanged: { addListener() {} } },
+      storage: { local: { get: async () => ({}) }, onChanged: { addListener(listener) { storageListeners.push(listener); } } },
       runtime: { getURL: name => `chrome-extension://test/${name}`, sendMessage: async message => {
         messages.push(message);
         if (message.type === 'settings-get') return { ok: true, settings: { hasApiKey: languages || youtube } };
-        if (message.type === 'quick-status') return { ok: true, key: 'job' };
-        if (message.type === 'quick-import') return { ok: true, status: 'saved' };
+        if (message.type === 'quick-status') return { ok: true, key: 'job', state: jobState };
+        if (message.type === 'quick-import') return { ok: true, ...(importState || { status: 'saved' }) };
         if (message.action === 'meta') return { ok: true, folder: 'Study', meta: {
           ...(youtube ? { platform: 'youtube', videoId: message.youtubeId, bvid: `YT_${message.youtubeId}` } : { bvid: message.bvid }), title: 'Export course', author: 'Teacher',
           pages: youtube ? [{ cid: message.youtubeId, page: 1, part: 'Export lesson' }] : [{ cid: '1', page: 1, part: '1. Export: Lesson' }, { cid: '2', page: 2, part: '2. Other' }]
@@ -147,7 +147,7 @@ async function exportHarness({ languages = false, youtube = false } = {}) {
   });
   vm.runInContext(fs.readFileSync(require.resolve('../extension/popup/page.js'), 'utf8'), context);
   await new Promise(setImmediate);
-  return { get, context, messages, copied, downloads, opened };
+  return { get, context, messages, copied, downloads, opened, storageListeners };
 }
 
 test('popup exports full Markdown without Obsidian, including subtitles beyond the preview', async () => {
@@ -336,3 +336,26 @@ test('YouTube uses the existing track menu for previews, exports, imports and wo
   assert.equal(h.get('import').disabled, true);
   assert.equal(h.get('subtitle-language-menu').children.length, 4, 'other tracks remain selectable after failure');
 });
+
+for (const path of ['saved job', 'import response', 'storage update']) {
+  test('popup localizes Obsidian failures from ' + path, async () => {
+    const copy = require('../extension/shared/ui-text.js');
+    const error = '无法连接 Obsidian，请确认它已打开且 Local REST API 正在运行。';
+    const failed = { status: 'failed', error };
+    try {
+      for (const locale of ['en', 'zh-TW', 'zh-CN']) {
+        await copy.i18n.setLocale(locale, false);
+        const h = await exportHarness({ languages: true,
+          jobState: path === 'saved job' ? failed : null,
+          importState: path === 'import response' ? failed : null });
+        if (path === 'import response') await h.get('import').listeners.click();
+        if (path === 'storage update') for (const listener of h.storageListeners) listener({ job: { newValue: failed } }, 'local');
+        assert.equal(h.get('status').textContent, copy.i18n.error(error), locale + ': ' + path);
+        if (path === 'storage update') {
+          for (const listener of h.storageListeners) listener({ job: { newValue: { status: 'failed', error: 'Provider error: insufficient_quota' } } }, 'local');
+          assert.equal(h.get('status').textContent, 'Provider error: insufficient_quota');
+        }
+      }
+    } finally { await copy.i18n.setLocale('zh-CN', false); }
+  });
+}

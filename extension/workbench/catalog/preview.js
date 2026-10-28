@@ -56,7 +56,7 @@ window.createSubtitlePreview = function () {
     const message = document.createElement("p");
     message.className = `preview-message${error ? " error" : ""}`;
     message.setAttribute("role", "status");
-    message.textContent = text;
+    message.textContent = UiText.i18n.error(text);
     document.getElementById("preview-body").replaceChildren(message);
   }
   function transcript(meta, page, body, timestamps = true) {

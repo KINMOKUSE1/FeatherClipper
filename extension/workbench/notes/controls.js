@@ -1,7 +1,7 @@
 /* 笔记页的下拉菜单、按钮和自适应文本框。 */
 window.createNoteControls = function (form) {
   const ui = UiText.notes;
-  const selects = new WeakMap();
+  const selects = new WeakMap(), fileInputs = new WeakMap();
   let selectId = 0;
   function element(tag, className, text) {
     const node = document.createElement(tag);
@@ -34,7 +34,7 @@ window.createNoteControls = function (form) {
     chevron.setAttribute("aria-hidden", "true"); button.append(text, chevron);
     const menu = element("div", "builder-select-menu");
     menu.id = `${button.id}-menu`; menu.setAttribute("popover", "auto"); menu.setAttribute("role", "listbox");
-    menu.setAttribute("aria-label", label?.textContent || select.getAttribute("aria-label")); button.setAttribute("aria-controls", menu.id);
+    button.setAttribute("aria-controls", menu.id);
     const options = [...select.options].map(option => {
       const item = element("button", "builder-select-option", option.textContent);
       item.type = "button"; item.setAttribute("role", "option"); item.disabled = option.disabled;
@@ -46,6 +46,7 @@ window.createNoteControls = function (form) {
       menu.append(item); return item;
     });
     const sync = () => {
+      menu.setAttribute("aria-label", label?.textContent || select.getAttribute("aria-label"));
       text.textContent = select.selectedOptions[0]?.textContent || ui.choose; button.disabled = select.disabled;
       options.forEach((item, index) => {
         item.textContent = select.options[index].textContent;
@@ -74,6 +75,28 @@ window.createNoteControls = function (form) {
     select.before(control); select.hidden = true; control.append(select, button, menu);
     selects.set(select, sync); sync();
   }
+  function decorateFileInput(input) {
+    if (fileInputs.has(input)) { fileInputs.get(input)(); return; }
+    const control = element("div", "builder-file-input");
+    const button = element("button", "builder-file-button");
+    button.type = "button"; button.id = input.id + "-trigger";
+    const label = form.querySelector(`label[for="${input.id}"]`);
+    if (label) label.htmlFor = button.id;
+    const status = element("span", "builder-file-status");
+    status.id = input.id + "-status"; status.setAttribute("role", "status");
+    button.setAttribute("aria-describedby", status.id);
+    button.addEventListener("click", () => input.click());
+    const sync = () => {
+      button.textContent = input.multiple ? ui.chooseFiles : ui.chooseFile;
+      button.disabled = input.disabled;
+      const files = [...input.files];
+      status.textContent = !files.length ? ui.noFiles : files.length === 1 ? files[0].name : UiText.format(ui.filesSelected, { count: files.length });
+      status.title = files.map(file => file.name).join("\n");
+    };
+    input.before(control); input.hidden = true; control.append(input, button, status);
+    input.addEventListener("change", sync);
+    fileInputs.set(input, sync); sync();
+  }
   function resizeTextareas() {
     for (const textarea of form.querySelectorAll("textarea")) {
       if (!textarea.getClientRects().length) continue;
@@ -81,5 +104,5 @@ window.createNoteControls = function (form) {
       textarea.style.height = `${textarea.scrollHeight + textarea.offsetHeight - textarea.clientHeight}px`;
     }
   }
-  return { element, action, decorateSelect, positionSelectMenu, resizeTextareas };
+  return { element, action, decorateSelect, decorateFileInput, positionSelectMenu, resizeTextareas };
 };

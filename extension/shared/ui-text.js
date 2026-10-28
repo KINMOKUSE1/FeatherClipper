@@ -2,8 +2,13 @@
  * HTML marks fixed text with data-i18n; dynamic groups below retain their API. */
 (() => {
   function format(template, values = {}) {
-    const result = template.replace(/\{(\w+)\}/g, (match, key) => values[key] == null ? match : String(values[key]));
-    return language.locale === "en" && Number(values.count) === 1 ? result.replace(/\bvideos\b/g, "video").replace(/\blessons\b/g, "lesson") : result;
+    const singular = language.locale === "en" && Number(values.count ?? values.total) === 1;
+    const singularize = text => text.replace(/\b(videos|lessons|parts)\b/g, word => word.slice(0, -1));
+    return (singular ? singularize(template) : template).replace(/\{(\w+)\}/g, (match, key) => {
+      if (values[key] == null) return match;
+      const value = String(values[key]);
+      return singular && key === "unit" ? singularize(value) : value;
+    });
   }
   const text = { format,
     // 快捷窗口：保存范围、字幕、语言切换和连接提示
@@ -31,6 +36,7 @@
       invalidSource: "请粘贴 B站或 YouTube 视频链接。",
       recognizing: "正在识别视频…",
       videoUnit: "个视频",
+      partUnit: "P",
       singleVideo: "单个视频",
       chooseLessons: "选择分 P",
       openWorkbench: "进入工作台",
@@ -227,7 +233,7 @@
       sync: "安装 skill 至相关目录",
       syncHint: "选择 agent 的 skills 目录或 course-notes 文件夹，写入并核对当前技能文件",
       download: "导出 skill 安装包",
-      copyTask: "复制 skill 使用指令",
+      copyTask: "复制任务指令",
       previewTask: "预览",
       webMaterials: "任务材料",
       webGuide: "复制的同时导出材料，上传到网页 AI 后粘贴指令",
@@ -287,6 +293,10 @@
       copiedWeb: "材料已导出，任务指令已复制",
       copiedLocal: "简短任务指令已复制，将调用已安装的当前技能",
       syncFailed: "同步失败：{error}",
+      chooseFile: "选择文件",
+      chooseFiles: "选择多个文件",
+      noFiles: "未选择文件",
+      filesSelected: "已选择 {count} 个文件",
       filesRead: "已读取 {count} 个文件",
       readFailed: "文件读取失败：{error}",
       exportFailed: "导出失败：{error}",

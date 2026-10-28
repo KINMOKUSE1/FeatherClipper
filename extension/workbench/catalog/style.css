@@ -28,8 +28,9 @@ table { width: 100%; table-layout: fixed; border-collapse: collapse; }
 .number-column { width: 34px; }
 .chapter-column { width: 64px; }
 .status-column { width: 96px; }
+html:lang(en) .status-column { width: 136px; }
 td:nth-child(4) { text-align: center; }
-td:last-child { text-align: right; padding-right: 16px; }
+td:last-child { text-align: center; padding-left: 6px; padding-right: 6px; }
 td:first-child { padding-left: 8px; }
 /* 表格与导航共用悬停、选中变量；当前课时标记使用深蓝灰色 */
 td { padding: 12px 6px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
